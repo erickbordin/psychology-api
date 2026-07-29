@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -43,4 +44,10 @@ public class Usuario {
 
     @OneToMany(mappedBy = "usuario")
     private List<Paciente> pacientes;
+
+    @PrePersist
+    private void prePersist(){
+        this.createdAt = LocalDateTime.now();
+    }
+
 }
