@@ -10,5 +10,5 @@ import com.psychologyapi.psychology_api.model.Usuario;
 public interface UsuarioRepository extends JpaRepository<Usuario, UUID>{
 
     Optional<Usuario> findByEmailUsuario(String email);
-    Optional<Usuario> existsByEmailUsuario(String email);
+    boolean existsByEmailUsuario(String email);
 }
