@@ -19,7 +19,7 @@ public class Consulta {
     
     @Id
     @Column(name = "id_consulta", nullable = false)
-    private UUID id_consulta;
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario", nullable = false)
@@ -30,13 +30,13 @@ public class Consulta {
     private Paciente paciente;
 
     @Column(name = "data_hora_consulta", nullable = false)
-    private LocalDateTime data_hora_consulta;
+    private LocalDateTime dtConsulta;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status_consulta", nullable = false)
     private Status status;
 
     @Column(name = "created_at_consulta", nullable = false)
-    private LocalDateTime createdAt_consulta;
+    private LocalDateTime createdAt;
 
 }

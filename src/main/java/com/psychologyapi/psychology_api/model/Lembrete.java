@@ -17,7 +17,7 @@ public class Lembrete {
 
     @Id
     @Column(name = "id_lembrete", nullable = false)
-    private UUID id_lembrete;
+    private UUID id;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_paciente", nullable = false)
@@ -27,6 +27,6 @@ public class Lembrete {
     private String descricao;
 
     @Column(name = "created_at_lembrete", nullable = false)
-    private LocalDateTime createdAt_lembrete;
+    private LocalDateTime createdAt;
 
 }

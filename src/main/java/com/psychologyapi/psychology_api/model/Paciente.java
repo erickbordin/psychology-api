@@ -24,29 +24,29 @@ public class Paciente {
     @Id
     @Column(name = "id_paciente", nullable = false)
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id_paciente; 
+    private UUID id; 
 
     @ManyToOne
     @JoinColumn(name = "id_usuario", nullable = false)
     private Usuario usuario;
 
     @Column(name = "nm_paciente", nullable = false, length = 100)
-    private String nome_paciente;
+    private String nomePaciente;
     
     @Column(name = "telefone_paciente", nullable = true, length = 20)
-    private String telefone_paciente;
+    private String telefonePaciente;
 
     @Column(name = "email_paciente", nullable = true, length = 100)
-    private String email_paciente;
+    private String emailPaciente;
 
     @Column(name = "dt_nascimento_paciente", nullable = true)
-    private LocalDate data_nascimento_paciente; 
+    private LocalDate dataNascimentoPaciente; 
 
     @Column(name = "observacoes_paciente", nullable = true)
-    private String observacoes_paciente;
+    private String observacoesPaciente;
 
     @Column(name = "created_at_paciente", nullable = false)
-    private LocalDateTime createdAt_paciente;
+    private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "paciente")
     private List<Anotacao> anotacoes;

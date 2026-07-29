@@ -17,7 +17,7 @@ public class Anotacao {
     
     @Id
     @Column(name = "id_anotacao", nullable = false)
-    private UUID id_anotacao;
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario", nullable = false)
@@ -31,5 +31,5 @@ public class Anotacao {
     private String anotacao;
 
     @Column(name = "created_at_anotacao", nullable = false)
-    private LocalDateTime createdAt_anotacao;
+    private LocalDateTime createdAt;
 }
