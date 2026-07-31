@@ -8,6 +8,7 @@ public class PsychologyApiApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(PsychologyApiApplication.class, args);
+		System.out.println("PROD DEPLOY :)");
 	}
 
 }
