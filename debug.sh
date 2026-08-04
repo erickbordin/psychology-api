@@ -9,7 +9,7 @@ else
 fi
 
 # Variáveis de banco para ambiente local
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/psychologydb
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/psychology-api
 export SPRING_DATASOURCE_USERNAME=postgres
 export SPRING_DATASOURCE_PASSWORD=postgres
 
