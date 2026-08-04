@@ -1,11 +1,10 @@
 package com.psychologyapi.psychologyapi.controller;
 
-import org.springframework.boot.autoconfigure.couchbase.CouchbaseProperties.Authentication;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,7 +15,6 @@ import com.psychologyapi.psychologyapi.controller.dto.UsuarioLoginDTO;
 import com.psychologyapi.psychologyapi.service.TokenService;
 import com.psychologyapi.psychologyapi.service.UsuarioService;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import lombok.RequiredArgsConstructor;
 
 @RestController
