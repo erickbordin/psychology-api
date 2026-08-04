@@ -29,7 +29,7 @@ public class AuthController {
     private final UsuarioService usuarioService;
 
 
-    @PostMapping
+    @PostMapping("/registrar")
     public void registrarUsuario(@RequestBody UsuarioCadastroDTO dto){
         usuarioService.cadastrar(dto);
         ResponseEntity.ok();
