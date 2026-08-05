@@ -1,5 +1,7 @@
 package com.psychologyapi.psychologyapi.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,6 +17,7 @@ import com.psychologyapi.psychologyapi.controller.dto.UsuarioLoginDTO;
 import com.psychologyapi.psychologyapi.service.TokenService;
 import com.psychologyapi.psychologyapi.service.UsuarioService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -28,9 +31,9 @@ public class AuthController {
 
 
     @PostMapping("/registrar")
-    public void registrarUsuario(@RequestBody UsuarioCadastroDTO dto){
-        usuarioService.cadastrar(dto);
-        ResponseEntity.ok();
+    public void registrarUsuario(@RequestBody @Valid UsuarioCadastroDTO dto){
+        var usuario = usuarioService.cadastrar(dto);
+        ResponseEntity.status(HttpStatus.CREATED).body(usuario);
     }
 
     @PostMapping("/login")
