@@ -1,13 +1,13 @@
 package com.psychologyapi.psychologyapi.service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
 import com.psychologyapi.psychologyapi.controller.dto.PacienteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.PacienteResponseDTO;
+import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.mapper.PacienteMapper;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
@@ -32,12 +32,19 @@ public class PacienteService {
         return pacienteMapper.toResponseDTO(pacienteSalvo);
     }
 
-    public Optional<Paciente> buscarPorId(UUID id, Usuario usuario){
-        return pacienteRepository.findByIdAndUsuario(id, usuario);
+    public PacienteResponseDTO buscarPorId(UUID id){
+        Usuario usuario = securityService.obterUsuarioLogado();
+        Paciente paciente = pacienteRepository.findByIdAndUsuario(id, usuario).orElseThrow( () -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+        return pacienteMapper.toResponseDTO(paciente);
     }
 
-    public List<Paciente> listarPacietes(String nome){
-        return pacienteRepository.findByNomePacienteContainingIgnoreCase(nome);
-    }
+    public List<PacienteResponseDTO> listarPacientes(String nome){
+    Usuario usuarioLogado = securityService.obterUsuarioLogado();
+    List<Paciente> pacientes = pacienteRepository
+        .findByNomePacienteContainingIgnoreCase(usuarioLogado, nome);
+    return pacientes.stream()
+        .map(pacienteMapper::toResponseDTO)
+        .toList();
+}
 
 }
