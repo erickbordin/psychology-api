@@ -1,0 +1,14 @@
+package com.psychologyapi.psychologyapi.controller.dto;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public record PacienteResponseDTO(
+
+    UUID idPaciente,
+    UUID idUsuario,
+    String nome,
+    String email,
+    LocalDateTime createdAt
+
+) {}
