@@ -11,7 +11,7 @@ import com.psychologyapi.psychologyapi.model.Usuario;
 
 public interface PacienteRepository extends JpaRepository<Paciente, UUID>{
 
-    List<Paciente> findByNomePacienteContainingIgnoreCase(String nome);
+    List<Paciente> findByNomePacienteContainingIgnoreCase(Usuario usuario, String nome);
     Optional<Paciente> findByIdAndUsuario(UUID id, Usuario usuario);
     
 }
