@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -20,11 +21,11 @@ import lombok.Data;
 @Table(name = "paciente", schema = "public")
 @Data
 public class Paciente {
-    
+
     @Id
     @Column(name = "id_paciente", nullable = false)
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id; 
+    private UUID id;
 
     @ManyToOne
     @JoinColumn(name = "id_usuario", nullable = false)
@@ -32,7 +33,7 @@ public class Paciente {
 
     @Column(name = "nm_paciente", nullable = false, length = 100)
     private String nomePaciente;
-    
+
     @Column(name = "telefone_paciente", nullable = true, length = 20)
     private String telefonePaciente;
 
@@ -40,7 +41,7 @@ public class Paciente {
     private String emailPaciente;
 
     @Column(name = "dt_nascimento_paciente", nullable = true)
-    private LocalDate dataNascimentoPaciente; 
+    private LocalDate dataNascimentoPaciente;
 
     @Column(name = "observacoes_paciente", nullable = true)
     private String observacoesPaciente;
@@ -56,4 +57,9 @@ public class Paciente {
 
     @OneToMany(mappedBy = "paciente")
     private List<Lembrete> lembretes;
+
+    @PrePersist
+    private void prePersist() {
+        this.createdAt = LocalDateTime.now();
+    }
 }
