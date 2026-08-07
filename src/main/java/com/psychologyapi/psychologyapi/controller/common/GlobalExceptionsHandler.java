@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroCampoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroRespostaDTO;
+import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
 
 @RestControllerAdvice
@@ -41,5 +42,11 @@ public class GlobalExceptionsHandler {
                 "Erro de validação",
                 listaErro);
     }
+
+    @ExceptionHandler(PacienteNaoEncontradoException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ResponseEntity<String> handlePacienteNaoEncontrado(PacienteNaoEncontradoException e){
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+    }   
 
 }
