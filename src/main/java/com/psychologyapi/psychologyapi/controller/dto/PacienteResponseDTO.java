@@ -9,6 +9,8 @@ public record PacienteResponseDTO(
     UUID idUsuario,
     String nome,
     String email,
+    String telefone,
+    LocalDateTime dataNascimento,
     LocalDateTime createdAt
 
 ) {}
