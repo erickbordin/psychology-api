@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.psychologyapi.psychologyapi.controller.dto.PacienteAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.PacienteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.PacienteResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
@@ -19,32 +20,51 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class PacienteService {
-    
+
     private final PacienteRepository pacienteRepository;
     private final PacienteMapper pacienteMapper;
     private final SecurityService securityService;
 
-    public PacienteResponseDTO cadastrar(PacienteCadastroDTO dto){
+    public PacienteResponseDTO cadastrar(PacienteCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteMapper.toEntity(dto);
-        paciente.setUsuario(usuarioLogado); 
+        paciente.setUsuario(usuarioLogado);
         Paciente pacienteSalvo = pacienteRepository.save(paciente);
         return pacienteMapper.toResponseDTO(pacienteSalvo);
     }
 
-    public PacienteResponseDTO buscarPorId(UUID id){
+    public PacienteResponseDTO buscarPorId(UUID id) {
         Usuario usuario = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(id, usuario).orElseThrow( () -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+        Paciente paciente = pacienteRepository.findByIdAndUsuario(id, usuario)
+                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         return pacienteMapper.toResponseDTO(paciente);
     }
 
-    public List<PacienteResponseDTO> listarPacientes(String nome){
-    Usuario usuarioLogado = securityService.obterUsuarioLogado();
-    List<Paciente> pacientes = pacienteRepository
-        .findByNomePacienteContainingIgnoreCase(usuarioLogado, nome);
-    return pacientes.stream()
-        .map(pacienteMapper::toResponseDTO)
-        .toList();
-}
+    public List<PacienteResponseDTO> listarPacientes(Usuario usuario, String nome) {
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+        List<Paciente> pacientes = pacienteRepository
+                .findByUsuarioAndNomePacienteContainingIgnoreCase(usuarioLogado, nome);
+        return pacientes.stream()
+                .map(pacienteMapper::toResponseDTO)
+                .toList();
+    }
+
+    public PacienteResponseDTO atualizarPaciente(UUID id, PacienteAtualizacaoDTO dto) {
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+        Paciente paciente = pacienteRepository.findByIdAndUsuario(id, usuarioLogado)
+                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+
+        pacienteMapper.atualizarPacienteAPartirDoDto(dto, paciente);
+
+        Paciente pacienteAtualizado = pacienteRepository.save(paciente);
+        return pacienteMapper.toResponseDTO(pacienteAtualizado);
+    }
+
+    public void deletarPaciente(UUID id) {
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+        Paciente paciente = pacienteRepository.findByIdAndUsuario(id, usuarioLogado)
+                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+        pacienteRepository.delete(paciente);
+    }
 
 }
