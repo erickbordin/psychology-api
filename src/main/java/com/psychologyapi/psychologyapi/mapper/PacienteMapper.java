@@ -2,7 +2,9 @@ package com.psychologyapi.psychologyapi.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
+import com.psychologyapi.psychologyapi.controller.dto.PacienteAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.PacienteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.PacienteResponseDTO;
 import com.psychologyapi.psychologyapi.model.Paciente;
@@ -29,5 +31,11 @@ public interface PacienteMapper {
     @Mapping(target = "nome", source = "nomePaciente")
     @Mapping(target = "email", source = "emailPaciente")
     PacienteResponseDTO toResponseDTO(Paciente paciente);
+
+    @Mapping(target = "nomePaciente", source = "dto.nome")
+    @Mapping(target = "telefonePaciente", source = "dto.telefone")
+    @Mapping(target = "emailPaciente", source = "dto.email")
+    @Mapping(target = "dataNascimentoPaciente", source = "dto.dataNascimento")
+    void atualizarPacienteAPartirDoDto(PacienteAtualizacaoDTO dto, @MappingTarget Paciente paciente);
 
 }
