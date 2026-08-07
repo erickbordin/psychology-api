@@ -40,7 +40,7 @@ public class PacienteService {
         return pacienteMapper.toResponseDTO(paciente);
     }
 
-    public List<PacienteResponseDTO> listarPacientes(Usuario usuario, String nome) {
+    public List<PacienteResponseDTO> listarPacientes(String nome) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         List<Paciente> pacientes = pacienteRepository
                 .findByUsuarioAndNomePacienteContainingIgnoreCase(usuarioLogado, nome);
