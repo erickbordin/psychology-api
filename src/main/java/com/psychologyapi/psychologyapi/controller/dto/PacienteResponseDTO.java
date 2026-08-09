@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.controller.dto;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -10,7 +11,7 @@ public record PacienteResponseDTO(
     String nome,
     String email,
     String telefone,
-    LocalDateTime dataNascimento,
+    LocalDate dataNascimento,
     LocalDateTime createdAt
 
 ) {}
