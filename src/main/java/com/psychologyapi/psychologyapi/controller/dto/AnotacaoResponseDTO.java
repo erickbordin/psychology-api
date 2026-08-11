@@ -1,4 +1,13 @@
 package com.psychologyapi.psychologyapi.controller.dto;
 
-public class AnotacaoResponseDTO {
-}
+import java.time.LocalDate;
+import java.util.UUID;
+
+public record AnotacaoResponseDTO(
+
+        UUID id,
+        String conteudo,
+        LocalDate createdAt,
+        UUID pacienteId
+
+) {}
