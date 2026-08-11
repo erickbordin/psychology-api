@@ -3,16 +3,12 @@ package com.psychologyapi.psychologyapi.model;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
 @Table(name = "anotacao", schema = "public")
+@Data
 public class Anotacao {
     
     @Id
@@ -28,8 +24,14 @@ public class Anotacao {
     private Paciente paciente;
 
     @Column(name = "anotacao", nullable = false)
-    private String anotacao;
+    private String conteudo;
 
     @Column(name = "created_at_anotacao", nullable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    private void prePersist() {
+        this.createdAt = LocalDateTime.now();
+    }
+
 }
