@@ -35,9 +35,13 @@ public class Lembrete {
     @Column(name = "created_at_lembrete", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "concluido", nullable = false)
+    private Boolean concluido;
+
     @PrePersist
     private void prePersist() {
         this.createdAt = LocalDateTime.now();
+        this.concluido = false;
     }
 
 }
