@@ -1,8 +1,8 @@
 package com.psychologyapi.psychologyapi.controller;
 
-import com.psychologyapi.psychologyapi.controller.dto.ConsultaAtualizacaoDTO;
-import com.psychologyapi.psychologyapi.controller.dto.ConsultaCadastroDTO;
-import com.psychologyapi.psychologyapi.controller.dto.ConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.service.ConsultaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

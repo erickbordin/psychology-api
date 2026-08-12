@@ -1,4 +1,4 @@
-package com.psychologyapi.psychologyapi.controller.dto;
+package com.psychologyapi.psychologyapi.controller.dto.lembrete;
 
 import jakarta.validation.constraints.NotBlank;
 

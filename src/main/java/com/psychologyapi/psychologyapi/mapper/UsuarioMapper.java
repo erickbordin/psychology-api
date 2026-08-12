@@ -3,8 +3,8 @@ package com.psychologyapi.psychologyapi.mapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import com.psychologyapi.psychologyapi.controller.dto.UsuarioCadastroDTO;
-import com.psychologyapi.psychologyapi.controller.dto.UsuarioResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioResponseDTO;
 import com.psychologyapi.psychologyapi.model.Usuario;
 
 @Mapper(componentModel = "spring")

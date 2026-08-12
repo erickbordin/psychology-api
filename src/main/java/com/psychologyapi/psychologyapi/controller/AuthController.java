@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.psychologyapi.psychologyapi.authsecurity.CustomAuthentication;
 import com.psychologyapi.psychologyapi.controller.dto.TokenResponseDTO;
-import com.psychologyapi.psychologyapi.controller.dto.UsuarioCadastroDTO;
-import com.psychologyapi.psychologyapi.controller.dto.UsuarioLoginDTO;
+import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioLoginDTO;
 import com.psychologyapi.psychologyapi.service.TokenService;
 import com.psychologyapi.psychologyapi.service.UsuarioService;
 

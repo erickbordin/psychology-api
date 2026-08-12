@@ -8,9 +8,9 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
-import com.psychologyapi.psychologyapi.controller.dto.ConsultaAtualizacaoDTO;
-import com.psychologyapi.psychologyapi.controller.dto.ConsultaCadastroDTO;
-import com.psychologyapi.psychologyapi.controller.dto.ConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.mapper.ConsultaMapper;

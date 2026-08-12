@@ -4,9 +4,9 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-import com.psychologyapi.psychologyapi.controller.dto.PacienteAtualizacaoDTO;
-import com.psychologyapi.psychologyapi.controller.dto.PacienteCadastroDTO;
-import com.psychologyapi.psychologyapi.controller.dto.PacienteResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteAtualizacaoDTO;
+import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteResponseDTO;
 import com.psychologyapi.psychologyapi.model.Paciente;
 
 @Mapper(componentModel = "spring")

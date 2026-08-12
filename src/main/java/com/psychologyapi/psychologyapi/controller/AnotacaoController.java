@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.psychologyapi.psychologyapi.controller.dto.AnotacaoCadastroDTO;
-import com.psychologyapi.psychologyapi.controller.dto.AnotacaoResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.anotacao.AnotacaoCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.anotacao.AnotacaoResponseDTO;
 import com.psychologyapi.psychologyapi.service.AnotacaoService;
 
 import jakarta.validation.Valid;

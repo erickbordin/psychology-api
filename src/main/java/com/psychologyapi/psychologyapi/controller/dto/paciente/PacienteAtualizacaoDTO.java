@@ -1,4 +1,4 @@
-package com.psychologyapi.psychologyapi.controller.dto;
+package com.psychologyapi.psychologyapi.controller.dto.paciente;
 
 import java.time.LocalDate;
 

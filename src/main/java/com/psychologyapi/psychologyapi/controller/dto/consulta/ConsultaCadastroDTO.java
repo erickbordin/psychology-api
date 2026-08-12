@@ -1,4 +1,4 @@
-package com.psychologyapi.psychologyapi.controller.dto;
+package com.psychologyapi.psychologyapi.controller.dto.consulta;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

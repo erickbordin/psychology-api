@@ -1,7 +1,7 @@
 package com.psychologyapi.psychologyapi.service;
 
-import com.psychologyapi.psychologyapi.controller.dto.AnotacaoCadastroDTO;
-import com.psychologyapi.psychologyapi.controller.dto.AnotacaoResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.anotacao.AnotacaoCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.anotacao.AnotacaoResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.mapper.AnotacaoMapper;

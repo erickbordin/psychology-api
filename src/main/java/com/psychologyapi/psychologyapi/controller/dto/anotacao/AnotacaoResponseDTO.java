@@ -1,4 +1,4 @@
-package com.psychologyapi.psychologyapi.controller.dto;
+package com.psychologyapi.psychologyapi.controller.dto.anotacao;
 
 import java.time.LocalDate;
 import java.util.UUID;

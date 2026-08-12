@@ -5,8 +5,8 @@ import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.psychologyapi.psychologyapi.controller.dto.UsuarioCadastroDTO;
-import com.psychologyapi.psychologyapi.controller.dto.UsuarioResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
 import com.psychologyapi.psychologyapi.mapper.UsuarioMapper;
 import com.psychologyapi.psychologyapi.model.Usuario;

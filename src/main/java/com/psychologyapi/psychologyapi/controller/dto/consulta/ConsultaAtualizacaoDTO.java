@@ -1,4 +1,4 @@
-package com.psychologyapi.psychologyapi.controller.dto;
+package com.psychologyapi.psychologyapi.controller.dto.consulta;
 
 import com.psychologyapi.psychologyapi.model.Status;
 import java.time.LocalDateTime;

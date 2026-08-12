@@ -1,4 +1,4 @@
-package com.psychologyapi.psychologyapi.controller.dto;
+package com.psychologyapi.psychologyapi.controller.dto.anotacao;
 
 import jakarta.validation.constraints.NotBlank;
 
