@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroCampoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroRespostaDTO;
+import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
@@ -52,7 +53,13 @@ public class GlobalExceptionsHandler {
 
     @ExceptionHandler(ConsultaNaoEncontradaException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ResponseEntity<String> handleConsutlaNaoEncontrada(ConsultaNaoEncontradaException e){
+    public ResponseEntity<String> handleConsultaNaoEncontrada(ConsultaNaoEncontradaException e){
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(AnotacaoNaoEncontradaException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ResponseEntity<String> handleAnotacaoNaoEncontrada(AnotacaoNaoEncontradaException e){
         return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
     }
 
