@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -33,5 +34,10 @@ public class Lembrete {
 
     @Column(name = "created_at_lembrete", nullable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    private void prePersist() {
+        this.createdAt = LocalDateTime.now();
+    }
 
 }
