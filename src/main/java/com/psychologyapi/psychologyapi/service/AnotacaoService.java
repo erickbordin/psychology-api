@@ -27,10 +27,10 @@ public class AnotacaoService {
     private final SecurityService securityService;
     private final PacienteRepository pacienteRepository;
 
-    public AnotacaoResponseDTO cadastrar(AnotacaoCadastroDTO dto) {
+    public AnotacaoResponseDTO cadastrar(UUID pacienteId, AnotacaoCadastroDTO dto) {
 
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(dto.pacienteId(), usuarioLogado)
+        Paciente paciente = pacienteRepository.findByIdAndUsuario(pacienteId, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         Anotacao anotacao = anotacaoMapper.toEntity(dto);
         anotacao.setPaciente(paciente);
@@ -50,9 +50,9 @@ public class AnotacaoService {
                 .map(anotacaoMapper::toResponseDTO).toList();
     }
 
-    public void deletarAnotacao(UUID id) {
+    public void deletarAnotacao(UUID anotacaoId) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Anotacao anotacao = anotacaoRepository.findByIdAndUsuario(id, usuarioLogado)
+        Anotacao anotacao = anotacaoRepository.findByIdAndUsuario(anotacaoId, usuarioLogado)
                 .orElseThrow(() -> new AnotacaoNaoEncontradaException("Anotacao nao encontrada"));
         anotacaoRepository.delete(anotacao);
     }
