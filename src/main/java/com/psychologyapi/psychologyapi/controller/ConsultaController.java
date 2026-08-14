@@ -21,31 +21,31 @@ public class ConsultaController {
     private final ConsultaService consultaService;
 
     @PostMapping
-    public ResponseEntity<Object> cadastrar(@RequestBody @Valid ConsultaCadastroDTO dto){
+    public ResponseEntity<ConsultaResponseDTO> cadastrar(@RequestBody @Valid ConsultaCadastroDTO dto){
         ConsultaResponseDTO consulta = consultaService.cadastrar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(consulta);
     }
 
     @GetMapping
-    public ResponseEntity<Object> listarAgendaDoDia(){
+    public ResponseEntity<List<ConsultaResponseDTO>> listarAgendaDoDia(){
         List<ConsultaResponseDTO> consultas = consultaService.listarAgendaDoDia();
         return ResponseEntity.status(HttpStatus.OK).body(consultas);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Object> buscarPorId(@PathVariable UUID id){
+    public ResponseEntity<ConsultaResponseDTO> buscarPorId(@PathVariable UUID id){
         ConsultaResponseDTO consulta = consultaService.buscarPorId(id);
         return ResponseEntity.status(HttpStatus.OK).body(consulta);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Object> atualizarConsulta(@PathVariable UUID id, @RequestBody ConsultaAtualizacaoDTO dto){
+    public ResponseEntity<ConsultaResponseDTO> atualizarConsulta(@PathVariable UUID id, @RequestBody ConsultaAtualizacaoDTO dto){
         ConsultaResponseDTO consultaAtualizada = consultaService.atualizarConsulta(id, dto);
         return ResponseEntity.status(HttpStatus.OK).body(consultaAtualizada);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletarConsulta(@PathVariable UUID id){
+    public ResponseEntity<ConsultaResponseDTO> deletarConsulta(@PathVariable UUID id){
         consultaService.deletarConsulta(id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
