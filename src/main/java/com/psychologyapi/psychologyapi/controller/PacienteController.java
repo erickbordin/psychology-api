@@ -31,26 +31,26 @@ public class PacienteController {
     private final PacienteService pacienteService;
 
     @PostMapping
-    public ResponseEntity<Object> cadastrarPaciente(@RequestBody @Valid PacienteCadastroDTO dto){
+    public ResponseEntity<PacienteResponseDTO> cadastrarPaciente(@RequestBody @Valid PacienteCadastroDTO dto){
         PacienteResponseDTO paciente = pacienteService.cadastrar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(paciente);
     }
     
     @GetMapping
-    public ResponseEntity<Object> listarPacientes(@RequestParam String nome){
+    public ResponseEntity<List<PacienteResponseDTO>> listarPacientes(@RequestParam String nome){
 
         List<PacienteResponseDTO> listaDePacientes = pacienteService.listarPacientes(nome);
         return ResponseEntity.status(HttpStatus.OK).body(listaDePacientes);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Object> buscarPorId(@PathVariable UUID id){
+    public ResponseEntity<PacienteResponseDTO> buscarPorId(@PathVariable UUID id){
         PacienteResponseDTO paciente = pacienteService.buscarPorId(id);
         return ResponseEntity.status(HttpStatus.OK).body(paciente);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Object> atualizarPaciente(@PathVariable UUID id, @RequestBody PacienteAtualizacaoDTO dto){
+    public ResponseEntity<PacienteResponseDTO> atualizarPaciente(@PathVariable UUID id, @RequestBody PacienteAtualizacaoDTO dto){
         PacienteResponseDTO paciente = pacienteService.atualizarPaciente(id, dto);
         return ResponseEntity.status(HttpStatus.OK).body(paciente);
     }
