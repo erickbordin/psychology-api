@@ -27,14 +27,14 @@ public class AnotacaoController {
     private final AnotacaoService anotacaoService;
 
     @PostMapping("/{pacienteId}/anotacoes")
-    public ResponseEntity<Object> cadastrar(@PathVariable UUID pacienteId,
+    public ResponseEntity<AnotacaoResponseDTO> cadastrar(@PathVariable UUID pacienteId,
             @RequestBody @Valid AnotacaoCadastroDTO dto) {
         AnotacaoResponseDTO anotacao = anotacaoService.cadastrar(pacienteId, dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(anotacao);
     }
 
     @GetMapping("/{pacienteId}/anotacoes")
-    public ResponseEntity<Object> listarPorPaciente(@PathVariable UUID pacienteId) {
+    public ResponseEntity<List<AnotacaoResponseDTO>> listarPorPaciente(@PathVariable UUID pacienteId) {
         List<AnotacaoResponseDTO> anotacao = anotacaoService.listarPorPaciente(pacienteId);
         return ResponseEntity.status(HttpStatus.OK).body(anotacao);
     }
