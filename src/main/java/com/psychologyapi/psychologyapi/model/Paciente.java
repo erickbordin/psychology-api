@@ -58,6 +58,9 @@ public class Paciente {
     @OneToMany(mappedBy = "paciente")
     private List<Lembrete> lembretes;
 
+    @Column(name = "deleted_at_paciente", nullable = false)
+    private LocalDateTime deletedAt;
+
     @PrePersist
     private void prePersist() {
         this.createdAt = LocalDateTime.now();
