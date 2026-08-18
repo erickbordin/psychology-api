@@ -9,9 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
 
-public interface PacienteRepository extends JpaRepository<Paciente, UUID>{
+public interface PacienteRepository extends JpaRepository<Paciente, UUID> {
 
-    List<Paciente> findByUsuarioAndNomePacienteContainingIgnoreCase(Usuario usuario, String nome);
-    Optional<Paciente> findByIdAndUsuario(UUID id, Usuario usuario);
-    
+    Optional<Paciente> findByIdAndUsuarioAndDeletedAtIsNull(UUID id, Usuario usuario);
+    List<Paciente> findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(Usuario usuario, String nome);
 }
