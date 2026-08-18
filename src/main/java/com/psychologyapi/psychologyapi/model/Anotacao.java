@@ -29,6 +29,9 @@ public class Anotacao {
     @Column(name = "created_at_anotacao", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "deleted_at_anotacao", nullable = false)
+    private LocalDateTime deletedAt;
+
     @PrePersist
     private void prePersist() {
         this.createdAt = LocalDateTime.now();
