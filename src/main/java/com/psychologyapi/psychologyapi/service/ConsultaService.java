@@ -11,11 +11,13 @@ import org.springframework.stereotype.Service;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.mapper.ConsultaMapper;
 import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
+import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
@@ -27,9 +29,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ConsultaService {
 
-    private final ConsultaRepository consultaRepository;
-    private final ConsultaMapper consultaMapper;
+    private static final long DURACAO_CONSULTA_MINUTOS = 50;
 
+    private final ConsultaMapper consultaMapper;
+    private final ConsultaRepository consultaRepository;
     private final PacienteRepository pacienteRepository;
     private final SecurityService securityService;
 
@@ -42,6 +45,21 @@ public class ConsultaService {
         Consulta consulta = consultaMapper.toEntity(dto);
         consulta.setUsuario(usuarioLogado);
         consulta.setPaciente(paciente);
+
+        if (dto.dtConsulta() != null) {
+            LocalDateTime inicioJanela = dto.dtConsulta().minusMinutes(DURACAO_CONSULTA_MINUTOS);
+            LocalDateTime fimJanela = dto.dtConsulta().plusMinutes(DURACAO_CONSULTA_MINUTOS);
+
+            List<Consulta> possiveisConflitos = consultaRepository
+                    .findByUsuarioAndDtConsultaBetween(usuarioLogado, inicioJanela, fimJanela);
+
+            boolean existeConflito = possiveisConflitos.stream()
+                    .anyMatch(c -> c.getStatus() != Status.CANCELADA);
+
+            if (existeConflito) {
+                throw new ConflitoDeHorarioException("Ja tem agendamento para este horario");
+            }
+        }
 
         Consulta consultaSalva = consultaRepository.save(consulta);
         return consultaMapper.toResponseDTO(consultaSalva);
@@ -75,6 +93,23 @@ public class ConsultaService {
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
 
         consultaMapper.atualizarConsultaApartirDoDTO(dto, consulta);
+
+        if (dto.dtConsulta() != null) {
+            LocalDateTime inicioJanela = dto.dtConsulta().minusMinutes(DURACAO_CONSULTA_MINUTOS);
+            LocalDateTime fimJanela = dto.dtConsulta().plusMinutes(DURACAO_CONSULTA_MINUTOS);
+
+            List<Consulta> possiveisConflitos = consultaRepository
+                    .findByUsuarioAndDtConsultaBetween(usuarioLogado, inicioJanela, fimJanela);
+
+            boolean existeConflito = possiveisConflitos.stream()
+                    .anyMatch(c -> c.getStatus() != Status.CANCELADA
+                            && !c.getId().equals(consulta.getId()));
+
+            if (existeConflito) {
+                throw new ConflitoDeHorarioException("Ja tem agendamento para este horario");
+            }
+        }
+
         Consulta consultaAtualizada = consultaRepository.save(consulta);
         return consultaMapper.toResponseDTO(consultaAtualizada);
     }
