@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroCampoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroRespostaDTO;
 import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
+import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.LembreteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
@@ -69,5 +70,13 @@ public class GlobalExceptionsHandler {
     public ResponseEntity<String> handleLembreteNaoEncontrado(LembreteNaoEncontradoException e){
         return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
     }
+
+    @ExceptionHandler(ConflitoDeHorarioException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ResponseEntity<String> handelConflitoDeHorario(ConflitoDeHorarioException e){
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
+    }
+
+
 
 }
