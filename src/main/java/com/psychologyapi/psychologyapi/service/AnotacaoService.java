@@ -30,7 +30,7 @@ public class AnotacaoService {
     public AnotacaoResponseDTO cadastrar(UUID pacienteId, AnotacaoCadastroDTO dto) {
 
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(pacienteId, usuarioLogado)
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         Anotacao anotacao = anotacaoMapper.toEntity(dto);
         anotacao.setPaciente(paciente);
@@ -42,7 +42,7 @@ public class AnotacaoService {
 
     public List<AnotacaoResponseDTO> listarPorPaciente(UUID pacienteId) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(pacienteId, usuarioLogado)
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         List<Anotacao> anotacoesDoPaciente = anotacaoRepository.findByPacienteAndUsuarioOrderByCreatedAtDesc(paciente,
                 usuarioLogado);
