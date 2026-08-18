@@ -39,7 +39,7 @@ public class ConsultaService {
     public ConsultaResponseDTO cadastrar(ConsultaCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
 
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(dto.pacienteId(), usuarioLogado)
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(dto.pacienteId(), usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
 
         Consulta consulta = consultaMapper.toEntity(dto);
