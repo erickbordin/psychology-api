@@ -35,7 +35,7 @@ public class PacienteService {
 
     public PacienteResponseDTO buscarPorId(UUID id) {
         Usuario usuario = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(id, usuario)
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuario)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         return pacienteMapper.toResponseDTO(paciente);
     }
@@ -43,7 +43,7 @@ public class PacienteService {
     public List<PacienteResponseDTO> listarPacientes(String nome) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         List<Paciente> pacientes = pacienteRepository
-                .findByUsuarioAndNomePacienteContainingIgnoreCase(usuarioLogado, nome);
+                .findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(usuarioLogado, nome);
         return pacientes.stream()
                 .map(pacienteMapper::toResponseDTO)
                 .toList();
@@ -51,7 +51,7 @@ public class PacienteService {
 
     public PacienteResponseDTO atualizarPaciente(UUID id, PacienteAtualizacaoDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(id, usuarioLogado)
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
 
         pacienteMapper.atualizarPacienteAPartirDoDto(dto, paciente);
@@ -62,7 +62,7 @@ public class PacienteService {
 
     public void deletarPaciente(UUID id) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(id, usuarioLogado)
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         pacienteRepository.delete(paciente);
     }
