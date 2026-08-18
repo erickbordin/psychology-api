@@ -31,7 +31,7 @@ public class LembreteService {
     public LembreteResponseDTO cadastrar(UUID pacienteId, LembreteCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Lembrete lembrete = lembreteMapper.toEntity(dto);
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(pacienteId, usuarioLogado)
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         lembrete.setPaciente(paciente);
         Lembrete lembreteSalvo = lembreteRepository.save(lembrete);
@@ -40,7 +40,7 @@ public class LembreteService {
 
     public List<LembreteResponseDTO> listarPorPaciente(UUID pacienteId) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuario(pacienteId, usuarioLogado)
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         List<Lembrete> lembrete = lembreteRepository.findByPacienteAndPaciente_UsuarioOrderByCreatedAtDesc(paciente,
                 usuarioLogado);
