@@ -12,7 +12,7 @@ import com.psychologyapi.psychologyapi.model.Anotacao;
 
 public interface AnotacaoRepository extends JpaRepository<Anotacao, UUID>{
 
-    Optional<Anotacao> findByIdAndUsuario(UUID id, Usuario usuario);
-    List<Anotacao> findByPacienteAndUsuarioOrderByCreatedAtDesc(Paciente paciente, Usuario usuario);
+    Optional<Anotacao> findByIdAndUsuarioAndDeletedAtIsNull(UUID id, Usuario usuario);
+    List<Anotacao> findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(Paciente paciente, Usuario usuario);
 
 }
