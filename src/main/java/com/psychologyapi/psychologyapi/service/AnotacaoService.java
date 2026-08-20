@@ -8,6 +8,7 @@ import com.psychologyapi.psychologyapi.mapper.AnotacaoMapper;
 import com.psychologyapi.psychologyapi.model.Anotacao;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
@@ -23,40 +24,45 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AnotacaoService {
 
-    private final AnotacaoRepository anotacaoRepository;
-    private final AnotacaoMapper anotacaoMapper;
-    private final SecurityService securityService;
-    private final PacienteRepository pacienteRepository;
+        private final AnotacaoRepository anotacaoRepository;
+        private final AnotacaoMapper anotacaoMapper;
+        private final SecurityService securityService;
+        private final PacienteRepository pacienteRepository;
+        private final AuditoriaService auditoriaService;
 
-    public AnotacaoResponseDTO cadastrar(UUID pacienteId, AnotacaoCadastroDTO dto) {
+        public AnotacaoResponseDTO cadastrar(UUID pacienteId, AnotacaoCadastroDTO dto) {
 
-        Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
-                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
-        Anotacao anotacao = anotacaoMapper.toEntity(dto);
-        anotacao.setPaciente(paciente);
-        anotacao.setUsuario(usuarioLogado);
-        Anotacao anotacaoSalva = anotacaoRepository.save(anotacao);
-        return anotacaoMapper.toResponseDTO(anotacaoSalva);
+                Usuario usuarioLogado = securityService.obterUsuarioLogado();
+                Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
+                                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+                Anotacao anotacao = anotacaoMapper.toEntity(dto);
+                anotacao.setPaciente(paciente);
+                anotacao.setUsuario(usuarioLogado);
+                Anotacao anotacaoSalva = anotacaoRepository.save(anotacao);
+                auditoriaService.registrar(usuarioLogado, AcaoAuditoria.CRIACAO, "Anotacao", anotacaoSalva.getId());
+                return anotacaoMapper.toResponseDTO(anotacaoSalva);
 
-    }
+        }
 
-    public List<AnotacaoResponseDTO> listarPorPaciente(UUID pacienteId) {
-        Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
-                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
-        List<Anotacao> anotacoesDoPaciente = anotacaoRepository.findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente,
-                usuarioLogado);
-        return anotacoesDoPaciente.stream()
-                .map(anotacaoMapper::toResponseDTO).toList();
-    }
+        public List<AnotacaoResponseDTO> listarPorPaciente(UUID pacienteId) {
+                Usuario usuarioLogado = securityService.obterUsuarioLogado();
+                Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
+                                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+                List<Anotacao> anotacoesDoPaciente = anotacaoRepository
+                                .findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente,
+                                                usuarioLogado);
+                auditoriaService.registrar(usuarioLogado, AcaoAuditoria.VISUALIZACAO, "Paciente", paciente.getId());
+                return anotacoesDoPaciente.stream()
+                                .map(anotacaoMapper::toResponseDTO).toList();
+        }
 
-    public void deletarAnotacao(UUID anotacaoId) {
-        Usuario usuarioLogado = securityService.obterUsuarioLogado();   
-        Anotacao anotacao = anotacaoRepository.findByIdAndUsuarioAndDeletedAtIsNull(anotacaoId, usuarioLogado)
-                .orElseThrow(() -> new AnotacaoNaoEncontradaException("Anotacao nao encontrada"));
-        anotacao.setDeletedAt(LocalDateTime.now());
-        anotacaoRepository.delete(anotacao);
-    }
+        public void deletarAnotacao(UUID anotacaoId) {
+                Usuario usuarioLogado = securityService.obterUsuarioLogado();
+                Anotacao anotacao = anotacaoRepository.findByIdAndUsuarioAndDeletedAtIsNull(anotacaoId, usuarioLogado)
+                                .orElseThrow(() -> new AnotacaoNaoEncontradaException("Anotacao nao encontrada"));
+                anotacao.setDeletedAt(LocalDateTime.now());
+                auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Anotacao", anotacao.getId());
+                anotacaoRepository.save(anotacao);
+        }
 
 }
