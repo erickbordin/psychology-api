@@ -51,7 +51,7 @@ public class ConsultaService {
             LocalDateTime fimJanela = dto.dtConsulta().plusMinutes(DURACAO_CONSULTA_MINUTOS);
 
             List<Consulta> possiveisConflitos = consultaRepository
-                    .findByUsuarioAndDtConsultaBetween(usuarioLogado, inicioJanela, fimJanela);
+                    .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(usuarioLogado, inicioJanela, fimJanela);
 
             boolean existeConflito = possiveisConflitos.stream()
                     .anyMatch(c -> c.getStatus() != Status.CANCELADA);
@@ -67,7 +67,7 @@ public class ConsultaService {
 
     public ConsultaResponseDTO buscarPorId(UUID id) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Consulta consulta = consultaRepository.findByIdAndUsuario(id, usuarioLogado)
+        Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
         return consultaMapper.toResponseDTO(consulta);
     }
@@ -79,7 +79,7 @@ public class ConsultaService {
         LocalDateTime fimDoDia = LocalDate.now().atTime(LocalTime.MAX);
 
         List<Consulta> consultas = consultaRepository
-                .findByUsuarioAndDtConsultaBetween(usuarioLogado, inicioDoDia, fimDoDia);
+                .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(usuarioLogado, inicioDoDia, fimDoDia);
 
         return consultas.stream()
                 .map(consultaMapper::toResponseDTO)
@@ -89,7 +89,7 @@ public class ConsultaService {
     public ConsultaResponseDTO atualizarConsulta(UUID id, ConsultaAtualizacaoDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
 
-        Consulta consulta = consultaRepository.findByIdAndUsuario(id, usuarioLogado)
+        Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
 
         consultaMapper.atualizarConsultaApartirDoDTO(dto, consulta);
@@ -99,7 +99,7 @@ public class ConsultaService {
             LocalDateTime fimJanela = dto.dtConsulta().plusMinutes(DURACAO_CONSULTA_MINUTOS);
 
             List<Consulta> possiveisConflitos = consultaRepository
-                    .findByUsuarioAndDtConsultaBetween(usuarioLogado, inicioJanela, fimJanela);
+                    .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(usuarioLogado, inicioJanela, fimJanela);
 
             boolean existeConflito = possiveisConflitos.stream()
                     .anyMatch(c -> c.getStatus() != Status.CANCELADA
@@ -116,9 +116,10 @@ public class ConsultaService {
 
     public void deletarConsulta(UUID id) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Consulta consulta = consultaRepository.findByIdAndUsuario(id, usuarioLogado)
+        Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
-        consultaRepository.delete(consulta);
+        consulta.setDeletedAt(LocalDateTime.now());
+        consultaRepository.save(consulta);
     }
 
 }
