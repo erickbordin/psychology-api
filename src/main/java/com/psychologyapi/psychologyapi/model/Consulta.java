@@ -45,6 +45,9 @@ public class Consulta {
     @Column(name = "created_at_consulta", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "deleted_at_consulta")
+    private LocalDateTime deletedAt;
+
     @PrePersist
     private void prePersist() {
         this.createdAt = LocalDateTime.now();
