@@ -38,6 +38,9 @@ public class Lembrete {
     @Column(name = "concluido", nullable = false)
     private Boolean concluido;
 
+    @Column(name = "deleted_at_lembrete")
+    private LocalDateTime deletedAt;
+
     @PrePersist
     private void prePersist() {
         this.createdAt = LocalDateTime.now();
