@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,21 +43,22 @@ public class LembreteService {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
-        List<Lembrete> lembrete = lembreteRepository.findByPacienteAndPaciente_UsuarioOrderByCreatedAtDesc(paciente,
+        List<Lembrete> lembrete = lembreteRepository.findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente,
                 usuarioLogado);
         return lembrete.stream().map(lembreteMapper::toResponseDTO).toList();
     }
 
     public void deletarLembrete(UUID lembreteId) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Lembrete lembrete = lembreteRepository.findByIdAndPaciente_Usuario(lembreteId, usuarioLogado)
+        Lembrete lembrete = lembreteRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(lembreteId, usuarioLogado)
                 .orElseThrow(() -> new LembreteNaoEncontradoException("Lembrete nao encontrado"));
-        lembreteRepository.delete(lembrete);
+        lembrete.setDeletedAt(LocalDateTime.now());
+        lembreteRepository.save(lembrete);
     }
 
     public LembreteResponseDTO concluir(UUID lembreteId) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        Lembrete lembrete = lembreteRepository.findByIdAndPaciente_Usuario(lembreteId, usuarioLogado)
+        Lembrete lembrete = lembreteRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(lembreteId, usuarioLogado)
                 .orElseThrow(() -> new LembreteNaoEncontradoException("Lembrete nao encontrado"));
         lembrete.setConcluido(true);
         Lembrete lembreteAtualizado = lembreteRepository.save(lembrete);

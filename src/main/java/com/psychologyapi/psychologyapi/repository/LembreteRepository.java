@@ -12,7 +12,7 @@ import com.psychologyapi.psychologyapi.model.Usuario;
 
 public interface LembreteRepository extends JpaRepository<Lembrete, UUID>{
 
-    Optional<Lembrete> findByIdAndPaciente_Usuario(UUID id, Usuario usuario);
-    List<Lembrete> findByPacienteAndPaciente_UsuarioOrderByCreatedAtDesc(Paciente paciente, Usuario usuario);
+    Optional<Lembrete> findByIdAndPaciente_UsuarioAndDeletedAtIsNull(UUID id, Usuario usuario);
+    List<Lembrete> findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(Paciente paciente, Usuario usuario);
     
 }
