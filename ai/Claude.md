@@ -98,7 +98,7 @@ navegação de relacionamento aninhado no nome do método:
 Optional<Lembrete> findByIdAndPaciente_Usuario(UUID id, Usuario usuario);
 ```
 
-### Soft delete (aplicado em `Paciente` e `Anotacao`)
+### Soft delete (aplicado em `Paciente`, `Anotacao`, `Consulta` e `Lembrete`)
 Campo `deletedAt` (`LocalDateTime`, nullable, sem `@PrePersist` — nasce
 `null`). Métodos de repository usados nos fluxos normais têm o sufixo
 `AndDeletedAtIsNull`; **não existem versões sem esse filtro** no repository
@@ -106,8 +106,9 @@ Campo `deletedAt` (`LocalDateTime`, nullable, sem `@PrePersist` — nasce
 qualquer chamada esquecida). "Deletar" no service = `setDeletedAt(now())` +
 `save(...)`, nunca `repository.delete(...)`.
 
-`Consulta` e `Lembrete` ainda não têm soft delete — decisão pendente, ver
-roadmap.
+Cobertura atual: `Paciente`, `Anotacao`, `Consulta` e `Lembrete` — todas as
+entidades de dado do psicólogo. `Usuario` e `LogAuditoria` não têm (o segundo é
+append-only por definição).
 
 ### DTOs
 - Nunca receber entidade JPA completa num DTO de entrada (`Usuario`,
@@ -234,7 +235,11 @@ acidental em cascata; ver soft delete acima como mitigação real).
   `dtConsulta`, ignorando `CANCELADA`) roda em `cadastrar` e
   `atualizarConsulta` — na atualização, exclui a própria consulta da
   comparação e só roda se `dtConsulta` vier preenchido no DTO (permite
-  update parcial). Sem soft delete ainda. Agenda do dia usa `BETWEEN`
+  update parcial). Soft delete ativo — a janela de conflito ignora consulta
+  soft-deletada (o filtro está no próprio
+  `findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull`, com o
+  `AndDeletedAtIsNull` **depois** do `Between`, que já consome os dois
+  parâmetros de intervalo). Agenda do dia usa `BETWEEN`
   (`LocalDate.now().atStartOfDay()` até `.atTime(LocalTime.MAX)`), não
   igualdade — `dtConsulta` é `LocalDateTime`.
 - **`Anotacao`**: sem `PUT` (registro histórico de sessão, não editável).
@@ -242,8 +247,11 @@ acidental em cascata; ver soft delete acima como mitigação real).
   `conteudo` — precisa de `@Mapping` explícito no mapper.
 - **`Lembrete`**: sem `Usuario` direto (só via `Paciente`). Campo
   `concluido` (`Boolean`, default `false` no `@PrePersist`). Sem `PUT`
-  genérico — endpoint dedicado `PATCH /lembretes/{id}/concluir`. Sem soft
-  delete ainda.
+  genérico — endpoint dedicado `PATCH /lembretes/{id}/concluir`. Soft delete
+  ativo — no nome do método de listagem o `AndDeletedAtIsNull` vem **antes** do
+  `OrderBy`
+  (`findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc`);
+  depois do `OrderBy` não parseia.
 - **`LogAuditoria`**: append-only (só `save`, nunca update/delete). Campos:
   `usuario`, `acao` (`CRIACAO/VISUALIZACAO/EXCLUSAO`), `entidade` (String
   livre, ex. `"Anotacao"`), `entidadeId`. Chamado manualmente (sem AOP, por
@@ -269,7 +277,6 @@ clínica, OAuth2/login social.
 
 ## Roadmap conhecido (não implementado)
 
-- Soft delete em `Consulta` e `Lembrete`
 - Auditoria estendida além de `Anotacao` (`Paciente`, no mínimo)
 - Paginação em listagens de `Anotacao`/`Lembrete` (não crítico até haver
   uso real com histórico longo)
