@@ -21,6 +21,9 @@
         <lombok.version>1.18.42</lombok.version>
         <jjwt.version>0.12.7</jjwt.version>
         <springdoc.version>2.8.9</springdoc.version>
+faca o        <!-- docker-java negocia 1.32 por padrao; daemons Docker 25+ exigem no minimo 1.44.
+             Sobrescreva com -Ddocker.api.version=... se o seu daemon for mais antigo. -->
+        <docker.api.version>1.44</docker.api.version>
     </properties>
     <dependencies>
         <dependency>
@@ -95,6 +98,21 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -109,6 +127,15 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
