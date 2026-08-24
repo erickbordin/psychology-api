@@ -17,7 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 @Service
 public class TokenService {
     
-    @Value("${JWT_SECRET}")
+    @Value("${server.jwt.secret}")
     private String secret;
 
     private SecretKey gerarChave(){
