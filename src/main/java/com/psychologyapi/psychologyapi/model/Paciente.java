@@ -58,7 +58,7 @@ public class Paciente {
     @OneToMany(mappedBy = "paciente")
     private List<Lembrete> lembretes;
 
-    @Column(name = "deleted_at_paciente", nullable = false)
+    @Column(name = "deleted_at_paciente")
     private LocalDateTime deletedAt;
 
     @PrePersist
