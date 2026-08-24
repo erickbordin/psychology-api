@@ -303,6 +303,7 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
   (`LocalDate.now().atStartOfDay()` até `.atTime(LocalTime.MAX)`), não
   igualdade — `dtConsulta` é `LocalDateTime`.
 - **`Anotacao`**: sem `PUT` (registro histórico de sessão, não editável).
+  Listagem paginada (ver "Paginação" abaixo).
   Soft delete ativo. Campo da entidade chama-se `anotacao`, DTO usa
   `conteudo` — precisa de `@Mapping` explícito no mapper.
 - **`Lembrete`**: sem `Usuario` direto (só via `Paciente`). Campo
@@ -311,17 +312,58 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
   ativo — no nome do método de listagem o `AndDeletedAtIsNull` vem **antes** do
   `OrderBy`
   (`findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc`);
-  depois do `OrderBy` não parseia.
+  depois do `OrderBy` não parseia. Listagem paginada (ver "Paginação"
+  abaixo).
 - **`LogAuditoria`**: append-only (só `save`, nunca update/delete). Campos:
-  `usuario`, `acao` (`CRIACAO/VISUALIZACAO/EXCLUSAO`), `entidade` (String
-  livre, ex. `"Anotacao"`), `entidadeId`. Chamado manualmente (sem AOP, por
-  escolha deliberada de manter explícito) em `AnotacaoService` e em
-  `PacienteService`, nos 3 pontos de acesso de cada um (criação, leitura
-  individual e exclusão). Listagem nunca é auditada por item: em
-  `AnotacaoService.listarPorPaciente` loga-se o **paciente** visitado, e
-  `PacienteService.listarPacientes` não gera log nenhum. Atualização também
-  não é auditada — o enum não tem `ATUALIZACAO`, e incluí-la é decisão de
-  produto, não de implementação.
+  `usuario`, `acao` (`CRIACAO/VISUALIZACAO/ATUALIZACAO/EXCLUSAO`), `entidade`
+  (String livre, ex. `"Anotacao"`), `entidadeId`. Chamado manualmente (sem
+  AOP, por escolha deliberada de manter explícito) nas quatro entidades de
+  dado do psicólogo:
+  - `Paciente` e `Consulta` — os 4 pontos (criação, leitura individual,
+    atualização, exclusão)
+  - `Anotacao` — 3 pontos; não tem `PUT`, então não há `ATUALIZACAO`
+  - `Lembrete` — 3 pontos; não tem busca por id, então não há
+    `VISUALIZACAO`; `ATUALIZACAO` vem do `PATCH .../concluir`
+
+  **Listagem nunca é auditada por item.** A única exceção é
+  `AnotacaoService.listarPorPaciente`, que loga o **paciente** visitado (não
+  cada anotação). `PacienteService.listarPacientes`,
+  `ConsultaService.listarAgendaDoDia` e `LembreteService.listarPorPaciente`
+  não geram log. Acesso negado (registro de outro psicólogo) também não gera
+  log — a exceção sobe antes do `registrar(...)`.
+
+## Paginação
+
+Aplicada em `Anotacao` e `Lembrete` — as duas listagens que crescem sem
+limite com o uso. `Paciente` e a agenda do dia de `Consulta` continuam
+retornando `List`, porque são naturalmente pequenas.
+
+Padrão das três camadas:
+
+```java
+// repository — Pageable como último parâmetro, retorno Page<>
+Page<X> findBy...OrderByCreatedAtDesc(..., Pageable pageable);
+
+// service — map direto, sem stream/toList
+return pagina.map(xMapper::toResponseDTO);
+
+// controller — PagedModel no corpo, nunca Page
+@GetMapping("/{pacienteId}/recurso")
+public ResponseEntity<PagedModel<XResponseDTO>> listar(@PathVariable UUID pacienteId,
+        @PageableDefault(size = 20) Pageable pageable) {
+    return ResponseEntity.status(HttpStatus.OK).body(new PagedModel<>(servico.listar(pacienteId, pageable)));
+}
+```
+
+Dois detalhes que não são estéticos:
+
+- **`OrderByCreatedAtDesc` continua no nome do método**, mesmo com
+  `Pageable`. `Pageable` sem `sort` respeita a ordenação do nome; `sort` na
+  query string sobrescreve. Remover o `OrderBy` mudaria silenciosamente a
+  ordem padrão.
+- **A resposta é `PagedModel`, nunca `Page`.** Serializar `PageImpl` direto
+  produz JSON de estrutura instável entre versões e o Spring Boot emite
+  aviso. `new PagedModel<>(pagina)` é o envelope estável.
 
 ## Deploy
 
@@ -355,9 +397,6 @@ clínica, OAuth2/login social.
 
 ## Roadmap conhecido (não implementado)
 
-- Paginação em listagens de `Anotacao`/`Lembrete` (não crítico até haver
-  uso real com histórico longo)
 - Consulta recorrente (agendamento semanal automático)
 - Frontend React/TypeScript — não iniciado
-- Auditoria de atualização (exigiria `ATUALIZACAO` no enum `AcaoAuditoria`)
-- Auditoria de `Consulta` e `Lembrete` (hoje só `Anotacao` e `Paciente`)
+- Endpoint de consulta do `LogAuditoria` (hoje só grava, ninguém lê)
