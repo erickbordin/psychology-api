@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -64,7 +65,8 @@ public class PacienteService {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
-        pacienteRepository.delete(paciente);
+        paciente.setDeletedAt(LocalDateTime.now());
+        pacienteRepository.save(paciente);
     }
 
 }
