@@ -25,6 +25,7 @@ import com.psychologyapi.psychologyapi.mapper.LembreteMapper;
 import com.psychologyapi.psychologyapi.model.Lembrete;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.LembreteRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
@@ -41,6 +42,8 @@ class LembreteServiceTest {
     private SecurityService securityService;
     @Mock
     private PacienteRepository pacienteRepository;
+    @Mock
+    private AuditoriaService auditoriaService;
 
     @InjectMocks
     private LembreteService lembreteService;
@@ -67,6 +70,7 @@ class LembreteServiceTest {
                 .isInstanceOf(PacienteNaoEncontradoException.class);
 
         verify(lembreteRepository, never()).save(any());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }
 
     @Test
@@ -105,6 +109,7 @@ class LembreteServiceTest {
 
         assertThat(lembrete.getConcluido()).isTrue();
         verify(lembreteRepository).save(lembrete);
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.ATUALIZACAO, "Lembrete", lembreteId);
     }
 
     @Test
@@ -137,5 +142,6 @@ class LembreteServiceTest {
         assertThat(lembrete.getDeletedAt()).isNotNull();
         verify(lembreteRepository).save(lembrete);
         verify(lembreteRepository, never()).delete(any());
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.EXCLUSAO, "Lembrete", lembreteId);
     }
 }

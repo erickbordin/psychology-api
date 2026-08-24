@@ -32,6 +32,7 @@ import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
@@ -48,6 +49,8 @@ class ConsultaServiceTest {
     private PacienteRepository pacienteRepository;
     @Mock
     private SecurityService securityService;
+    @Mock
+    private AuditoriaService auditoriaService;
 
     @InjectMocks
     private ConsultaService consultaService;
@@ -141,6 +144,7 @@ class ConsultaServiceTest {
         assertThatCode(() -> consultaService.cadastrar(dto)).doesNotThrowAnyException();
 
         verify(consultaRepository).save(nova);
+        verify(auditoriaService).registrar(eq(logado), eq(AcaoAuditoria.CRIACAO), eq("Consulta"), any());
     }
 
     @Test
@@ -160,6 +164,7 @@ class ConsultaServiceTest {
         assertThatCode(() -> consultaService.atualizarConsulta(id, dto)).doesNotThrowAnyException();
 
         verify(consultaRepository).save(alvo);
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.ATUALIZACAO, "Consulta", id);
     }
 
     @Test
@@ -173,6 +178,48 @@ class ConsultaServiceTest {
                 .isInstanceOf(ConsultaNaoEncontradaException.class);
 
         verify(consultaRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("auditoria: consulta registra criacao, visualizacao, atualizacao e exclusao")
+    void consultaEAuditadaNosQuatroPontos() {
+        UUID id = UUID.randomUUID();
+        Consulta consulta = Fixtures.consulta(logado, null, quando, Status.AGENDADA);
+        consulta.setId(id);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, logado)).thenReturn(Optional.of(consulta));
+
+        consultaService.buscarPorId(id);
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.VISUALIZACAO, "Consulta", id);
+
+        consultaService.deletarConsulta(id);
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.EXCLUSAO, "Consulta", id);
+    }
+
+    @Test
+    @DisplayName("auditoria: consulta de outro psicologo nao gera log")
+    void acessoNegadoNaoAudita() {
+        UUID id = UUID.randomUUID();
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, logado)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> consultaService.buscarPorId(id))
+                .isInstanceOf(ConsultaNaoEncontradaException.class);
+
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("auditoria: agenda do dia nao audita cada consulta da lista")
+    void agendaNaoAuditaPorItem() {
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of(Fixtures.consulta(logado, null, quando, Status.AGENDADA)));
+
+        consultaService.listarAgendaDoDia();
+
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }
 
     @Test

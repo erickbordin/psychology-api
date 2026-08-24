@@ -19,6 +19,7 @@ import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
@@ -35,6 +36,7 @@ public class ConsultaService {
     private final ConsultaRepository consultaRepository;
     private final PacienteRepository pacienteRepository;
     private final SecurityService securityService;
+    private final AuditoriaService auditoriaService;
 
     public ConsultaResponseDTO cadastrar(ConsultaCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
@@ -62,6 +64,7 @@ public class ConsultaService {
         }
 
         Consulta consultaSalva = consultaRepository.save(consulta);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.CRIACAO, "Consulta", consultaSalva.getId());
         return consultaMapper.toResponseDTO(consultaSalva);
     }
 
@@ -69,6 +72,7 @@ public class ConsultaService {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.VISUALIZACAO, "Consulta", consulta.getId());
         return consultaMapper.toResponseDTO(consulta);
     }
 
@@ -111,6 +115,7 @@ public class ConsultaService {
         }
 
         Consulta consultaAtualizada = consultaRepository.save(consulta);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "Consulta", consultaAtualizada.getId());
         return consultaMapper.toResponseDTO(consultaAtualizada);
     }
 
@@ -119,6 +124,7 @@ public class ConsultaService {
         Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
         consulta.setDeletedAt(LocalDateTime.now());
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Consulta", consulta.getId());
         consultaRepository.save(consulta);
     }
 

@@ -14,6 +14,7 @@ import com.psychologyapi.psychologyapi.mapper.LembreteMapper;
 import com.psychologyapi.psychologyapi.model.Lembrete;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.LembreteRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
@@ -28,6 +29,7 @@ public class LembreteService {
     private final LembreteMapper lembreteMapper;
     private final SecurityService securityService;
     private final PacienteRepository pacienteRepository;
+    private final AuditoriaService auditoriaService;
 
     public LembreteResponseDTO cadastrar(UUID pacienteId, LembreteCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
@@ -36,6 +38,7 @@ public class LembreteService {
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         lembrete.setPaciente(paciente);
         Lembrete lembreteSalvo = lembreteRepository.save(lembrete);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.CRIACAO, "Lembrete", lembreteSalvo.getId());
         return lembreteMapper.toResponseDTO(lembreteSalvo);
     }
 
@@ -53,6 +56,7 @@ public class LembreteService {
         Lembrete lembrete = lembreteRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(lembreteId, usuarioLogado)
                 .orElseThrow(() -> new LembreteNaoEncontradoException("Lembrete nao encontrado"));
         lembrete.setDeletedAt(LocalDateTime.now());
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Lembrete", lembrete.getId());
         lembreteRepository.save(lembrete);
     }
 
@@ -62,6 +66,7 @@ public class LembreteService {
                 .orElseThrow(() -> new LembreteNaoEncontradoException("Lembrete nao encontrado"));
         lembrete.setConcluido(true);
         Lembrete lembreteAtualizado = lembreteRepository.save(lembrete);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "Lembrete", lembreteAtualizado.getId());
         return lembreteMapper.toResponseDTO(lembreteAtualizado);
     }
 
