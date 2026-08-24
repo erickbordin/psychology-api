@@ -139,9 +139,6 @@ Cobertura atual: `Paciente`, `Anotacao`, `Consulta` e `Lembrete` — todas as
 entidades de dado do psicólogo. `Usuario` e `LogAuditoria` não têm (o segundo é
 append-only por definição).
 
-Atenção: `PacienteService.deletarPaciente` e a entidade `Anotacao` **não
-seguem** essa regra hoje — ver "Divergências conhecidas" no fim deste arquivo.
-
 ### DTOs
 - Nunca receber entidade JPA completa num DTO de entrada (`Usuario`,
   `Paciente` inteiros) — só o `id` relevante (`pacienteId: UUID`), a
@@ -271,10 +268,7 @@ Migrations atuais:
 - `V4__20260819.sql` — cria `log_auditoria` + índices
 - `V5__20260820.sql` — `consulta.deleted_at_consulta` e
   `lembrete.deleted_at_lembrete`
-
-Falta uma migration para `anotacao.deleted_at_anotacao` — a entidade
-`Anotacao` mapeia o campo, mas nenhuma migration cria a coluna (ver
-"Divergências conhecidas" no fim deste arquivo).
+- `V6__20260824.sql` — `anotacao.deleted_at_anotacao`
 
 Tabelas atuais: `usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`,
 `log_auditoria`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
@@ -337,37 +331,23 @@ cadastradas no painel do Render, nunca commitadas.
 
 ## Divergências conhecidas (código × este documento)
 
-Levantadas pela suíte de testes; cada item tem um teste vermelho apontando
-para ele. **Nenhuma foi corrigida ainda** — corrigir exige decisão + revisão
-humana, e a de schema exige migration nova.
+Divergências ainda em aberto entre o código e as regras acima. Três outras
+(exclusão física em `deletarPaciente`, `Anotacao` sem `@GeneratedValue` e a
+migration faltante de `anotacao.deleted_at_anotacao`) foram corrigidas e a
+suíte está verde.
 
-1. **`PacienteService.deletarPaciente` faz exclusão física.** Usa
-   `pacienteRepository.delete(paciente)` em vez de `setDeletedAt(now())` +
-   `save(...)`. Além de furar a regra de soft delete, as FKs não têm
-   `ON DELETE CASCADE`: deletar paciente com consulta/anotação/lembrete
-   estoura violação de FK.
-   Teste: `PacienteServiceTest.deletarAplicaSoftDelete`.
+**Pendência de produção:** a `V6` cria `anotacao.deleted_at_anotacao`. Se o
+banco de produção já recebeu essa coluna por DDL manual, a `V6` falha no
+boot. Conferir antes do deploy e, se for o caso, tratar com `repair` ou
+marcar a migration como já aplicada.
 
-2. **`Anotacao` não tem `@GeneratedValue`.** É a única entidade sem gerador
-   de id, então o `id` chega `null` no insert e o Hibernate recusa o
-   `persist()`.
-   Teste: `AnotacaoRepositoryTest.anotacaoGeraIdAutomaticamente`.
-
-3. **Falta a migration da coluna `anotacao.deleted_at_anotacao`.** A entidade
-   `Anotacao` mapeia `deletedAt` e o `AnotacaoRepository` filtra por ele, mas
-   nenhuma migration cria a coluna — num banco montado só pelo Flyway, todo
-   endpoint de anotação quebra com
-   `column "deleted_at_anotacao" of relation "anotacao" does not exist`.
-   Testes: `SchemaMigrationTest.colunasDeSoftDeleteExistemNoSchema` e
-   `AnotacaoRepositoryTest.naoRetornaAnotacaoDeOutroUsuario`.
-
-4. **`deletedAt` declarado como `nullable = false`** em `Paciente` e
+1. **`deletedAt` declarado como `nullable = false`** em `Paciente` e
    `Anotacao`, contra a regra ("nasce `null`"). Hoje é inofensivo em runtime
    (`ddl-auto` desligado, e o Hibernate delega a checagem à Bean Validation),
    mas contradiz o schema real, onde a coluna é anulável. `Consulta` e
    `Lembrete` estão corretos.
 
-5. **`server.jwt.secret` no `application.properties` não é lido por
+2. **`server.jwt.secret` no `application.properties` não é lido por
    ninguém.** O `TokenService` usa `@Value("${JWT_SECRET}")`, ou seja, lê a
    variável de ambiente direto. A propriedade é resíduo.
 
