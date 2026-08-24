@@ -1,9 +1,10 @@
 package com.psychologyapi.psychologyapi.service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.psychologyapi.psychologyapi.controller.dto.lembrete.LembreteCadastroDTO;
@@ -42,13 +43,14 @@ public class LembreteService {
         return lembreteMapper.toResponseDTO(lembreteSalvo);
     }
 
-    public List<LembreteResponseDTO> listarPorPaciente(UUID pacienteId) {
+    public Page<LembreteResponseDTO> listarPorPaciente(UUID pacienteId, Pageable pageable) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
-        List<Lembrete> lembrete = lembreteRepository.findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente,
-                usuarioLogado);
-        return lembrete.stream().map(lembreteMapper::toResponseDTO).toList();
+        Page<Lembrete> lembretes = lembreteRepository
+                .findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, usuarioLogado,
+                        pageable);
+        return lembretes.map(lembreteMapper::toResponseDTO);
     }
 
     public void deletarLembrete(UUID lembreteId) {

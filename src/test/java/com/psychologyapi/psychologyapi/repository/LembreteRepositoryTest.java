@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 
 import com.psychologyapi.psychologyapi.model.Lembrete;
 import com.psychologyapi.psychologyapi.model.Paciente;
@@ -66,7 +67,9 @@ class LembreteRepositoryTest {
         em.flush();
 
         List<Lembrete> lembretes = lembreteRepository
-                .findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, dono);
+                .findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, dono,
+                        PageRequest.of(0, 20))
+                .getContent();
 
         assertThat(lembretes).extracting(Lembrete::getDescricao).containsExactly("recente", "antigo");
     }

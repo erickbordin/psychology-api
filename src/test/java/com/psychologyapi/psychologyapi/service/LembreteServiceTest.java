@@ -17,6 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.psychologyapi.psychologyapi.controller.dto.lembrete.LembreteCadastroDTO;
 import com.psychologyapi.psychologyapi.exceptions.LembreteNaoEncontradoException;
@@ -82,13 +85,14 @@ class LembreteServiceTest {
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
                 .thenReturn(Optional.of(paciente));
+        Pageable pageable = PageRequest.of(0, 20);
         when(lembreteRepository.findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente,
-                logado)).thenReturn(List.of());
+                logado, pageable)).thenReturn(new PageImpl<>(List.of()));
 
-        lembreteService.listarPorPaciente(pacienteId);
+        lembreteService.listarPorPaciente(pacienteId, pageable);
 
         verify(lembreteRepository)
-                .findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, logado);
+                .findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, logado, pageable);
         verify(lembreteRepository, never()).findAll();
     }
 
