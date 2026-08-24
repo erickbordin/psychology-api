@@ -36,6 +36,35 @@ para Postgres local (`localhost:5432`, banco `psychologydb`, usuário/senha
 Sem essas variáveis de ambiente definidas, a aplicação **não sobe** —
 `PlaceholderResolutionException` no `TokenService`.
 
+## Testes
+
+```bash
+sh ./mvnw test
+```
+
+Duas camadas, ambas em `src/test/java/com/psychologyapi/psychologyapi`:
+
+- **Unitários de service** (`service/`) — Mockito puro, sem Spring e sem
+  banco. Cobrem a regra de isolamento entre usuários (paciente/consulta/
+  anotação/lembrete de outro psicólogo responde `404`), a janela de conflito
+  de horário de ±50 min e a exigência de `save(...)` explícito em toda
+  mutação.
+- **Integração de repository** (`repository/`) — `@DataJpaTest` contra um
+  **Postgres real via Testcontainers**, com as migrations do Flyway aplicadas
+  do zero. Necessário porque o isolamento depende do *nome* do método derivado
+  (`findByIdAndUsuarioAndDeletedAtIsNull`,
+  `findByIdAndPaciente_UsuarioAndDeletedAtIsNull`), e nome de método só vira
+  SQL de verdade contra um banco de verdade. `SchemaMigrationTest` também
+  garante que toda coluna `deleted_at_*` mapeada existe no schema.
+
+Requisitos: Docker rodando (a imagem `postgres:16-alpine` é baixada uma vez).
+O `pom.xml` fixa `api.version=1.44` no surefire — o docker-java negocia 1.32
+por padrão e daemons Docker 25+ recusam. Em daemon mais antigo, sobrescreva
+com `-Ddocker.api.version=...`.
+
+Nenhuma das camadas depende do arquivo de ambiente local nem do Postgres da
+máquina: o container do teste é independente do banco de desenvolvimento.
+
 ## Pacote raiz
 
 `com.psychologyapi.psychologyapi` (sem underline — atenção se encontrar
@@ -109,6 +138,9 @@ qualquer chamada esquecida). "Deletar" no service = `setDeletedAt(now())` +
 Cobertura atual: `Paciente`, `Anotacao`, `Consulta` e `Lembrete` — todas as
 entidades de dado do psicólogo. `Usuario` e `LogAuditoria` não têm (o segundo é
 append-only por definição).
+
+Atenção: `PacienteService.deletarPaciente` e a entidade `Anotacao` **não
+seguem** essa regra hoje — ver "Divergências conhecidas" no fim deste arquivo.
 
 ### DTOs
 - Nunca receber entidade JPA completa num DTO de entrada (`Usuario`,
@@ -214,15 +246,49 @@ Avaliar remoção.
 
 ## Banco de dados
 
-**Schema não é versionado via Flyway**, apesar da dependência estar no
-`pom.xml`. Tabelas foram criadas manualmente (script SQL rodado direto
-no banco, local e produção). Mudanças de schema = `ALTER TABLE` manual,
-**sempre rodado em produção antes do deploy** que depende da mudança —
-é o passo mais fácil de esquecer neste projeto e já causou erro em prod.
+**Schema é versionado via Flyway.** `flyway-core` +
+`flyway-database-postgresql` estão no `pom.xml` e as migrations vivem em
+`src/main/resources/db/migration/`. Não há `spring.flyway.enabled=false`
+nem `spring.jpa.hibernate.ddl-auto` no `application.properties` — ou seja,
+o Flyway roda por auto-configuração no boot e o Hibernate **não** cria nem
+altera tabela (default `none` para datasource não-embarcado).
+
+**Nunca rodar `ALTER TABLE` manual em produção.** Mudança de schema = nova
+migration versionada. Rodar DDL na mão dessincroniza o
+`flyway_schema_history` e quebra o próximo boot (coluna já existente,
+migration marcada como pendente, etc.).
+
+Convenção de nome das migrations deste projeto: `V<n>__<AAAAMMDD>.sql`
+(ex.: `V5__20260820.sql`). Migration já aplicada é imutável — editar o
+arquivo muda o checksum e o Flyway falha na validação. Correção = nova
+migration.
+
+Migrations atuais:
+- `V1__20260730.sql` — cria `usuario`, `paciente`, `consulta`, `anotacao`,
+  `lembrete`
+- `V2__20260812.sql` — `lembrete.concluido`
+- `V3__20260817.sql` — `paciente.deleted_at_paciente`
+- `V4__20260819.sql` — cria `log_auditoria` + índices
+- `V5__20260820.sql` — `consulta.deleted_at_consulta` e
+  `lembrete.deleted_at_lembrete`
+
+Falta uma migration para `anotacao.deleted_at_anotacao` — a entidade
+`Anotacao` mapeia o campo, mas nenhuma migration cria a coluna (ver
+"Divergências conhecidas" no fim deste arquivo).
 
 Tabelas atuais: `usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`,
 `log_auditoria`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
 acidental em cascata; ver soft delete acima como mitigação real).
+
+**Ponto em aberto sobre produção:** se as tabelas de produção foram criadas
+manualmente antes de o Flyway entrar no projeto e nunca houve baseline, a
+`V1` falha no boot ("relation already exists") — não há
+`spring.flyway.baseline-on-migrate` configurado. Confirmar antes do próximo
+deploy:
+
+```sql
+SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank;
+```
 
 ## Entidades e regras específicas
 
@@ -268,6 +334,42 @@ ambiente (`SPRING_DATASOURCE_URL/USERNAME/PASSWORD`, `JWT_SECRET`)
 cadastradas no painel do Render, nunca commitadas.
 `server.port=${PORT:8080}` no `application.properties` — o Render injeta
 `PORT`, não usa `8080` fixo.
+
+## Divergências conhecidas (código × este documento)
+
+Levantadas pela suíte de testes; cada item tem um teste vermelho apontando
+para ele. **Nenhuma foi corrigida ainda** — corrigir exige decisão + revisão
+humana, e a de schema exige migration nova.
+
+1. **`PacienteService.deletarPaciente` faz exclusão física.** Usa
+   `pacienteRepository.delete(paciente)` em vez de `setDeletedAt(now())` +
+   `save(...)`. Além de furar a regra de soft delete, as FKs não têm
+   `ON DELETE CASCADE`: deletar paciente com consulta/anotação/lembrete
+   estoura violação de FK.
+   Teste: `PacienteServiceTest.deletarAplicaSoftDelete`.
+
+2. **`Anotacao` não tem `@GeneratedValue`.** É a única entidade sem gerador
+   de id, então o `id` chega `null` no insert e o Hibernate recusa o
+   `persist()`.
+   Teste: `AnotacaoRepositoryTest.anotacaoGeraIdAutomaticamente`.
+
+3. **Falta a migration da coluna `anotacao.deleted_at_anotacao`.** A entidade
+   `Anotacao` mapeia `deletedAt` e o `AnotacaoRepository` filtra por ele, mas
+   nenhuma migration cria a coluna — num banco montado só pelo Flyway, todo
+   endpoint de anotação quebra com
+   `column "deleted_at_anotacao" of relation "anotacao" does not exist`.
+   Testes: `SchemaMigrationTest.colunasDeSoftDeleteExistemNoSchema` e
+   `AnotacaoRepositoryTest.naoRetornaAnotacaoDeOutroUsuario`.
+
+4. **`deletedAt` declarado como `nullable = false`** em `Paciente` e
+   `Anotacao`, contra a regra ("nasce `null`"). Hoje é inofensivo em runtime
+   (`ddl-auto` desligado, e o Hibernate delega a checagem à Bean Validation),
+   mas contradiz o schema real, onde a coluna é anulável. `Consulta` e
+   `Lembrete` estão corretos.
+
+5. **`server.jwt.secret` no `application.properties` não é lido por
+   ninguém.** O `TokenService` usa `@Value("${JWT_SECRET}")`, ou seja, lê a
+   variável de ambiente direto. A propriedade é resíduo.
 
 ## Fora de escopo (não sugerir sem o usuário pedir explicitamente)
 
