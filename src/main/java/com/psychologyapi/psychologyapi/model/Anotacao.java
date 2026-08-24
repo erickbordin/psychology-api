@@ -12,6 +12,7 @@ import lombok.Data;
 public class Anotacao {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id_anotacao", nullable = false)
     private UUID id;
 

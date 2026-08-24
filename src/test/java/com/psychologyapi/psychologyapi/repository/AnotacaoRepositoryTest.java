@@ -2,8 +2,6 @@ package com.psychologyapi.psychologyapi.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.UUID;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,9 +45,7 @@ class AnotacaoRepositoryTest {
         Usuario intruso = em.persistAndFlush(Fixtures.usuario("intruso@teste.com"));
         Paciente paciente = em.persistAndFlush(Fixtures.paciente(dono, "Ana"));
 
-        Anotacao anotacao = Fixtures.anotacao(dono, paciente, "sessao 1");
-        anotacao.setId(UUID.randomUUID()); // id na mao: a entidade nao tem @GeneratedValue
-        em.persistAndFlush(anotacao);
+        Anotacao anotacao = em.persistAndFlush(Fixtures.anotacao(dono, paciente, "sessao 1"));
 
         assertThat(anotacaoRepository.findByIdAndUsuarioAndDeletedAtIsNull(anotacao.getId(), dono)).isPresent();
         assertThat(anotacaoRepository.findByIdAndUsuarioAndDeletedAtIsNull(anotacao.getId(), intruso)).isEmpty();
