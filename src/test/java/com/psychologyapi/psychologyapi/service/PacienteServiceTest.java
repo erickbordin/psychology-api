@@ -26,6 +26,7 @@ import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException
 import com.psychologyapi.psychologyapi.mapper.PacienteMapper;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
 import com.psychologyapi.psychologyapi.support.Fixtures;
@@ -39,6 +40,8 @@ class PacienteServiceTest {
     private PacienteMapper pacienteMapper;
     @Mock
     private SecurityService securityService;
+    @Mock
+    private AuditoriaService auditoriaService;
 
     @InjectMocks
     private PacienteService pacienteService;
@@ -63,6 +66,51 @@ class PacienteServiceTest {
     }
 
     @Test
+    @DisplayName("cadastrar: registra auditoria de CRIACAO com o id do paciente salvo")
+    void cadastrarRegistraAuditoria() {
+        UUID id = UUID.randomUUID();
+        PacienteCadastroDTO dto = new PacienteCadastroDTO("Ana", null, null, LocalDate.of(1990, 1, 1));
+        Paciente novo = new Paciente();
+        Paciente salvo = Fixtures.paciente(logado, "Ana");
+        salvo.setId(id);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteMapper.toEntity(dto)).thenReturn(novo);
+        when(pacienteRepository.save(novo)).thenReturn(salvo);
+
+        pacienteService.cadastrar(dto);
+
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.CRIACAO, "Paciente", id);
+    }
+
+    @Test
+    @DisplayName("buscarPorId: registra auditoria de VISUALIZACAO do paciente acessado")
+    void buscarPorIdRegistraAuditoria() {
+        UUID id = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(id);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, logado)).thenReturn(Optional.of(paciente));
+
+        pacienteService.buscarPorId(id);
+
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.VISUALIZACAO, "Paciente", id);
+    }
+
+    @Test
+    @DisplayName("listarPacientes: nao audita cada paciente da lista")
+    void listarNaoAuditaCadaPaciente() {
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(logado, "an"))
+                .thenReturn(List.of(Fixtures.paciente(logado, "Ana")));
+
+        pacienteService.listarPacientes("an");
+
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
     @DisplayName("buscarPorId: paciente de outro usuario responde 404, nunca 403")
     void buscarPorIdDeOutroUsuarioLancaNaoEncontrado() {
         UUID id = UUID.randomUUID();
@@ -73,6 +121,7 @@ class PacienteServiceTest {
                 .isInstanceOf(PacienteNaoEncontradoException.class);
 
         verify(pacienteRepository, never()).findById(any());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }
 
     @Test
@@ -118,6 +167,7 @@ class PacienteServiceTest {
         assertThat(paciente.getDeletedAt()).isNotNull();
         verify(pacienteRepository).save(paciente);
         verify(pacienteRepository, never()).delete(any());
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.EXCLUSAO, "Paciente", id);
     }
 
     @Test

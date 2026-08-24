@@ -13,6 +13,7 @@ import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException
 import com.psychologyapi.psychologyapi.mapper.PacienteMapper;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
 
@@ -25,12 +26,14 @@ public class PacienteService {
     private final PacienteRepository pacienteRepository;
     private final PacienteMapper pacienteMapper;
     private final SecurityService securityService;
+    private final AuditoriaService auditoriaService;
 
     public PacienteResponseDTO cadastrar(PacienteCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteMapper.toEntity(dto);
         paciente.setUsuario(usuarioLogado);
         Paciente pacienteSalvo = pacienteRepository.save(paciente);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.CRIACAO, "Paciente", pacienteSalvo.getId());
         return pacienteMapper.toResponseDTO(pacienteSalvo);
     }
 
@@ -38,6 +41,7 @@ public class PacienteService {
         Usuario usuario = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuario)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+        auditoriaService.registrar(usuario, AcaoAuditoria.VISUALIZACAO, "Paciente", paciente.getId());
         return pacienteMapper.toResponseDTO(paciente);
     }
 
@@ -66,6 +70,7 @@ public class PacienteService {
         Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         paciente.setDeletedAt(LocalDateTime.now());
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Paciente", paciente.getId());
         pacienteRepository.save(paciente);
     }
 
