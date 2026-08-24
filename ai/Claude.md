@@ -32,7 +32,7 @@ feature nova, verifique se ela está fora do escopo combinado — ver seção
 
 Carrega `JWT_SECRET` de um `.env` local (não commitado, está no
 `.gitignore`) e sobe com `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` fixos
-para Postgres local (`localhost:5432`, banco `psychologydb`, usuário/senha
+para Postgres local (`localhost:5432`, banco `psychology-api`, usuário/senha
 `postgres`/`postgres`).
 
 Sem essas variáveis de ambiente definidas, a aplicação **não sobe** —
@@ -225,7 +225,9 @@ própria, decisão consciente:
   nunca `null`)
 - `AuthenticationManager` registrado via `ProviderManager` explícito no
   `SecurityConfiguration`, não `AuthenticationConfiguration` automático
-- `TokenService` — gera/valida JWT via `Jwts.builder()`/`Jwts.parser()`
+- `TokenService` — lê o segredo de `@Value("${server.jwt.secret}")`, que o
+  `application.properties` resolve a partir da variável de ambiente
+  `JWT_SECRET`; gera/valida JWT via `Jwts.builder()`/`Jwts.parser()`
   (API do jjwt 0.12.x — `subject()`, `issuedAt()`, `expiration()`,
   `signWith()`, sem prefixo `set`). Token carrega só o `email` como
   subject + `iat`/`exp` padrão.
@@ -238,10 +240,6 @@ própria, decisão consciente:
   logado a partir do contexto; lança `IllegalStateException` (não retorna
   `null`) se a autenticação não for um `CustomAuthentication` — sinal de
   bug de configuração, não caso de uso normal
-
-`CustomUserDetailsService` existe no código mas **não é usado** —
-resíduo de uma abordagem alternativa descartada (`DaoAuthenticationProvider`).
-Avaliar remoção.
 
 ## Banco de dados
 
@@ -317,10 +315,13 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
 - **`LogAuditoria`**: append-only (só `save`, nunca update/delete). Campos:
   `usuario`, `acao` (`CRIACAO/VISUALIZACAO/EXCLUSAO`), `entidade` (String
   livre, ex. `"Anotacao"`), `entidadeId`. Chamado manualmente (sem AOP, por
-  escolha deliberada de manter explícito) em `AnotacaoService` nos 3
-  pontos de acesso — em `listarPorPaciente`, loga o **paciente** visitado,
-  não cada anotação individual da lista. Auditoria hoje só cobre
-  `Anotacao`; `Paciente` ainda não está coberto.
+  escolha deliberada de manter explícito) em `AnotacaoService` e em
+  `PacienteService`, nos 3 pontos de acesso de cada um (criação, leitura
+  individual e exclusão). Listagem nunca é auditada por item: em
+  `AnotacaoService.listarPorPaciente` loga-se o **paciente** visitado, e
+  `PacienteService.listarPacientes` não gera log nenhum. Atualização também
+  não é auditada — o enum não tem `ATUALIZACAO`, e incluí-la é decisão de
+  produto, não de implementação.
 
 ## Deploy
 
@@ -333,25 +334,18 @@ cadastradas no painel do Render, nunca commitadas.
 
 ## Divergências conhecidas (código × este documento)
 
-Divergências ainda em aberto entre o código e as regras acima. Três outras
-(exclusão física em `deletarPaciente`, `Anotacao` sem `@GeneratedValue` e a
-migration faltante de `anotacao.deleted_at_anotacao`) foram corrigidas e a
-suíte está verde.
+**Nenhuma divergência em aberto no momento.** As cinco levantadas pela suíte
+de testes foram corrigidas: exclusão física em `deletarPaciente`, `Anotacao`
+sem `@GeneratedValue`, migration faltante de `anotacao.deleted_at_anotacao`,
+`deletedAt` declarado como `nullable = false` e `server.jwt.secret` órfão.
+A suíte está verde; mantenha esta seção como o lugar de registrar qualquer
+contradição nova entre o código e as regras acima, sempre apontando o teste
+que a pega.
 
 **Pendência de produção:** a `V6` cria `anotacao.deleted_at_anotacao`. Se o
 banco de produção já recebeu essa coluna por DDL manual, a `V6` falha no
 boot. Conferir antes do deploy e, se for o caso, tratar com `repair` ou
 marcar a migration como já aplicada.
-
-1. **`deletedAt` declarado como `nullable = false`** em `Paciente` e
-   `Anotacao`, contra a regra ("nasce `null`"). Hoje é inofensivo em runtime
-   (`ddl-auto` desligado, e o Hibernate delega a checagem à Bean Validation),
-   mas contradiz o schema real, onde a coluna é anulável. `Consulta` e
-   `Lembrete` estão corretos.
-
-2. **`server.jwt.secret` no `application.properties` não é lido por
-   ninguém.** O `TokenService` usa `@Value("${JWT_SECRET}")`, ou seja, lê a
-   variável de ambiente direto. A propriedade é resíduo.
 
 ## Fora de escopo (não sugerir sem o usuário pedir explicitamente)
 
@@ -361,9 +355,9 @@ clínica, OAuth2/login social.
 
 ## Roadmap conhecido (não implementado)
 
-- Auditoria estendida além de `Anotacao` (`Paciente`, no mínimo)
 - Paginação em listagens de `Anotacao`/`Lembrete` (não crítico até haver
   uso real com histórico longo)
 - Consulta recorrente (agendamento semanal automático)
 - Frontend React/TypeScript — não iniciado
-- `CustomUserDetailsService` órfão — decidir remover ou dar uso
+- Auditoria de atualização (exigiria `ATUALIZACAO` no enum `AcaoAuditoria`)
+- Auditoria de `Consulta` e `Lembrete` (hoje só `Anotacao` e `Paciente`)
