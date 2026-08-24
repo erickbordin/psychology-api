@@ -19,8 +19,10 @@ feature nova, verifique se ela está fora do escopo combinado — ver seção
 - `jjwt` 0.12.7 (JWT) — **atenção**: API mudou bastante desde 0.9.x; tutoriais
   antigos (`.setSubject()`, `WebSecurityConfigurerAdapter`) não se aplicam
 - `springdoc-openapi` (Swagger)
-- Flyway está no `pom.xml` mas **não é usado para versionar schema** (ver
+- Flyway — **versiona o schema**, roda por auto-configuração no boot (ver
   seção "Banco de dados" abaixo)
+- Testes: JUnit 5 + Mockito (`spring-boot-starter-test`) e Testcontainers
+  com Postgres para os testes de repository (ver seção "Testes" abaixo)
 
 ## Rodando localmente
 
