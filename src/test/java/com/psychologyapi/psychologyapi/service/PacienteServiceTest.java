@@ -153,6 +153,23 @@ class PacienteServiceTest {
     }
 
     @Test
+    @DisplayName("atualizarPaciente: registra auditoria de ATUALIZACAO")
+    void atualizarRegistraAuditoria() {
+        UUID id = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(id);
+        PacienteAtualizacaoDTO dto = new PacienteAtualizacaoDTO("Ana Maria", null, null, null);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, logado)).thenReturn(Optional.of(paciente));
+        when(pacienteRepository.save(paciente)).thenReturn(paciente);
+
+        pacienteService.atualizarPaciente(id, dto);
+
+        verify(auditoriaService).registrar(logado, AcaoAuditoria.ATUALIZACAO, "Paciente", id);
+    }
+
+    @Test
     @DisplayName("deletarPaciente: exclusao e logica (deletedAt + save), nunca repository.delete")
     void deletarAplicaSoftDelete() {
         UUID id = UUID.randomUUID();

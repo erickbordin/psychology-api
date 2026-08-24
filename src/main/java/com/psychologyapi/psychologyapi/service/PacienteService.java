@@ -62,6 +62,7 @@ public class PacienteService {
         pacienteMapper.atualizarPacienteAPartirDoDto(dto, paciente);
 
         Paciente pacienteAtualizado = pacienteRepository.save(paciente);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "Paciente", pacienteAtualizado.getId());
         return pacienteMapper.toResponseDTO(pacienteAtualizado);
     }
 
