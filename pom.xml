@@ -21,7 +21,7 @@
         <lombok.version>1.18.42</lombok.version>
         <jjwt.version>0.12.7</jjwt.version>
         <springdoc.version>2.8.9</springdoc.version>
-faca o        <!-- docker-java negocia 1.32 por padrao; daemons Docker 25+ exigem no minimo 1.44.
+        <!-- docker-java negocia 1.32 por padrao; daemons Docker 25+ exigem no minimo 1.44.
              Sobrescreva com -Ddocker.api.version=... se o seu daemon for mais antigo. -->
         <docker.api.version>1.44</docker.api.version>
     </properties>
