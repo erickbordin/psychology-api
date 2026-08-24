@@ -15,9 +15,10 @@ import com.psychologyapi.psychologyapi.service.security.SecurityService;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -44,16 +45,15 @@ public class AnotacaoService {
 
         }
 
-        public List<AnotacaoResponseDTO> listarPorPaciente(UUID pacienteId) {
+        public Page<AnotacaoResponseDTO> listarPorPaciente(UUID pacienteId, Pageable pageable) {
                 Usuario usuarioLogado = securityService.obterUsuarioLogado();
                 Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
                                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
-                List<Anotacao> anotacoesDoPaciente = anotacaoRepository
+                Page<Anotacao> anotacoesDoPaciente = anotacaoRepository
                                 .findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente,
-                                                usuarioLogado);
+                                                usuarioLogado, pageable);
                 auditoriaService.registrar(usuarioLogado, AcaoAuditoria.VISUALIZACAO, "Paciente", paciente.getId());
-                return anotacoesDoPaciente.stream()
-                                .map(anotacaoMapper::toResponseDTO).toList();
+                return anotacoesDoPaciente.map(anotacaoMapper::toResponseDTO);
         }
 
         public void deletarAnotacao(UUID anotacaoId) {

@@ -19,6 +19,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.psychologyapi.psychologyapi.controller.dto.anotacao.AnotacaoCadastroDTO;
 import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
@@ -111,13 +114,33 @@ class AnotacaoServiceTest {
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
                 .thenReturn(Optional.of(paciente));
-        when(anotacaoRepository.findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, logado))
-                .thenReturn(List.of(a1, a2));
+        Pageable pageable = PageRequest.of(0, 20);
+        when(anotacaoRepository.findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, logado,
+                pageable)).thenReturn(new PageImpl<>(List.of(a1, a2)));
 
-        anotacaoService.listarPorPaciente(pacienteId);
+        anotacaoService.listarPorPaciente(pacienteId, pageable);
 
         verify(auditoriaService, times(1)).registrar(logado, AcaoAuditoria.VISUALIZACAO, "Paciente", pacienteId);
         verify(auditoriaService, never()).registrar(any(), any(), eq("Anotacao"), any());
+    }
+
+    @Test
+    @DisplayName("listarPorPaciente: repassa o Pageable recebido para o repository")
+    void listarRepassaOPageable() {
+        UUID pacienteId = UUID.randomUUID();
+        Paciente paciente = pacienteDoLogado(pacienteId);
+        Pageable segundaPagina = PageRequest.of(1, 5);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+        when(anotacaoRepository.findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, logado,
+                segundaPagina)).thenReturn(new PageImpl<>(List.of()));
+
+        anotacaoService.listarPorPaciente(pacienteId, segundaPagina);
+
+        verify(anotacaoRepository).findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, logado,
+                segundaPagina);
     }
 
     @Test

@@ -1,8 +1,11 @@
 package com.psychologyapi.psychologyapi.controller;
 
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,9 +37,10 @@ public class AnotacaoController {
     }
 
     @GetMapping("/{pacienteId}/anotacoes")
-    public ResponseEntity<List<AnotacaoResponseDTO>> listarPorPaciente(@PathVariable UUID pacienteId) {
-        List<AnotacaoResponseDTO> anotacao = anotacaoService.listarPorPaciente(pacienteId);
-        return ResponseEntity.status(HttpStatus.OK).body(anotacao);
+    public ResponseEntity<PagedModel<AnotacaoResponseDTO>> listarPorPaciente(@PathVariable UUID pacienteId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<AnotacaoResponseDTO> anotacoes = anotacaoService.listarPorPaciente(pacienteId, pageable);
+        return ResponseEntity.status(HttpStatus.OK).body(new PagedModel<>(anotacoes));
     }
 
 }
