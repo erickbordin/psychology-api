@@ -105,4 +105,23 @@ class ConsultaRepositoryTest {
                 .extracting(Consulta::getSerieId)
                 .isEqualTo(serieId);
     }
+
+    @Test
+    @DisplayName("busca por serie nao vaza serie de outro psicologo nem consulta apagada")
+    void buscaPorSerieRespeitaUsuarioESoftDelete() {
+        Usuario dono = em.persistAndFlush(Fixtures.usuario("dono@teste.com"));
+        Usuario intruso = em.persistAndFlush(Fixtures.usuario("intruso@teste.com"));
+        Paciente paciente = em.persistAndFlush(Fixtures.paciente(dono, "Ana"));
+        UUID serieId = UUID.randomUUID();
+
+        em.persistAndFlush(Fixtures.consultaDeSerie(dono, paciente, INICIO_DO_DIA.plusHours(15), serieId));
+        Consulta apagada = em.persistAndFlush(
+                Fixtures.consultaDeSerie(dono, paciente, INICIO_DO_DIA.plusHours(15).plusWeeks(1), serieId));
+        apagada.setDeletedAt(LocalDateTime.now());
+        em.flush();
+        em.clear();
+
+        assertThat(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, dono)).hasSize(1);
+        assertThat(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, intruso)).isEmpty();
+    }
 }
