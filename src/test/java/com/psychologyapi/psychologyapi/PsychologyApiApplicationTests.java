@@ -1,17 +1,14 @@
 package com.psychologyapi.psychologyapi;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 
-import com.psychologyapi.psychologyapi.support.PostgresContainerConfig;
+import com.psychologyapi.psychologyapi.support.HttpTest;
 
 /**
- * O contexto so sobe com JWT_SECRET resolvivel (TokenService le a variavel
- * direto com @Value) e com um datasource valido, aqui fornecido pelo container.
+ * Usa a mesma anotacao composta dos testes de HTTP para compartilhar o contexto
+ * cacheado com eles, em vez de subir um segundo. Ver support/HttpTest.
  */
-@SpringBootTest(properties = "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=")
-@Import(PostgresContainerConfig.class)
+@HttpTest
 class PsychologyApiApplicationTests {
 
     @Test
