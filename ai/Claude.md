@@ -207,6 +207,18 @@ encontra o bean gerado (`NoSuchBeanDefinitionException`).
   métodos tipo `concluir()` que só setam um campo. Objeto mutado em
   memória sem `save()` não persiste.
 
+### Transação
+`@Transactional` (`org.springframework.transaction.annotation`) aparece em
+exatamente dois métodos do projeto: `ConsultaService.cadastrarSerie` e
+`ConsultaService.cancelarSerie`. É um padrão novo — nenhum outro service
+precisa dele, porque todo outro fluxo de mutação faz um único `save(...)`
+mais, no máximo, um `LogAuditoria.save` associado, e um `save` isolado já é
+atômico. A série recorrente é diferente: `cadastrarSerie` faz N inserts de
+`Consulta` mais N inserts de auditoria, e `cancelarSerie` faz N updates
+(soft delete) mais N inserts de auditoria — tudo-ou-nada, porque uma série
+parcialmente gravada é pior que nenhuma série. Novo método que grave mais
+de uma linha logicamente relacionada segue o mesmo padrão.
+
 ### Controller
 - `@RequestBody` deve vir de `org.springframework.web.bind.annotation`,
   **não** de `io.swagger.v3.oas.annotations.parameters` (erro recorrente
@@ -302,6 +314,7 @@ Migrations atuais:
 - `V5__20260820.sql` — `consulta.deleted_at_consulta` e
   `lembrete.deleted_at_lembrete`
 - `V6__20260824.sql` — `anotacao.deleted_at_anotacao`
+- `V7__20260825.sql` — `consulta.id_serie` + índice `idx_consulta_serie`
 
 Tabelas atuais: `usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`,
 `log_auditoria`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
@@ -334,7 +347,22 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
   `AndDeletedAtIsNull` **depois** do `Between`, que já consome os dois
   parâmetros de intervalo). Agenda do dia usa `BETWEEN`
   (`LocalDate.now().atStartOfDay()` até `.atTime(LocalTime.MAX)`), não
-  igualdade — `dtConsulta` é `LocalDateTime`.
+  igualdade — `dtConsulta` é `LocalDateTime`. Série recorrente é
+  materializada por completo na criação (`POST /consultas/recorrentes`) e
+  agrupada por `serieId` (`id_serie`, `UUID` nullable — sem tabela `serie`,
+  de propósito: uma tabela assim só guardaria o `UUID`, e a regra original
+  não é persistida, então a série não pode ser "estendida", só recriada com
+  um novo `POST`). Cada ocorrência é uma `Consulta` comum — o CRUD normal
+  (`GET`/`PUT`/`DELETE` individuais) vale para ela sem tratamento especial.
+  Horizonte de 2 a 52 ocorrências, explícito (`quantidadeSessoes` ou
+  `dtLimite`, nunca os dois, nunca nenhum). A regra semanal (o `MIN`/`MAX`
+  de ocorrências incluído) mora numa única classe,
+  `service/serie/OcorrenciasSemanais`, lida tanto pelo validador do DTO
+  quanto pelo service — a série gerada nunca diverge da validação que a
+  guarda. Conflito de horário em qualquer ocorrência aborta a série inteira
+  com `409`, antes de qualquer `save`. `DELETE /consultas/series/{serieId}`
+  cancela (soft delete) só as ocorrências futuras; passadas ficam, são
+  histórico clínico.
 - **`Anotacao`**: sem `PUT` (registro histórico de sessão, não editável).
   Listagem paginada (ver "Paginação" abaixo).
   Soft delete ativo. Campo da entidade chama-se `anotacao`, DTO usa
@@ -454,5 +482,4 @@ clínica, OAuth2/login social.
 
 ## Roadmap conhecido (não implementado)
 
-- Consulta recorrente (agendamento semanal automático)
 - Frontend React/TypeScript — não iniciado
