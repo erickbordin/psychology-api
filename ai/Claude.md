@@ -332,10 +332,19 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
   não geram log. Acesso negado (registro de outro psicólogo) também não gera
   log — a exceção sobe antes do `registrar(...)`.
 
+  **Leitura da trilha:** `GET /auditoria` (`AuditoriaService.listar`) devolve
+  os logs do próprio psicólogo logado, paginados, mais recente primeiro
+  (`findByUsuarioOrderByCreatedAtDesc`). Sem filtro por entidade/ação/período —
+  o índice `idx_log_entidade` existe e serve a esse filtro quando ele for
+  pedido, mas o MVP não o expõe. **A leitura da auditoria não é auditada:**
+  além da regra de listagem acima, `id_entidade` é `NOT NULL` e não existe id
+  natural para registrar numa listagem. O `LogAuditoriaResponseDTO` não devolve
+  `usuario` — é sempre o logado.
+
 ## Paginação
 
-Aplicada em `Anotacao` e `Lembrete` — as duas listagens que crescem sem
-limite com o uso. `Paciente` e a agenda do dia de `Consulta` continuam
+Aplicada em `Anotacao`, `Lembrete` e `LogAuditoria` — as listagens que crescem
+sem limite com o uso. `Paciente` e a agenda do dia de `Consulta` continuam
 retornando `List`, porque são naturalmente pequenas.
 
 Padrão das três camadas:
@@ -399,4 +408,3 @@ clínica, OAuth2/login social.
 
 - Consulta recorrente (agendamento semanal automático)
 - Frontend React/TypeScript — não iniciado
-- Endpoint de consulta do `LogAuditoria` (hoje só grava, ninguém lê)
