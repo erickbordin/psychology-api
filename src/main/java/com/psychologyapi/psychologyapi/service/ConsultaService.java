@@ -14,6 +14,7 @@ import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizac
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaRecorrenteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamentoResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
@@ -195,6 +196,28 @@ public class ConsultaService {
     private boolean dentroDaJanela(LocalDateTime existente, LocalDateTime nova) {
         return !existente.isBefore(nova.minusMinutes(DURACAO_CONSULTA_MINUTOS))
                 && !existente.isAfter(nova.plusMinutes(DURACAO_CONSULTA_MINUTOS));
+    }
+
+    @Transactional
+    public SerieCancelamentoResponseDTO cancelarSerie(UUID serieId) {
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+
+        List<Consulta> daSerie = consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, usuarioLogado);
+        if (daSerie.isEmpty()) {
+            throw new ConsultaNaoEncontradaException("Serie nao encontrada");
+        }
+
+        LocalDateTime agora = LocalDateTime.now();
+        List<Consulta> futuras = daSerie.stream()
+                .filter(consulta -> !consulta.getDtConsulta().isBefore(agora))
+                .toList();
+
+        futuras.forEach(consulta -> consulta.setDeletedAt(agora));
+        consultaRepository.saveAll(futuras);
+        futuras.forEach(consulta -> auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Consulta",
+                consulta.getId()));
+
+        return new SerieCancelamentoResponseDTO(serieId, futuras.size());
     }
 
 }

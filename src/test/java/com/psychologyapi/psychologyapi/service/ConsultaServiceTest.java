@@ -27,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaRecorrenteCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamentoResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
@@ -407,5 +408,68 @@ class ConsultaServiceTest {
                         primeira.plusWeeks(3).toLocalDate()));
 
         assertThat(resposta.quantidade()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("cancelarSerie apaga so as ocorrencias futuras, por soft delete, e audita cada uma")
+    void cancelarSerieApagaSoAsFuturas() {
+        UUID serieId = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+
+        Consulta passada = Fixtures.consulta(logado, paciente, LocalDateTime.now().minusWeeks(1), Status.REALIZADA);
+        passada.setId(UUID.randomUUID());
+        passada.setSerieId(serieId);
+        Consulta futura = Fixtures.consulta(logado, paciente, LocalDateTime.now().plusWeeks(1), Status.AGENDADA);
+        futura.setId(UUID.randomUUID());
+        futura.setSerieId(serieId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, logado))
+                .thenReturn(List.of(passada, futura));
+
+        SerieCancelamentoResponseDTO resposta = consultaService.cancelarSerie(serieId);
+
+        assertThat(resposta.ocorrenciasRemovidas()).isEqualTo(1);
+        assertThat(resposta.serieId()).isEqualTo(serieId);
+        assertThat(futura.getDeletedAt()).isNotNull();
+        assertThat(passada.getDeletedAt()).isNull();
+        verify(consultaRepository, never()).delete(any());
+        verify(auditoriaService, times(1)).registrar(logado, AcaoAuditoria.EXCLUSAO, "Consulta", futura.getId());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), eq(passada.getId()));
+    }
+
+    @Test
+    @DisplayName("cancelarSerie de serie sem ocorrencia futura devolve contagem zero, nao 404")
+    void cancelarSerieSemFuturasDevolveZero() {
+        UUID serieId = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+
+        Consulta passada = Fixtures.consulta(logado, paciente, LocalDateTime.now().minusWeeks(1), Status.REALIZADA);
+        passada.setId(UUID.randomUUID());
+        passada.setSerieId(serieId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, logado))
+                .thenReturn(List.of(passada));
+
+        SerieCancelamentoResponseDTO resposta = consultaService.cancelarSerie(serieId);
+
+        assertThat(resposta.ocorrenciasRemovidas()).isZero();
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("cancelarSerie de serie inexistente ou de outro psicologo responde 404")
+    void cancelarSerieInexistente() {
+        UUID serieId = UUID.randomUUID();
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, logado)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> consultaService.cancelarSerie(serieId))
+                .isInstanceOf(ConsultaNaoEncontradaException.class);
+
+        verify(consultaRepository, never()).saveAll(anyList());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }
 }
