@@ -1,6 +1,7 @@
 package com.psychologyapi.psychologyapi.support;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.psychologyapi.psychologyapi.model.Anotacao;
 import com.psychologyapi.psychologyapi.model.Consulta;
@@ -8,6 +9,8 @@ import com.psychologyapi.psychologyapi.model.Lembrete;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
+import com.psychologyapi.psychologyapi.model.entity.LogAuditoria;
 
 /** Entidades minimas validas para os testes. */
 public final class Fixtures {
@@ -52,5 +55,14 @@ public final class Fixtures {
         anotacao.setPaciente(paciente);
         anotacao.setConteudo(conteudo);
         return anotacao;
+    }
+
+    public static LogAuditoria logAuditoria(Usuario dono, AcaoAuditoria acao, String entidade, UUID entidadeId) {
+        LogAuditoria log = new LogAuditoria();
+        log.setUsuario(dono);
+        log.setAcao(acao);
+        log.setEntidade(entidade);
+        log.setEntidadeId(entidadeId);
+        return log;
     }
 }
