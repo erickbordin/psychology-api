@@ -11,6 +11,8 @@ import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.service.TokenService;
 import com.psychologyapi.psychologyapi.service.UsuarioService;
 
+import io.jsonwebtoken.JwtException;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,13 +36,20 @@ public class JwtCustomtAuthenticationFilter extends OncePerRequestFilter {
 
         if (authorization != null && authorization.startsWith("Bearer ")) {
             String token = authorization.substring("Bearer ".length());
-            String email = tokenService.validarTokenERetornarEmail(token);
-            Optional<Usuario> usuario = usuarioService.obterPorEmail(email);
-            if (usuario.isPresent()) {
-                CustomAuthentication authentication = new CustomAuthentication(usuario.get());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            try {
+                String email = tokenService.validarTokenERetornarEmail(token);
+                Optional<Usuario> usuario = usuarioService.obterPorEmail(email);
+                if (usuario.isPresent()) {
+                    CustomAuthentication authentication = new CustomAuthentication(usuario.get());
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+            } catch (JwtException | IllegalArgumentException e) {
+                // Token expirado, malformado ou com assinatura de outro segredo e caso
+                // de uso normal (o token vive 15 min), nao erro de servidor. Sem
+                // este catch a excecao sobe do filtro, antes do DispatcherServlet,
+                // onde o @RestControllerAdvice nao alcanca, e o cliente recebe 500.
+                SecurityContextHolder.clearContext();
             }
-
         }
         filterChain.doFilter(request, response);
 
