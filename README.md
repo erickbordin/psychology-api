@@ -84,18 +84,28 @@ arquivo muda o checksum e o Flyway falha na validação.
 
 Seis migrations até aqui (`V1` a `V6`), nomeadas `V<n>__<AAAAMMDD>.sql`.
 
-### Testes em duas camadas
+### Testes em três camadas
 
 - **Unitários de service** — Mockito puro, sem Spring e sem banco. Cobrem o
   isolamento entre usuários, a janela de conflito de horário e a exigência de
   `save(...)` explícito em toda mutação.
 - **Integração de repository** — `@DataJpaTest` contra um **PostgreSQL real via
   Testcontainers**, com as migrations aplicadas do zero.
+- **HTTP** — `@SpringBootTest` + `MockMvc` sobre o mesmo container. Cobre filtro
+  JWT, cadeia de segurança, binding, serialização do `PagedModel` e o
+  `@RestControllerAdvice`.
 
-A segunda camada não é redundante: o isolamento depende do *nome* do método
+Nenhuma das camadas é redundante. O isolamento depende do *nome* do método
 derivado (`findByIdAndPaciente_UsuarioAndDeletedAtIsNull`), e nome de método só
-vira SQL de verdade contra um banco de verdade. Um mock aprovaria um nome
-sintaticamente errado.
+vira SQL de verdade contra um banco de verdade — um mock aprovaria um nome
+sintaticamente errado. E a camada HTTP é a única que exercita a segurança: ela
+não usa `@WebMvcTest` de propósito, porque a autenticação aqui é customizada e
+fatiar exigiria remontá-la com mocks, validando o mock em vez da fiação real.
+
+Foi a camada HTTP que revelou, ao entrar, que o registro respondia `200` em vez
+de `201`, que token expirado virava `500` (exceção subindo de dentro do filtro,
+fora do alcance do `@RestControllerAdvice`) e que requisição sem token
+respondia `403` em vez de `401`. Os três corrigidos.
 
 `SchemaMigrationTest` garante que toda coluna `deleted_at_*` mapeada existe no
 schema — o mapeamento não pode divergir da migration sem quebrar a suíte.
@@ -107,6 +117,11 @@ Não usa `DaoAuthenticationProvider`. `CustomAuthenticationProvider` +
 `AuthenticationManager` registrado via `ProviderManager` explícito.
 `JwtCustomtAuthenticationFilter` (`OncePerRequestFilter`) valida o token e popula
 o `SecurityContextHolder`; sessão `STATELESS`, `/auth/**` público, resto autenticado.
+
+Token inválido ou expirado não propaga exceção: o filtro segue sem autenticar e a
+cadeia responde `401`, via `HttpStatusEntryPoint`. Exceção lançada num filtro sobe
+antes do `DispatcherServlet`, onde o `@RestControllerAdvice` não alcança — sem esse
+tratamento, um token vencido (a validade é de 15 min) devolveria `500`.
 
 ### Paginação com `PagedModel`
 
@@ -155,7 +170,8 @@ próprio id.
 Erros seguem semântica HTTP explícita, centralizados num `@RestControllerAdvice`:
 `401` credencial inválida, `404` não encontrado (inclui registro de outro
 profissional), `409` duplicado ou conflito de horário, `400` validação — com a
-lista de campo + mensagem.
+lista de campo + mensagem. Requisição sem token, ou com token expirado ou
+inválido, responde `401` pela própria cadeia de segurança.
 
 ## Rodando localmente
 
@@ -196,6 +212,7 @@ src/main/java/com/psychologyapi/psychologyapi/
 src/main/resources/db/migration/   # migrations Flyway (V1..V6)
 src/test/java/.../service/         # unitários (Mockito)
 src/test/java/.../repository/      # integração (Testcontainers)
+src/test/java/.../controller/      # HTTP (MockMvc sobre o mesmo container)
 ```
 
 ## Deploy
