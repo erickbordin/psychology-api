@@ -2,7 +2,10 @@ package com.psychologyapi.psychologyapi.controller;
 
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaRecorrenteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamentoResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.service.ConsultaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -50,5 +53,17 @@ public class ConsultaController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
+    @PostMapping("/recorrentes")
+    public ResponseEntity<SerieConsultaResponseDTO> cadastrarSerie(
+            @RequestBody @Valid ConsultaRecorrenteCadastroDTO dto) {
+        SerieConsultaResponseDTO serie = consultaService.cadastrarSerie(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(serie);
+    }
+
+    @DeleteMapping("/series/{serieId}")
+    public ResponseEntity<SerieCancelamentoResponseDTO> cancelarSerie(@PathVariable UUID serieId) {
+        SerieCancelamentoResponseDTO cancelamento = consultaService.cancelarSerie(serieId);
+        return ResponseEntity.status(HttpStatus.OK).body(cancelamento);
+    }
 
 }
