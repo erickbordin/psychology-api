@@ -13,6 +13,7 @@ import com.psychologyapi.psychologyapi.authsecurity.CustomAuthentication;
 import com.psychologyapi.psychologyapi.controller.dto.TokenResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioLoginDTO;
+import com.psychologyapi.psychologyapi.controller.dto.usuario.UsuarioResponseDTO;
 import com.psychologyapi.psychologyapi.service.TokenService;
 import com.psychologyapi.psychologyapi.service.UsuarioService;
 
@@ -30,9 +31,9 @@ public class AuthController {
 
 
     @PostMapping("/registrar")
-    public void registrarUsuario(@RequestBody @Valid UsuarioCadastroDTO dto){
-        var usuario = usuarioService.cadastrar(dto);
-        ResponseEntity.status(HttpStatus.CREATED).body(usuario);
+    public ResponseEntity<UsuarioResponseDTO> registrarUsuario(@RequestBody @Valid UsuarioCadastroDTO dto){
+        UsuarioResponseDTO usuario = usuarioService.cadastrar(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuario);
     }
 
     @PostMapping("/login")
