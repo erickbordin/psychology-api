@@ -225,8 +225,9 @@ apenas uma ocorrência: `400`, com a mensagem indicando o intervalo válido.
 Essa validação depende de `dtPrimeiraConsulta`, então **não** cabe na constraint de
 campo: ela roda junto do XOR, na constraint de classe.
 
-Data no passado é **permitida**, para não divergir do `POST /consultas` avulso,
-que também não valida isso.
+`dtPrimeiraConsulta` leva `@Future`, igual ao `dtConsulta` do `POST /consultas`
+avulso, que já valida isso. (Correção: uma versão anterior desta spec afirmava o
+contrário sobre o cadastro avulso.)
 
 ### Validação de conflito
 
