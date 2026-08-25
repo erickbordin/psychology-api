@@ -44,7 +44,7 @@ Sem essas variáveis de ambiente definidas, a aplicação **não sobe** —
 sh ./mvnw test
 ```
 
-Duas camadas, ambas em `src/test/java/com/psychologyapi/psychologyapi`:
+Tres camadas, todas em `src/test/java/com/psychologyapi/psychologyapi`:
 
 - **Unitários de service** (`service/`) — Mockito puro, sem Spring e sem
   banco. Cobrem a regra de isolamento entre usuários (paciente/consulta/
@@ -58,6 +58,16 @@ Duas camadas, ambas em `src/test/java/com/psychologyapi/psychologyapi`:
   `findByIdAndPaciente_UsuarioAndDeletedAtIsNull`), e nome de método só vira
   SQL de verdade contra um banco de verdade. `SchemaMigrationTest` também
   garante que toda coluna `deleted_at_*` mapeada existe no schema.
+- **HTTP** (`controller/`) — `@SpringBootTest` + `MockMvc` sobre o mesmo
+  container, via a anotacao composta `support/HttpTest`. Cobre o que so existe
+  sobre HTTP e nenhuma das outras camadas exercita: o filtro JWT, a cadeia de
+  seguranca, o binding de `@RequestBody`/`Pageable`, a serializacao do
+  `PagedModel` e o `GlobalExceptionsHandler`. Nao usa `@WebMvcTest` de
+  proposito: a seguranca aqui e toda customizada (filtro proprio,
+  `CustomAuthentication`, `ProviderManager` explicito), entao fatiar exigiria
+  remontar essa fiacao com mocks e o teste passaria a validar o mock, nao a
+  fiacao. Os testes pegam o token injetando o `TokenService` e chamando
+  `gerarToken(email)` — nao passam pelo `/auth/login`, que tem teste proprio.
 
 Requisitos: Docker rodando (a imagem `postgres:16-alpine` é baixada uma vez).
 O `pom.xml` fixa `api.version=1.44` no surefire — o docker-java negocia 1.32
@@ -66,6 +76,16 @@ com `-Ddocker.api.version=...`.
 
 Nenhuma das camadas depende do arquivo de ambiente local nem do Postgres da
 máquina: o container do teste é independente do banco de desenvolvimento.
+
+`support/HttpTest` é uma anotação composta (`@SpringBootTest` com `JWT_SECRET`
+de teste + `@Import(PostgresContainerConfig)` + `@AutoConfigureMockMvc` +
+`@Transactional`) e **toda** classe de teste que sobe contexto completo usa ela,
+inclusive `PsychologyApiApplicationTests`. Dois motivos: `MockMvc` roda na mesma
+thread do teste, então o `@Transactional` rola a transação de volta e uma classe
+não suja o banco da outra; e anotação idêntica significa a mesma chave de cache
+de contexto no Spring — um único boot para a suíte inteira. Declarar
+`@SpringBootTest` direto numa classe nova cria um segundo contexto e dobra o
+tempo da suíte.
 
 ## Pacote raiz
 
@@ -214,6 +234,13 @@ ou `ResponseEntity` explícito:
 - `XNaoEncontradoException` (Paciente, Consulta, Anotacao, Lembrete) → `404`
 - `MethodArgumentNotValidException` → `400`, com lista de campo+mensagem
 
+Requisição sem token, ou com token expirado/malformado/assinado com outro
+segredo, responde `401` — vindo do `HttpStatusEntryPoint` registrado no
+`SecurityConfiguration`, **não** do `GlobalExceptionsHandler`. Exceção lançada
+dentro de um filtro sobe antes do `DispatcherServlet`, onde
+`@RestControllerAdvice` não alcança; por isso o filtro JWT engole
+`JwtException` e segue sem autenticação, deixando a cadeia responder.
+
 ## Autenticação (JWT stateless, implementação manual)
 
 Não usa `DaoAuthenticationProvider` padrão do Spring — implementação
@@ -233,9 +260,15 @@ própria, decisão consciente:
   subject + `iat`/`exp` padrão.
 - `JwtCustomtAuthenticationFilter` (`OncePerRequestFilter`) — lê
   `Authorization: Bearer ...` em toda requisição, valida token, popula
-  `SecurityContextHolder`
+  `SecurityContextHolder`. Token inválido ou expirado é `catch` de
+  `JwtException`/`IllegalArgumentException` + `clearContext()`, não exceção
+  propagada: token vive 15 min, então expirar é caso de uso normal, e exceção
+  de filtro viraria `500`
 - `SecurityConfiguration` — `SecurityFilterChain` com CSRF desabilitado,
-  sessão `STATELESS`, `/auth/**` público, resto autenticado
+  sessão `STATELESS`, `/auth/**` público, resto autenticado, e
+  `authenticationEntryPoint(new HttpStatusEntryPoint(UNAUTHORIZED))` — sem isso
+  o default do Spring Security devolve `403` para requisição não autenticada,
+  que é a resposta errada para uma API Bearer stateless
 - `SecurityService.obterUsuarioLogado()` — ponto único de acesso ao usuário
   logado a partir do contexto; lança `IllegalStateException` (não retorna
   `null`) se a autenticação não for um `CustomAuthentication` — sinal de
@@ -385,13 +418,28 @@ cadastradas no painel do Render, nunca commitadas.
 
 ## Divergências conhecidas (código × este documento)
 
-**Nenhuma divergência em aberto no momento.** As cinco levantadas pela suíte
-de testes foram corrigidas: exclusão física em `deletarPaciente`, `Anotacao`
-sem `@GeneratedValue`, migration faltante de `anotacao.deleted_at_anotacao`,
-`deletedAt` declarado como `nullable = false` e `server.jwt.secret` órfão.
-A suíte está verde; mantenha esta seção como o lugar de registrar qualquer
-contradição nova entre o código e as regras acima, sempre apontando o teste
-que a pega.
+**Nenhuma divergência em aberto no momento.** As cinco levantadas pela suíte de
+service/repository foram corrigidas: exclusão física em `deletarPaciente`,
+`Anotacao` sem `@GeneratedValue`, migration faltante de
+`anotacao.deleted_at_anotacao`, `deletedAt` declarado como `nullable = false` e
+`server.jwt.secret` órfão.
+
+A camada de teste HTTP, ao entrar, pegou outras três — todas corrigidas:
+
+- `AuthController.registrarUsuario` era `void` e montava um `ResponseEntity`
+  que descartava: respondia `200` com corpo vazio, nunca `201`. Exatamente a
+  regra de controller listada acima. Pego por
+  `AuthControllerTest.registrarResponde201`.
+- Token malformado, expirado ou assinado com outro segredo fazia o
+  `JwtException` subir de dentro do filtro, virando `500`. Pego por
+  `SegurancaHttpTest.tokenMalformadoResponde401` e
+  `tokenComAssinaturaInvalidaResponde401`.
+- Requisição sem token respondia `403`, não `401` — entry point default do
+  Spring Security. Pego por `SegurancaHttpTest.semTokenResponde401`.
+
+A suíte está verde (68 testes); mantenha esta seção como o lugar de registrar
+qualquer contradição nova entre o código e as regras acima, sempre apontando o
+teste que a pega.
 
 **Pendência de produção:** a `V6` cria `anotacao.deleted_at_anotacao`. Se o
 banco de produção já recebeu essa coluna por DDL manual, a `V6` falha no
