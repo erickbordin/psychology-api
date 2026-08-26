@@ -75,4 +75,23 @@ class PacienteRepositoryTest {
 
         assertThat(encontrados).extracting(Paciente::getNomePaciente).containsExactly("Ana");
     }
+
+    @Test
+    @DisplayName("listagem sem filtro de nome traz todos os pacientes do dono, ignora outro psicologo e excluido")
+    void listagemPorUsuarioFiltraDonoESoftDelete() {
+        Usuario dono = em.persistAndFlush(Fixtures.usuario("dono@teste.com"));
+        Usuario intruso = em.persistAndFlush(Fixtures.usuario("intruso@teste.com"));
+
+        em.persistAndFlush(Fixtures.paciente(dono, "Ana"));
+        em.persistAndFlush(Fixtures.paciente(dono, "Bruno"));
+        em.persistAndFlush(Fixtures.paciente(intruso, "Carla"));
+
+        Paciente excluido = em.persistAndFlush(Fixtures.paciente(dono, "Excluido"));
+        excluido.setDeletedAt(LocalDateTime.now());
+        em.flush();
+
+        List<Paciente> encontrados = pacienteRepository.findByUsuarioAndDeletedAtIsNull(dono);
+
+        assertThat(encontrados).extracting(Paciente::getNomePaciente).containsExactlyInAnyOrder("Ana", "Bruno");
+    }
 }

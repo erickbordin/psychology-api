@@ -13,7 +13,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,6 +36,7 @@ import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResp
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
+import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.mapper.ConsultaMapper;
 import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
@@ -225,6 +228,86 @@ class ConsultaServiceTest {
                 .thenReturn(List.of(Fixtures.consulta(logado, null, quando, Status.AGENDADA)));
 
         consultaService.listarAgendaDoDia();
+
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("listarAgenda: sem 'de' e 'ate' se comporta exatamente como a agenda do dia")
+    void listarAgendaSemParametrosEAgendaDoDia() {
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of(Fixtures.consulta(logado, null, quando, Status.AGENDADA)));
+
+        consultaService.listarAgenda(null, null);
+
+        ArgumentCaptor<LocalDateTime> inicio = ArgumentCaptor.forClass(LocalDateTime.class);
+        ArgumentCaptor<LocalDateTime> fim = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(consultaRepository).findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), inicio.capture(),
+                fim.capture());
+
+        assertThat(inicio.getValue()).isEqualTo(LocalDate.now().atStartOfDay());
+        assertThat(fim.getValue()).isEqualTo(LocalDate.now().atTime(LocalTime.MAX));
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("listarAgenda: com 'de' e 'ate' busca do inicio do primeiro dia ao fim do ultimo")
+    void listarAgendaComIntervaloBuscaDoInicioAoFimDosDias() {
+        LocalDate de = LocalDate.of(2026, 9, 1);
+        LocalDate ate = LocalDate.of(2026, 9, 7);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of());
+
+        consultaService.listarAgenda(de, ate);
+
+        verify(consultaRepository).findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(
+                logado, de.atStartOfDay(), ate.atTime(LocalTime.MAX));
+    }
+
+    @Test
+    @DisplayName("listarAgenda: so 'de' informado (sem 'ate') e erro do cliente, nao consulta o banco")
+    void listarAgendaSoDeInformadoLancaPeriodoInvalido() {
+        assertThatThrownBy(() -> consultaService.listarAgenda(LocalDate.of(2026, 9, 1), null))
+                .isInstanceOf(PeriodoInvalidoException.class);
+
+        verify(consultaRepository, never()).findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("listarAgenda: so 'ate' informado (sem 'de') e erro do cliente, nao consulta o banco")
+    void listarAgendaSoAteInformadoLancaPeriodoInvalido() {
+        assertThatThrownBy(() -> consultaService.listarAgenda(null, LocalDate.of(2026, 9, 7)))
+                .isInstanceOf(PeriodoInvalidoException.class);
+
+        verify(consultaRepository, never()).findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("listarAgenda: 'ate' antes de 'de' e erro do cliente, nao consulta o banco")
+    void listarAgendaComAteAntesDeDeLancaPeriodoInvalido() {
+        LocalDate de = LocalDate.of(2026, 9, 7);
+        LocalDate ate = LocalDate.of(2026, 9, 1);
+
+        assertThatThrownBy(() -> consultaService.listarAgenda(de, ate))
+                .isInstanceOf(PeriodoInvalidoException.class);
+
+        verify(consultaRepository, never()).findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("listarAgenda: com intervalo tambem nao audita cada consulta da lista")
+    void listarAgendaComIntervaloNaoAuditaPorItem() {
+        LocalDate de = LocalDate.of(2026, 9, 1);
+        LocalDate ate = LocalDate.of(2026, 9, 7);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of(Fixtures.consulta(logado, null, quando, Status.AGENDADA)));
+
+        consultaService.listarAgenda(de, ate);
 
         verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }

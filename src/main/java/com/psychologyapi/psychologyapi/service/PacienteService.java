@@ -47,8 +47,10 @@ public class PacienteService {
 
     public List<PacienteResponseDTO> listarPacientes(String nome) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
-        List<Paciente> pacientes = pacienteRepository
-                .findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(usuarioLogado, nome);
+        List<Paciente> pacientes = (nome == null || nome.isBlank())
+                ? pacienteRepository.findByUsuarioAndDeletedAtIsNull(usuarioLogado)
+                : pacienteRepository.findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(usuarioLogado,
+                        nome);
         return pacientes.stream()
                 .map(pacienteMapper::toResponseDTO)
                 .toList();

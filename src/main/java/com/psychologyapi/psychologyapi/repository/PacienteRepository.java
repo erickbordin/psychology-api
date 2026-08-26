@@ -13,4 +13,5 @@ public interface PacienteRepository extends JpaRepository<Paciente, UUID> {
 
     Optional<Paciente> findByIdAndUsuarioAndDeletedAtIsNull(UUID id, Usuario usuario);
     List<Paciente> findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(Usuario usuario, String nome);
+    List<Paciente> findByUsuarioAndDeletedAtIsNull(Usuario usuario);
 }

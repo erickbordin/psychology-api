@@ -37,7 +37,8 @@ public class PacienteController {
     }
     
     @GetMapping
-    public ResponseEntity<List<PacienteResponseDTO>> listarPacientes(@RequestParam String nome){
+    public ResponseEntity<List<PacienteResponseDTO>> listarPacientes(
+            @RequestParam(required = false) String nome){
 
         List<PacienteResponseDTO> listaDePacientes = pacienteService.listarPacientes(nome);
         return ResponseEntity.status(HttpStatus.OK).body(listaDePacientes);

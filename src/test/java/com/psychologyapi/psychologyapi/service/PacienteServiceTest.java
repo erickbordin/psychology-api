@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.mapper.PacienteMapper;
 import com.psychologyapi.psychologyapi.model.Paciente;
@@ -135,6 +136,46 @@ class PacienteServiceTest {
 
         verify(pacienteRepository).findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(logado, "an");
         verify(pacienteRepository, never()).findAll();
+    }
+
+    @Test
+    @DisplayName("listarPacientes: sem nome traz todos os pacientes do usuario logado, sem filtrar por nome")
+    void listarSemNomeTrazTodosDoUsuarioLogado() {
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByUsuarioAndDeletedAtIsNull(logado))
+                .thenReturn(List.of(Fixtures.paciente(logado, "Ana"), Fixtures.paciente(logado, "Bruno")));
+
+        List<PacienteResponseDTO> resultado = pacienteService.listarPacientes(null);
+
+        assertThat(resultado).hasSize(2);
+        verify(pacienteRepository).findByUsuarioAndDeletedAtIsNull(logado);
+        verify(pacienteRepository, never())
+                .findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(any(), any());
+    }
+
+    @Test
+    @DisplayName("listarPacientes: nome em branco e tratado como ausencia de filtro")
+    void listarComNomeEmBrancoTrazTodosDoUsuarioLogado() {
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByUsuarioAndDeletedAtIsNull(logado)).thenReturn(List.of());
+
+        pacienteService.listarPacientes("   ");
+
+        verify(pacienteRepository).findByUsuarioAndDeletedAtIsNull(logado);
+        verify(pacienteRepository, never())
+                .findByUsuarioAndNomePacienteContainingIgnoreCaseAndDeletedAtIsNull(any(), any());
+    }
+
+    @Test
+    @DisplayName("listarPacientes: sem nome tambem nao audita cada paciente da lista")
+    void listarSemNomeNaoAuditaCadaPaciente() {
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByUsuarioAndDeletedAtIsNull(logado))
+                .thenReturn(List.of(Fixtures.paciente(logado, "Ana")));
+
+        pacienteService.listarPacientes(null);
+
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }
 
     @Test
