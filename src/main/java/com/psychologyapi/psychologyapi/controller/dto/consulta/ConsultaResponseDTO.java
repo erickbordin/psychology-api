@@ -10,5 +10,6 @@ public record ConsultaResponseDTO(
     String pacienteNome,
     LocalDateTime dtConsulta,
     Status status,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    UUID serieId
 ) {}

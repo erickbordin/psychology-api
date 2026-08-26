@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -469,6 +471,58 @@ class ConsultaServiceTest {
         assertThatThrownBy(() -> consultaService.cancelarSerie(serieId))
                 .isInstanceOf(ConsultaNaoEncontradaException.class);
 
+        verify(consultaRepository, never()).saveAll(anyList());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("cadastrarSerie propaga falha da auditoria em vez de engolir, para a transacao rolar de volta")
+    void cadastrarSeriePropagaFalhaDaAuditoria() {
+        UUID pacienteId = UUID.randomUUID();
+        LocalDateTime primeira = LocalDateTime.now().plusDays(7).withNano(0);
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of());
+        when(consultaRepository.saveAll(anyList())).thenAnswer(invocacao -> {
+            List<Consulta> recebidas = invocacao.getArgument(0);
+            recebidas.forEach(c -> c.setId(UUID.randomUUID()));
+            return recebidas;
+        });
+
+        doNothing().doNothing().doThrow(new IllegalStateException("falha na auditoria"))
+                .when(auditoriaService).registrar(any(), any(), any(), any());
+
+        ConsultaRecorrenteCadastroDTO dto = new ConsultaRecorrenteCadastroDTO(pacienteId, primeira, 4, null);
+
+        assertThatThrownBy(() -> consultaService.cadastrarSerie(dto))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("falha na auditoria");
+    }
+
+    @Test
+    @DisplayName("cadastrarSerie rejeita horizonte degenerado vindo de chamador interno, sem tocar no banco")
+    void cadastrarSerieRejeitaHorizonteDegenerado() {
+        UUID pacienteId = UUID.randomUUID();
+        LocalDateTime primeira = LocalDateTime.now().plusDays(7).withNano(0);
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+
+        ConsultaRecorrenteCadastroDTO umaSessao = new ConsultaRecorrenteCadastroDTO(pacienteId, primeira, 1, null);
+
+        assertThatThrownBy(() -> consultaService.cadastrarSerie(umaSessao))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("entre 2 e 52");
+
+        verify(consultaRepository, never()).findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(any(), any(), any());
         verify(consultaRepository, never()).saveAll(anyList());
         verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }
