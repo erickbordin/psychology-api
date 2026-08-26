@@ -146,6 +146,7 @@ public class ConsultaService {
                 : OcorrenciasSemanais.ate(dto.dtPrimeiraConsulta(), dto.dtLimite(),
                         OcorrenciasSemanais.MAX_OCORRENCIAS);
 
+        validarTamanhoDaSerie(ocorrencias);
         validarConflitoDaSerie(usuarioLogado, ocorrencias);
 
         UUID serieId = UUID.randomUUID();
@@ -166,6 +167,20 @@ public class ConsultaService {
 
         return new SerieConsultaResponseDTO(serieId, salvas.size(),
                 salvas.stream().map(consultaMapper::toResponseDTO).toList());
+    }
+
+    /**
+     * Guarda de erro de programacao, nao caminho de validacao do usuario: quem
+     * chega pela API ja passou pela constraint do DTO, que devolve 400. Existe
+     * para um chamador interno (outro service, um job futuro) nao entrar aqui
+     * com horizonte degenerado e estourar no get(0) da validacao de conflito.
+     */
+    private void validarTamanhoDaSerie(List<LocalDateTime> ocorrencias) {
+        if (ocorrencias.size() < OcorrenciasSemanais.MIN_OCORRENCIAS
+                || ocorrencias.size() > OcorrenciasSemanais.MAX_OCORRENCIAS) {
+            throw new IllegalArgumentException("A serie deve ter entre " + OcorrenciasSemanais.MIN_OCORRENCIAS
+                    + " e " + OcorrenciasSemanais.MAX_OCORRENCIAS + " ocorrencias, e tem " + ocorrencias.size());
+        }
     }
 
     /**
