@@ -210,14 +210,21 @@ encontra o bean gerado (`NoSuchBeanDefinitionException`).
 ### Transação
 `@Transactional` (`org.springframework.transaction.annotation`) aparece em
 exatamente dois métodos do projeto: `ConsultaService.cadastrarSerie` e
-`ConsultaService.cancelarSerie`. É um padrão novo — nenhum outro service
-precisa dele, porque todo outro fluxo de mutação faz um único `save(...)`
-mais, no máximo, um `LogAuditoria.save` associado, e um `save` isolado já é
-atômico. A série recorrente é diferente: `cadastrarSerie` faz N inserts de
+`ConsultaService.cancelarSerie`. Motivo: `cadastrarSerie` faz N inserts de
 `Consulta` mais N inserts de auditoria, e `cancelarSerie` faz N updates
 (soft delete) mais N inserts de auditoria — tudo-ou-nada, porque uma série
 parcialmente gravada é pior que nenhuma série. Novo método que grave mais
 de uma linha logicamente relacionada segue o mesmo padrão.
+
+**Não** leia isso como "os outros fluxos são atômicos e por isso dispensam
+transação". Eles não são: `cadastrar`, `atualizarConsulta` e `deletarConsulta`
+gravam **duas** linhas cada um (a entidade mais o `log_auditoria`) sem
+transação ao redor do par, e `deletarConsulta` ainda audita **antes** do
+`save` — um save que falhe ali deixa trilha de `EXCLUSAO` de uma exclusão que
+não aconteceu. É lacuna pré-existente, não coberta por teste, e o custo real é
+baixo (trilha de auditoria divergindo do dado num erro raro), mas é lacuna, e
+quem for mexer nesses métodos deve saber disso em vez de assumir que estão
+seguros.
 
 ### Controller
 - `@RequestBody` deve vir de `org.springframework.web.bind.annotation`,
@@ -362,7 +369,14 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
   guarda. Conflito de horário em qualquer ocorrência aborta a série inteira
   com `409`, antes de qualquer `save`. `DELETE /consultas/series/{serieId}`
   cancela (soft delete) só as ocorrências futuras; passadas ficam, são
-  histórico clínico.
+  histórico clínico. **Esse `DELETE` devolve `200` com corpo**
+  (`{serieId, ocorrenciasRemovidas}`), divergindo de propósito de todos os
+  outros `DELETE` da API, que devolvem `204` vazio — quantas sessões foram
+  canceladas é a informação que o psicólogo precisa ver, e um corpo vazio a
+  esconderia. Não "corrija" essa inconsistência. `serieId` também sai no
+  `ConsultaResponseDTO` de toda consulta (`null` quando avulsa), senão o
+  cancelamento seria inalcançável para um cliente que perdesse a resposta da
+  criação.
 - **`Anotacao`**: sem `PUT` (registro histórico de sessão, não editável).
   Listagem paginada (ver "Paginação" abaixo).
   Soft delete ativo. Campo da entidade chama-se `anotacao`, DTO usa
