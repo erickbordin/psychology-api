@@ -34,12 +34,13 @@ public class HorizonteValidoValidator implements ConstraintValidator<HorizonteVa
         LocalDate limite = dto.dtLimite();
 
         if ((quantidade == null) == (limite == null)) {
-            return erro(context, "informe exatamente um entre quantidadeSessoes e dtLimite");
+            return erro(context, "Informe exatamente um entre quantidadeSessoes e dtLimite.");
         }
 
         if (quantidade != null) {
             if (quantidade < MIN_OCORRENCIAS || quantidade > MAX_OCORRENCIAS) {
-                return erro(context, "quantidadeSessoes deve estar entre " + MIN_OCORRENCIAS + " e " + MAX_OCORRENCIAS);
+                return erro(context, "A quantidade de sessões deve estar entre " + MIN_OCORRENCIAS + " e "
+                        + MAX_OCORRENCIAS + ".");
             }
             return true;
         }
@@ -51,8 +52,8 @@ public class HorizonteValidoValidator implements ConstraintValidator<HorizonteVa
 
         int ocorrencias = OcorrenciasSemanais.ate(primeira, limite, MAX_OCORRENCIAS).size();
         if (ocorrencias < MIN_OCORRENCIAS || ocorrencias > MAX_OCORRENCIAS) {
-            return erro(context, "dtLimite deve caber entre " + MIN_OCORRENCIAS + " e " + MAX_OCORRENCIAS
-                    + " sessoes semanais a partir de dtPrimeiraConsulta");
+            return erro(context, "A data limite deve caber entre " + MIN_OCORRENCIAS + " e " + MAX_OCORRENCIAS
+                    + " sessões semanais a partir da primeira consulta.");
         }
         return true;
     }

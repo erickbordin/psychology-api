@@ -76,6 +76,24 @@ class HorizonteValidoValidatorTest {
     }
 
     @Test
+    @DisplayName("exatamente 52 sessoes e valido — o teto e inclusivo")
+    void quantidadeNoTetoExato() {
+        assertThat(validar(52, null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("dtLimite que cai exatamente na 52a ocorrencia e valido")
+    void limiteNaUltimaOcorrenciaValida() {
+        assertThat(validar(null, PRIMEIRA.plusWeeks(51).toLocalDate())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("dtLimite uma semana depois da 52a ocorrencia e invalido")
+    void limiteUmaSemanaDepoisDoTeto() {
+        assertThat(validar(null, PRIMEIRA.plusWeeks(52).toLocalDate())).hasSize(1);
+    }
+
+    @Test
     @DisplayName("quantidade acima de 52 e invalida")
     void quantidadeAcimaDoTeto() {
         assertThat(validar(53, null)).hasSize(1);
