@@ -69,6 +69,14 @@ Tres camadas, todas em `src/test/java/com/psychologyapi/psychologyapi`:
   fiacao. Os testes pegam o token injetando o `TokenService` e chamando
   `gerarToken(email)` — nao passam pelo `/auth/login`, que tem teste proprio.
 
+  A exceção deliberada é `FluxoCompletoHttpTest`, que percorre
+  `registrar → login → criar paciente → anotar → listar` usando o token que o
+  próprio `/auth/login` devolveu. Ele existe porque nenhum outro teste prova que
+  os passos **compõem**: token que o login emite mas o filtro rejeita, ou
+  cadastro que responde sucesso sem produzir conta usável, passaria em todos os
+  testes por endpoint. Foi ele que encontrou o bug do `AnotacaoMapper`, na
+  primeira execução.
+
 Requisitos: Docker rodando (a imagem `postgres:16-alpine` é baixada uma vez).
 O `pom.xml` fixa `api.version=1.44` no surefire — o docker-java negocia 1.32
 por padrão e daemons Docker 25+ recusam. Em daemon mais antigo, sobrescreva
@@ -193,6 +201,28 @@ public interface XMapper {
 Update usa `@MappingTarget` (muta a entidade existente) — nunca recria via
 `toEntity` para update, isso perderia `id`/`createdAt`/relacionamentos.
 
+**Campo com nome diferente entre DTO e entidade SEM `@Mapping` explícito é o
+erro mais caro deste projeto, e não dá aviso nenhum.** O MapStruct não casa
+nomes diferentes: ele gera o método, compila, sobe, e simplesmente não copia o
+valor. Dois bugs de produção nasceram exatamente disso, ambos descobertos em
+2026-08-26 e corrigidos:
+
+- `AnotacaoMapper.toEntity` não ligava o `anotacao` do DTO ao `conteudo` da
+  entidade. O `toEntity` gerado era literalmente `new Anotacao()` e `return` —
+  toda criação de anotação estourava a constraint `NOT NULL` da coluna e
+  devolvia `500`. O endpoint mais central do produto ficou quebrado sem ninguém
+  notar.
+- `PacienteMapper.toResponseDTO` não ligava `telefonePaciente`/
+  `dataNascimentoPaciente` aos campos `telefone`/`dataNascimento` do DTO. Os
+  dados eram gravados certo e **nunca devolvidos** — a API respondia sempre
+  nulo nos dois.
+
+Por que a suíte não pegou: os testes de service mockam o mapper, então validam o
+mock. **Mapper com renomeação só é provado por teste que atravessa HTTP com o
+mapper real.** Ao criar ou alterar um mapper, confira o `*MapperImpl.java`
+gerado em `target/generated-sources` — se um campo não aparece lá, ele não é
+copiado.
+
 `pom.xml` precisa de `lombok-mapstruct-binding` em
 `annotationProcessorPaths`, na ordem: `lombok` → `lombok-mapstruct-binding`
 → `mapstruct-processor`. Sem isso, o mapper compila mas o Spring não
@@ -252,6 +282,14 @@ ou `ResponseEntity` explícito:
 - `ConflitoDeHorarioException` → `409`
 - `XNaoEncontradoException` (Paciente, Consulta, Anotacao, Lembrete) → `404`
 - `MethodArgumentNotValidException` → `400`, com lista de campo+mensagem
+- `PeriodoInvalidoException` → `400` — intervalo de datas parcial (só `de` ou só
+  `ate`) ou invertido em `GET /consultas`
+- `FiltroAuditoriaInvalidoException` → `400` — `entidadeId` sem `entidade` em
+  `GET /auditoria`
+
+As duas últimas devolvem o **mesmo** `ErroRespostaDTO` da validação de bean, com
+`campo` preenchido. O contrato de `400` da API é um só, independente de qual
+caminho de validação disparou.
 
 Requisição sem token, ou com token expirado/malformado/assinado com outro
 segredo, responde `401` — vindo do `HttpStatusEntryPoint` registrado no
@@ -342,7 +380,12 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
 - **`Usuario`**: email `unique = true`. Sem roles (MVP single-tenant por
   psicólogo).
 - **`Paciente`**: pertence a um `Usuario`. Soft delete ativo. Campos
-  telefone/email/observações opcionais (`nullable = true`).
+  telefone/email/observações opcionais (`nullable = true`). `GET /pacientes`
+  aceita `?nome` **opcional**: com o parâmetro, filtra por nome; sem ele,
+  devolve todos os pacientes não apagados do psicólogo logado
+  (`findByUsuarioAndDeletedAtIsNull`). O parâmetro era obrigatório até
+  2026-08-26, o que deixava a listagem de pacientes inalcançável — um `400`
+  para quem só queria a lista.
 - **`Consulta`**: `Status` enum = `AGENDADA, REALIZADA, CANCELADA, FALTOU`.
   Validação de conflito de horário (janela de 50 min ao redor de
   `dtConsulta`, ignorando `CANCELADA`) roda em `cadastrar` e
@@ -352,9 +395,14 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
   soft-deletada (o filtro está no próprio
   `findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull`, com o
   `AndDeletedAtIsNull` **depois** do `Between`, que já consome os dois
-  parâmetros de intervalo). Agenda do dia usa `BETWEEN`
-  (`LocalDate.now().atStartOfDay()` até `.atTime(LocalTime.MAX)`), não
-  igualdade — `dtConsulta` é `LocalDateTime`. Série recorrente é
+  parâmetros de intervalo). A agenda usa `BETWEEN`, não igualdade —
+  `dtConsulta` é `LocalDateTime`. `GET /consultas` aceita `?de` e `?ate`
+  (`LocalDate`) **opcionais**: sem nenhum dos dois, devolve a agenda de hoje
+  (`LocalDate.now().atStartOfDay()` até `.atTime(LocalTime.MAX)`), que é o
+  comportamento histórico e segue sendo o default; com os dois, devolve o
+  intervalo inclusivo. Um só dos dois, ou `ate` antes de `de`, é
+  `PeriodoInvalidoException` → `400` — intervalo pela metade é erro do cliente,
+  não algo para adivinhar. Série recorrente é
   materializada por completo na criação (`POST /consultas/recorrentes`) e
   agrupada por `serieId` (`id_serie`, `UUID` nullable — sem tabela `serie`,
   de propósito: uma tabela assim só guardaria o `UUID`, e a regra original
@@ -403,15 +451,23 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
   **Listagem nunca é auditada por item.** A única exceção é
   `AnotacaoService.listarPorPaciente`, que loga o **paciente** visitado (não
   cada anotação). `PacienteService.listarPacientes`,
-  `ConsultaService.listarAgendaDoDia` e `LembreteService.listarPorPaciente`
+  `ConsultaService.listarAgenda` e `LembreteService.listarPorPaciente`
   não geram log. Acesso negado (registro de outro psicólogo) também não gera
   log — a exceção sobe antes do `registrar(...)`.
 
   **Leitura da trilha:** `GET /auditoria` (`AuditoriaService.listar`) devolve
   os logs do próprio psicólogo logado, paginados, mais recente primeiro
-  (`findByUsuarioOrderByCreatedAtDesc`). Sem filtro por entidade/ação/período —
-  o índice `idx_log_entidade` existe e serve a esse filtro quando ele for
-  pedido, mas o MVP não o expõe. **A leitura da auditoria não é auditada:**
+  (`findByUsuarioOrderByCreatedAtDesc`). Aceita dois filtros **opcionais**:
+  `?entidade` (ex. `"Paciente"`) restringe ao tipo, e `?entidade` +
+  `?entidadeId` devolve o histórico de um registro só — a pergunta útil da
+  trilha, servida pelo índice `idx_log_entidade` que a `V4` já criou. São três
+  métodos derivados, um por combinação, e não um `@Query` com parâmetro
+  nullable: o nome do método é o SQL, e essa é a convenção do projeto.
+  `entidadeId` **sem** `entidade` é `400`: id não é único entre tipos de
+  entidade nesta tabela, então filtrar só por id misturaria o histórico de um
+  paciente com o de uma consulta. Não há filtro por ação nem por período — se
+  for pedido, entra como método derivado novo. **A leitura da auditoria não é
+  auditada:**
   além da regra de listagem acima, `id_entidade` é `NOT NULL` e não existe id
   natural para registrar numa listagem. O `LogAuditoriaResponseDTO` não devolve
   `usuario` — é sempre o logado.
@@ -419,8 +475,10 @@ SELECT version, description, success FROM flyway_schema_history ORDER BY install
 ## Paginação
 
 Aplicada em `Anotacao`, `Lembrete` e `LogAuditoria` — as listagens que crescem
-sem limite com o uso. `Paciente` e a agenda do dia de `Consulta` continuam
-retornando `List`, porque são naturalmente pequenas.
+sem limite com o uso. `Paciente` e a agenda de `Consulta` continuam retornando
+`List`, porque são naturalmente pequenas para um psicólogo autônomo — decisão
+revisitada em 2026-08-26, quando a listagem de pacientes deixou de exigir
+filtro, e mantida.
 
 Padrão das três camadas:
 
@@ -465,6 +523,15 @@ service/repository foram corrigidas: exclusão física em `deletarPaciente`,
 `Anotacao` sem `@GeneratedValue`, migration faltante de
 `anotacao.deleted_at_anotacao`, `deletedAt` declarado como `nullable = false` e
 `server.jwt.secret` órfão.
+
+Duas divergências de mapper foram encontradas em 2026-08-26 e corrigidas — e as
+duas eram do tipo mais incômodo, em que **este documento estava certo e o código
+não cumpria**: a seção de mapper acima já exigia `@Mapping` explícito para nome
+divergente, e nem `AnotacaoMapper.toEntity` nem `PacienteMapper.toResponseDTO`
+tinham. Resultado: criação de anotação devolvia `500` em produção, e resposta de
+paciente omitia telefone e data de nascimento. Detalhe na seção de mapper. Lição
+de processo: uma regra escrita aqui não é uma regra verificada — só teste
+verifica.
 
 A camada de teste HTTP, ao entrar, pegou outras três — todas corrigidas:
 
