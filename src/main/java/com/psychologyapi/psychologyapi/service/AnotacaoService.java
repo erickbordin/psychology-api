@@ -20,6 +20,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +32,7 @@ public class AnotacaoService {
         private final PacienteRepository pacienteRepository;
         private final AuditoriaService auditoriaService;
 
+        @Transactional
         public AnotacaoResponseDTO cadastrar(UUID pacienteId, AnotacaoCadastroDTO dto) {
 
                 Usuario usuarioLogado = securityService.obterUsuarioLogado();
@@ -56,13 +58,14 @@ public class AnotacaoService {
                 return anotacoesDoPaciente.map(anotacaoMapper::toResponseDTO);
         }
 
+        @Transactional
         public void deletarAnotacao(UUID anotacaoId) {
                 Usuario usuarioLogado = securityService.obterUsuarioLogado();
                 Anotacao anotacao = anotacaoRepository.findByIdAndUsuarioAndDeletedAtIsNull(anotacaoId, usuarioLogado)
                                 .orElseThrow(() -> new AnotacaoNaoEncontradaException("Anotacao nao encontrada"));
                 anotacao.setDeletedAt(LocalDateTime.now());
-                auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Anotacao", anotacao.getId());
                 anotacaoRepository.save(anotacao);
+                auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Anotacao", anotacao.getId());
         }
 
 }

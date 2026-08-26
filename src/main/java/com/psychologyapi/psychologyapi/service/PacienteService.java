@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteCadastroDTO;
@@ -28,6 +29,7 @@ public class PacienteService {
     private final SecurityService securityService;
     private final AuditoriaService auditoriaService;
 
+    @Transactional
     public PacienteResponseDTO cadastrar(PacienteCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteMapper.toEntity(dto);
@@ -56,6 +58,7 @@ public class PacienteService {
                 .toList();
     }
 
+    @Transactional
     public PacienteResponseDTO atualizarPaciente(UUID id, PacienteAtualizacaoDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
@@ -68,13 +71,14 @@ public class PacienteService {
         return pacienteMapper.toResponseDTO(pacienteAtualizado);
     }
 
+    @Transactional
     public void deletarPaciente(UUID id) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
         paciente.setDeletedAt(LocalDateTime.now());
-        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Paciente", paciente.getId());
         pacienteRepository.save(paciente);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Paciente", paciente.getId());
     }
 
 }

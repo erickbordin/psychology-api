@@ -3,6 +3,7 @@ package com.psychologyapi.psychologyapi.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -208,6 +210,24 @@ class PacienteServiceTest {
         pacienteService.atualizarPaciente(id, dto);
 
         verify(auditoriaService).registrar(logado, AcaoAuditoria.ATUALIZACAO, "Paciente", id);
+    }
+
+    @Test
+    @DisplayName("deletarPaciente: audita depois do save, nunca antes")
+    void deletarAuditaDepoisDoSave() {
+        UUID pacienteId = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+
+        pacienteService.deletarPaciente(pacienteId);
+
+        InOrder ordem = inOrder(pacienteRepository, auditoriaService);
+        ordem.verify(pacienteRepository).save(paciente);
+        ordem.verify(auditoriaService).registrar(logado, AcaoAuditoria.EXCLUSAO, "Paciente", pacienteId);
     }
 
     @Test

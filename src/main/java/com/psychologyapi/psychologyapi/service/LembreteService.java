@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.psychologyapi.psychologyapi.controller.dto.lembrete.LembreteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.lembrete.LembreteResponseDTO;
@@ -32,6 +33,7 @@ public class LembreteService {
     private final PacienteRepository pacienteRepository;
     private final AuditoriaService auditoriaService;
 
+    @Transactional
     public LembreteResponseDTO cadastrar(UUID pacienteId, LembreteCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Lembrete lembrete = lembreteMapper.toEntity(dto);
@@ -53,15 +55,17 @@ public class LembreteService {
         return lembretes.map(lembreteMapper::toResponseDTO);
     }
 
+    @Transactional
     public void deletarLembrete(UUID lembreteId) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Lembrete lembrete = lembreteRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(lembreteId, usuarioLogado)
                 .orElseThrow(() -> new LembreteNaoEncontradoException("Lembrete nao encontrado"));
         lembrete.setDeletedAt(LocalDateTime.now());
-        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Lembrete", lembrete.getId());
         lembreteRepository.save(lembrete);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Lembrete", lembrete.getId());
     }
 
+    @Transactional
     public LembreteResponseDTO concluir(UUID lembreteId) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Lembrete lembrete = lembreteRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(lembreteId, usuarioLogado)

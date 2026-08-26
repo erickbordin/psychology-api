@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -310,6 +312,24 @@ class ConsultaServiceTest {
         consultaService.listarAgenda(de, ate);
 
         verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("deletarConsulta: audita depois do save, nunca antes")
+    void deletarAuditaDepoisDoSave() {
+        UUID consultaId = UUID.randomUUID();
+        Consulta consulta = Fixtures.consulta(logado, null, LocalDateTime.now().plusDays(1), Status.AGENDADA);
+        consulta.setId(consultaId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(consultaId, logado))
+                .thenReturn(Optional.of(consulta));
+
+        consultaService.deletarConsulta(consultaId);
+
+        InOrder ordem = inOrder(consultaRepository, auditoriaService);
+        ordem.verify(consultaRepository).save(consulta);
+        ordem.verify(auditoriaService).registrar(logado, AcaoAuditoria.EXCLUSAO, "Consulta", consultaId);
     }
 
     @Test

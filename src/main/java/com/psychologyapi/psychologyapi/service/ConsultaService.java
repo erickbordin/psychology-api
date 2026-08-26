@@ -45,6 +45,7 @@ public class ConsultaService {
     private final SecurityService securityService;
     private final AuditoriaService auditoriaService;
 
+    @Transactional
     public ConsultaResponseDTO cadastrar(ConsultaCadastroDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
 
@@ -126,6 +127,7 @@ public class ConsultaService {
                 .toList();
     }
 
+    @Transactional
     public ConsultaResponseDTO atualizarConsulta(UUID id, ConsultaAtualizacaoDTO dto) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
 
@@ -155,13 +157,14 @@ public class ConsultaService {
         return consultaMapper.toResponseDTO(consultaAtualizada);
     }
 
+    @Transactional
     public void deletarConsulta(UUID id) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
         consulta.setDeletedAt(LocalDateTime.now());
-        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Consulta", consulta.getId());
         consultaRepository.save(consulta);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Consulta", consulta.getId());
     }
 
     @Transactional

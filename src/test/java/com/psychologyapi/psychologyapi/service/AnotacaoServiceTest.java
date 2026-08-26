@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -141,6 +143,24 @@ class AnotacaoServiceTest {
 
         verify(anotacaoRepository).findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, logado,
                 segundaPagina);
+    }
+
+    @Test
+    @DisplayName("deletarAnotacao: audita depois do save, nunca antes")
+    void deletarAuditaDepoisDoSave() {
+        UUID anotacaoId = UUID.randomUUID();
+        Anotacao anotacao = Fixtures.anotacao(logado, null, "sessao 1");
+        anotacao.setId(anotacaoId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(anotacaoRepository.findByIdAndUsuarioAndDeletedAtIsNull(anotacaoId, logado))
+                .thenReturn(Optional.of(anotacao));
+
+        anotacaoService.deletarAnotacao(anotacaoId);
+
+        InOrder ordem = inOrder(anotacaoRepository, auditoriaService);
+        ordem.verify(anotacaoRepository).save(anotacao);
+        ordem.verify(auditoriaService).registrar(logado, AcaoAuditoria.EXCLUSAO, "Anotacao", anotacaoId);
     }
 
     @Test
