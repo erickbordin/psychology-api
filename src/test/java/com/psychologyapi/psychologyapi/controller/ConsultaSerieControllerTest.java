@@ -2,12 +2,14 @@ package com.psychologyapi.psychologyapi.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import com.jayway.jsonpath.JsonPath;
 
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Status;
@@ -169,5 +173,59 @@ class ConsultaSerieControllerTest {
         mockMvc.perform(delete("/consultas/series/" + serieId)
                 .header(HttpHeaders.AUTHORIZATION, bearerDe(intruso)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("as consultas do 201 carregam o mesmo serieId do envelope")
+    void consultasCarregamOSerieIdDoEnvelope() throws Exception {
+        Usuario dono = psicologo("dono@teste.com");
+        Paciente paciente = pacienteRepository.save(Fixtures.paciente(dono, "Ana"));
+        LocalDateTime primeira = primeiraOcorrencia();
+
+        String corpo = mockMvc.perform(post("/consultas/recorrentes")
+                .header(HttpHeaders.AUTHORIZATION, bearerDe(dono))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(corpoPorQuantidade(paciente.getId(), primeira, 3)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String serieId = JsonPath.read(corpo, "$.serieId");
+        List<String> serieIdDosItens = JsonPath.read(corpo, "$.consultas[*].serieId");
+
+        assertThat(serieId).isNotBlank();
+        assertThat(serieIdDosItens).hasSize(3).containsOnly(serieId);
+    }
+
+    @Test
+    @DisplayName("GET /consultas/{id} devolve o serieId da ocorrencia; consulta avulsa vem com serieId nulo")
+    void serieIdApareceNaLeituraIndividual() throws Exception {
+        Usuario dono = psicologo("dono@teste.com");
+        Paciente paciente = pacienteRepository.save(Fixtures.paciente(dono, "Ana"));
+        LocalDateTime primeira = primeiraOcorrencia();
+
+        String corpoDaSerie = mockMvc.perform(post("/consultas/recorrentes")
+                .header(HttpHeaders.AUTHORIZATION, bearerDe(dono))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(corpoPorQuantidade(paciente.getId(), primeira, 2)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String serieId = JsonPath.read(corpoDaSerie, "$.serieId");
+        String idDaOcorrencia = JsonPath.read(corpoDaSerie, "$.consultas[0].id");
+
+        mockMvc.perform(get("/consultas/" + idDaOcorrencia)
+                .header(HttpHeaders.AUTHORIZATION, bearerDe(dono)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serieId").value(serieId));
+
+        String corpoAvulso = "{\"pacienteId\":\"" + paciente.getId()
+                + "\",\"dtConsulta\":\"" + primeira.plusDays(3).format(ISO) + "\"}";
+
+        mockMvc.perform(post("/consultas")
+                .header(HttpHeaders.AUTHORIZATION, bearerDe(dono))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(corpoAvulso))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.serieId").value(org.hamcrest.Matchers.nullValue()));
     }
 }
