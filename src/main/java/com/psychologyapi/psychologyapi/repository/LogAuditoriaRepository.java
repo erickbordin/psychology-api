@@ -13,4 +13,10 @@ public interface LogAuditoriaRepository extends JpaRepository<LogAuditoria, UUID
 
     Page<LogAuditoria> findByUsuarioOrderByCreatedAtDesc(Usuario usuario, Pageable pageable);
 
+    Page<LogAuditoria> findByUsuarioAndEntidadeOrderByCreatedAtDesc(Usuario usuario, String entidade,
+            Pageable pageable);
+
+    Page<LogAuditoria> findByUsuarioAndEntidadeAndEntidadeIdOrderByCreatedAtDesc(Usuario usuario, String entidade,
+            UUID entidadeId, Pageable pageable);
+
 }

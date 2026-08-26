@@ -1,9 +1,11 @@
 package com.psychologyapi.psychologyapi.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
@@ -22,6 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import com.psychologyapi.psychologyapi.controller.dto.auditoria.LogAuditoriaResponseDTO;
+import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoException;
 import com.psychologyapi.psychologyapi.mapper.LogAuditoriaMapper;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
@@ -62,21 +65,21 @@ class AuditoriaServiceTest {
     }
 
     @Test
-    @DisplayName("listar: busca so os logs do usuario logado, nunca de um id vindo de fora")
-    void listarUsaOUsuarioLogado() {
+    @DisplayName("listar sem filtro: busca so os logs do usuario logado, nunca de um id vindo de fora")
+    void listarSemFiltroUsaOUsuarioLogado() {
         Pageable pageable = PageRequest.of(0, 20);
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(logAuditoriaRepository.findByUsuarioOrderByCreatedAtDesc(logado, pageable))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        auditoriaService.listar(pageable);
+        auditoriaService.listar(pageable, null, null);
 
         verify(logAuditoriaRepository).findByUsuarioOrderByCreatedAtDesc(logado, pageable);
     }
 
     @Test
-    @DisplayName("listar: repassa o Pageable recebido e mapeia a pagina para DTO")
-    void listarRepassaOPageableEMapeia() {
+    @DisplayName("listar sem filtro: repassa o Pageable recebido e mapeia a pagina para DTO")
+    void listarSemFiltroRepassaOPageableEMapeia() {
         Pageable segundaPagina = PageRequest.of(1, 5);
         LogAuditoria log = log(AcaoAuditoria.VISUALIZACAO, "Paciente");
         LogAuditoriaResponseDTO dto = new LogAuditoriaResponseDTO(log.getId(), AcaoAuditoria.VISUALIZACAO,
@@ -87,22 +90,81 @@ class AuditoriaServiceTest {
                 .thenReturn(new PageImpl<>(List.of(log)));
         when(logAuditoriaMapper.toResponseDTO(log)).thenReturn(dto);
 
-        Page<LogAuditoriaResponseDTO> pagina = auditoriaService.listar(segundaPagina);
+        Page<LogAuditoriaResponseDTO> pagina = auditoriaService.listar(segundaPagina, null, null);
 
         verify(logAuditoriaRepository).findByUsuarioOrderByCreatedAtDesc(logado, segundaPagina);
         assertThat(pagina.getContent()).containsExactly(dto);
     }
 
     @Test
-    @DisplayName("listar: a leitura da auditoria nao gera log de auditoria dela mesma")
-    void listarNaoSeAudita() {
+    @DisplayName("listar sem filtro: a leitura da auditoria nao gera log de auditoria dela mesma")
+    void listarSemFiltroNaoSeAudita() {
         Pageable pageable = PageRequest.of(0, 20);
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(logAuditoriaRepository.findByUsuarioOrderByCreatedAtDesc(logado, pageable))
                 .thenReturn(new PageImpl<>(List.of(log(AcaoAuditoria.CRIACAO, "Paciente"))));
 
-        auditoriaService.listar(pageable);
+        auditoriaService.listar(pageable, null, null);
 
         verify(logAuditoriaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("listar com entidade: busca pelo usuario logado e a entidade, repassando o Pageable")
+    void listarComEntidadeFiltraPorEntidade() {
+        Pageable pageable = PageRequest.of(0, 20);
+        LogAuditoria log = log(AcaoAuditoria.VISUALIZACAO, "Consulta");
+        LogAuditoriaResponseDTO dto = new LogAuditoriaResponseDTO(log.getId(), AcaoAuditoria.VISUALIZACAO,
+                "Consulta", log.getEntidadeId(), LocalDateTime.now());
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(logAuditoriaRepository.findByUsuarioAndEntidadeOrderByCreatedAtDesc(logado, "Consulta", pageable))
+                .thenReturn(new PageImpl<>(List.of(log)));
+        when(logAuditoriaMapper.toResponseDTO(log)).thenReturn(dto);
+
+        Page<LogAuditoriaResponseDTO> pagina = auditoriaService.listar(pageable, "Consulta", null);
+
+        verify(logAuditoriaRepository).findByUsuarioAndEntidadeOrderByCreatedAtDesc(logado, "Consulta", pageable);
+        verify(logAuditoriaRepository, never()).findByUsuarioOrderByCreatedAtDesc(any(), any());
+        verify(logAuditoriaRepository, never())
+                .findByUsuarioAndEntidadeAndEntidadeIdOrderByCreatedAtDesc(any(), any(), any(), any());
+        assertThat(pagina.getContent()).containsExactly(dto);
+    }
+
+    @Test
+    @DisplayName("listar com entidade e entidadeId: busca a historia de um unico registro, repassando o Pageable")
+    void listarComEntidadeEEntidadeIdFiltraPeloRegistro() {
+        Pageable pageable = PageRequest.of(0, 20);
+        UUID entidadeId = UUID.randomUUID();
+        LogAuditoria log = Fixtures.logAuditoria(logado, AcaoAuditoria.ATUALIZACAO, "Paciente", entidadeId);
+        log.setId(UUID.randomUUID());
+        LogAuditoriaResponseDTO dto = new LogAuditoriaResponseDTO(log.getId(), AcaoAuditoria.ATUALIZACAO,
+                "Paciente", entidadeId, LocalDateTime.now());
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(logAuditoriaRepository.findByUsuarioAndEntidadeAndEntidadeIdOrderByCreatedAtDesc(logado, "Paciente",
+                entidadeId, pageable)).thenReturn(new PageImpl<>(List.of(log)));
+        when(logAuditoriaMapper.toResponseDTO(log)).thenReturn(dto);
+
+        Page<LogAuditoriaResponseDTO> pagina = auditoriaService.listar(pageable, "Paciente", entidadeId);
+
+        verify(logAuditoriaRepository).findByUsuarioAndEntidadeAndEntidadeIdOrderByCreatedAtDesc(logado, "Paciente",
+                entidadeId, pageable);
+        verify(logAuditoriaRepository, never()).findByUsuarioOrderByCreatedAtDesc(any(), any());
+        verify(logAuditoriaRepository, never()).findByUsuarioAndEntidadeOrderByCreatedAtDesc(any(), any(), any());
+        assertThat(pagina.getContent()).containsExactly(dto);
+    }
+
+    @Test
+    @DisplayName("listar com entidadeId sem entidade: rejeita antes de tocar o usuario logado ou o repositorio")
+    void listarComEntidadeIdSemEntidadeRejeita() {
+        Pageable pageable = PageRequest.of(0, 20);
+        UUID entidadeId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> auditoriaService.listar(pageable, null, entidadeId))
+                .isInstanceOf(FiltroAuditoriaInvalidoException.class);
+
+        verifyNoInteractions(securityService);
+        verifyNoInteractions(logAuditoriaRepository);
     }
 }
