@@ -48,6 +48,9 @@ public class Consulta {
     @Column(name = "deleted_at_consulta")
     private LocalDateTime deletedAt;
 
+    @Column(name = "id_serie")
+    private UUID serieId;
+
     @PrePersist
     private void prePersist() {
         this.createdAt = LocalDateTime.now();

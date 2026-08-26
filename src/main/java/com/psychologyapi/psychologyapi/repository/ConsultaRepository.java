@@ -11,8 +11,9 @@ import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Usuario;
 
 public interface ConsultaRepository extends JpaRepository<Consulta, UUID>{
-    
+
     List<Consulta> findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(Usuario usuario, LocalDateTime inicio, LocalDateTime fim);
     Optional<Consulta> findByIdAndUsuarioAndDeletedAtIsNull(UUID id, Usuario usuario);
+    List<Consulta> findBySerieIdAndUsuarioAndDeletedAtIsNull(UUID serieId, Usuario usuario);
 
 }

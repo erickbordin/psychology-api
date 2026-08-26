@@ -65,4 +65,10 @@ public final class Fixtures {
         log.setEntidadeId(entidadeId);
         return log;
     }
+
+    public static Consulta consultaDeSerie(Usuario dono, Paciente paciente, LocalDateTime dtConsulta, UUID serieId) {
+        Consulta consulta = consulta(dono, paciente, dtConsulta, Status.AGENDADA);
+        consulta.setSerieId(serieId);
+        return consulta;
+    }
 }

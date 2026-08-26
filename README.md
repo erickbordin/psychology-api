@@ -82,7 +82,7 @@ no projeto: o Hibernate não cria nem altera tabela. Mudança de schema é sempr
 migration nova e versionada — migration já aplicada é imutável, porque editar o
 arquivo muda o checksum e o Flyway falha na validação.
 
-Seis migrations até aqui (`V1` a `V6`), nomeadas `V<n>__<AAAAMMDD>.sql`.
+Sete migrations até aqui (`V1` a `V7`), nomeadas `V<n>__<AAAAMMDD>.sql`.
 
 ### Testes em três camadas
 
@@ -139,7 +139,7 @@ a ordem padrão em silêncio.
 |---|---|
 | `Usuario` | O psicólogo. Email único. Sem roles (MVP single-tenant por profissional). |
 | `Paciente` | Pertence a um `Usuario`. Soft delete. |
-| `Consulta` | Status `AGENDADA`/`REALIZADA`/`CANCELADA`/`FALTOU`. Conflito de horário validado numa janela de 50 min, ignorando canceladas e soft-deletadas. Na atualização, exclui a própria consulta da comparação. Soft delete. |
+| `Consulta` | Status `AGENDADA`/`REALIZADA`/`CANCELADA`/`FALTOU`. Conflito de horário validado numa janela de 50 min, ignorando canceladas e soft-deletadas. Na atualização, exclui a própria consulta da comparação. Soft delete. Série recorrente materializada por completo na criação e agrupada por `serieId`; conflito em qualquer ocorrência aborta a série inteira. |
 | `Anotacao` | Registro de sessão. **Sem `PUT`** — histórico não é editável. Listagem paginada. Soft delete. |
 | `Lembrete` | Vinculado ao `Paciente`. Sem `PUT` genérico: ação dedicada `PATCH /lembretes/{id}/concluir`. Listagem paginada. Soft delete. |
 | `LogAuditoria` | Append-only. Sem soft delete, por definição. Leitura paginada, restrita ao próprio profissional. |
@@ -156,6 +156,8 @@ Documentação interativa em `/swagger-ui.html`.
 | `GET` `PUT` `DELETE` | `/pacientes/{id}` | Detalha / atualiza / remove (soft) |
 | `POST` `GET` | `/consultas` | Agenda consulta / agenda do dia |
 | `GET` `PUT` `DELETE` | `/consultas/{id}` | Detalha / atualiza / remove (soft) |
+| `POST` | `/consultas/recorrentes` | Agenda uma série semanal (2 a 52 sessões) |
+| `DELETE` | `/consultas/series/{serieId}` | Cancela as ocorrências futuras da série |
 | `POST` `GET` | `/pacientes/{pacienteId}/anotacoes` | Cria / lista anotações (paginado) |
 | `DELETE` | `/anotacoes/{anotacaoId}` | Remove anotação (soft) |
 | `POST` `GET` | `/pacientes/{pacienteId}/lembretes` | Cria / lista lembretes (paginado) |
@@ -209,7 +211,7 @@ src/main/java/com/psychologyapi/psychologyapi/
 ├── model/          # entidades JPA
 └── exceptions/     # exceções de domínio
 
-src/main/resources/db/migration/   # migrations Flyway (V1..V6)
+src/main/resources/db/migration/   # migrations Flyway (V1..V7)
 src/test/java/.../service/         # unitários (Mockito)
 src/test/java/.../repository/      # integração (Testcontainers)
 src/test/java/.../controller/      # HTTP (MockMvc sobre o mesmo container)
@@ -225,7 +227,6 @@ no repositório. `server.port=${PORT:8080}` — a porta é injetada pela platafo
 
 ## Roadmap
 
-- Consulta recorrente (agendamento semanal automático)
 - Frontend React + TypeScript, em repositório separado
 
 ## Fora de escopo

@@ -5,12 +5,17 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaRecorrenteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamentoResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
@@ -23,6 +28,7 @@ import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
+import com.psychologyapi.psychologyapi.service.serie.OcorrenciasSemanais;
 
 import lombok.RequiredArgsConstructor;
 
@@ -126,6 +132,92 @@ public class ConsultaService {
         consulta.setDeletedAt(LocalDateTime.now());
         auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Consulta", consulta.getId());
         consultaRepository.save(consulta);
+    }
+
+    @Transactional
+    public SerieConsultaResponseDTO cadastrarSerie(ConsultaRecorrenteCadastroDTO dto) {
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(dto.pacienteId(), usuarioLogado)
+                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+
+        List<LocalDateTime> ocorrencias = dto.quantidadeSessoes() != null
+                ? OcorrenciasSemanais.aPartirDe(dto.dtPrimeiraConsulta(), dto.quantidadeSessoes())
+                : OcorrenciasSemanais.ate(dto.dtPrimeiraConsulta(), dto.dtLimite(),
+                        OcorrenciasSemanais.MAX_OCORRENCIAS);
+
+        validarConflitoDaSerie(usuarioLogado, ocorrencias);
+
+        UUID serieId = UUID.randomUUID();
+        List<Consulta> novas = ocorrencias.stream()
+                .map(dtConsulta -> {
+                    Consulta consulta = new Consulta();
+                    consulta.setUsuario(usuarioLogado);
+                    consulta.setPaciente(paciente);
+                    consulta.setDtConsulta(dtConsulta);
+                    consulta.setSerieId(serieId);
+                    return consulta;
+                })
+                .toList();
+
+        List<Consulta> salvas = consultaRepository.saveAll(novas);
+        salvas.forEach(consulta -> auditoriaService.registrar(usuarioLogado, AcaoAuditoria.CRIACAO, "Consulta",
+                consulta.getId()));
+
+        return new SerieConsultaResponseDTO(serieId, salvas.size(),
+                salvas.stream().map(consultaMapper::toResponseDTO).toList());
+    }
+
+    /**
+     * Uma query no intervalo inteiro da serie, e a janela de 50 min avaliada em
+     * memoria: uma query por ocorrencia seriam ate 52 round trips.
+     */
+    private void validarConflitoDaSerie(Usuario usuario, List<LocalDateTime> ocorrencias) {
+        LocalDateTime inicioJanela = ocorrencias.get(0).minusMinutes(DURACAO_CONSULTA_MINUTOS);
+        LocalDateTime fimJanela = ocorrencias.get(ocorrencias.size() - 1).plusMinutes(DURACAO_CONSULTA_MINUTOS);
+
+        List<Consulta> existentes = consultaRepository
+                .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(usuario, inicioJanela, fimJanela)
+                .stream()
+                .filter(consulta -> consulta.getStatus() != Status.CANCELADA)
+                .toList();
+
+        String conflitantes = ocorrencias.stream()
+                .filter(ocorrencia -> existentes.stream()
+                        .anyMatch(existente -> dentroDaJanela(existente.getDtConsulta(), ocorrencia)))
+                .map(LocalDateTime::toString)
+                .collect(Collectors.joining(", "));
+
+        if (!conflitantes.isEmpty()) {
+            throw new ConflitoDeHorarioException("Conflito de horario em: " + conflitantes);
+        }
+    }
+
+    private boolean dentroDaJanela(LocalDateTime existente, LocalDateTime nova) {
+        return !existente.isBefore(nova.minusMinutes(DURACAO_CONSULTA_MINUTOS))
+                && !existente.isAfter(nova.plusMinutes(DURACAO_CONSULTA_MINUTOS));
+    }
+
+    @Transactional
+    public SerieCancelamentoResponseDTO cancelarSerie(UUID serieId) {
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+
+        List<Consulta> daSerie = consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, usuarioLogado);
+        if (daSerie.isEmpty()) {
+            throw new ConsultaNaoEncontradaException("Serie nao encontrada");
+        }
+
+        LocalDateTime agora = LocalDateTime.now();
+        List<Consulta> futuras = daSerie.stream()
+                .filter(consulta -> !consulta.getDtConsulta().isBefore(agora))
+                .toList();
+
+        futuras.forEach(consulta -> consulta.setDeletedAt(agora));
+        consultaRepository.saveAll(futuras);
+        futuras.forEach(consulta -> auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Consulta",
+                consulta.getId()));
+
+        return new SerieCancelamentoResponseDTO(serieId, futuras.size());
     }
 
 }

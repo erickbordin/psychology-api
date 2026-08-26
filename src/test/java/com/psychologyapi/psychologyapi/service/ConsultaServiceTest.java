@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,6 +26,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaRecorrenteCadastroDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamentoResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
@@ -237,5 +242,234 @@ class ConsultaServiceTest {
         assertThat(consulta.getDeletedAt()).isNotNull();
         verify(consultaRepository).save(consulta);
         verify(consultaRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("cadastrarSerie gera as ocorrencias semanais com o mesmo serieId")
+    void cadastrarSerieGeraOcorrencias() {
+        UUID pacienteId = UUID.randomUUID();
+        LocalDateTime primeira = LocalDateTime.now().plusDays(7).withNano(0);
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of());
+        when(consultaRepository.saveAll(anyList())).thenAnswer(invocacao -> {
+            List<Consulta> recebidas = invocacao.getArgument(0);
+            recebidas.forEach(c -> c.setId(UUID.randomUUID()));
+            return recebidas;
+        });
+
+        ConsultaRecorrenteCadastroDTO dto =
+                new ConsultaRecorrenteCadastroDTO(pacienteId, primeira, 3, null);
+
+        SerieConsultaResponseDTO resposta = consultaService.cadastrarSerie(dto);
+
+        ArgumentCaptor<List<Consulta>> captor = ArgumentCaptor.forClass(List.class);
+        verify(consultaRepository).saveAll(captor.capture());
+        List<Consulta> salvas = captor.getValue();
+
+        assertThat(salvas).hasSize(3);
+        assertThat(salvas).extracting(Consulta::getDtConsulta)
+                .containsExactly(primeira, primeira.plusWeeks(1), primeira.plusWeeks(2));
+        assertThat(salvas).extracting(Consulta::getSerieId).containsOnly(salvas.get(0).getSerieId());
+        assertThat(salvas.get(0).getSerieId()).isNotNull();
+        assertThat(salvas).allSatisfy(c -> {
+            assertThat(c.getUsuario()).isSameAs(logado);
+            assertThat(c.getPaciente()).isSameAs(paciente);
+        });
+        assertThat(resposta.quantidade()).isEqualTo(3);
+        assertThat(resposta.serieId()).isEqualTo(salvas.get(0).getSerieId());
+    }
+
+    @Test
+    @DisplayName("cadastrarSerie audita CRIACAO uma vez por ocorrencia")
+    void cadastrarSerieAuditaCadaOcorrencia() {
+        UUID pacienteId = UUID.randomUUID();
+        LocalDateTime primeira = LocalDateTime.now().plusDays(7).withNano(0);
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of());
+        when(consultaRepository.saveAll(anyList())).thenAnswer(invocacao -> {
+            List<Consulta> recebidas = invocacao.getArgument(0);
+            recebidas.forEach(c -> c.setId(UUID.randomUUID()));
+            return recebidas;
+        });
+
+        consultaService.cadastrarSerie(new ConsultaRecorrenteCadastroDTO(pacienteId, primeira, 4, null));
+
+        verify(auditoriaService, times(4)).registrar(eq(logado), eq(AcaoAuditoria.CRIACAO), eq("Consulta"), any());
+    }
+
+    @Test
+    @DisplayName("cadastrarSerie aborta a serie inteira quando uma ocorrencia conflita")
+    void cadastrarSerieAbortaEmConflito() {
+        UUID pacienteId = UUID.randomUUID();
+        LocalDateTime primeira = LocalDateTime.now().plusDays(7).withNano(0);
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        Consulta jaAgendada = Fixtures.consulta(logado, paciente, primeira.plusWeeks(2), Status.AGENDADA);
+        jaAgendada.setId(UUID.randomUUID());
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of(jaAgendada));
+
+        ConsultaRecorrenteCadastroDTO dto =
+                new ConsultaRecorrenteCadastroDTO(pacienteId, primeira, 4, null);
+
+        assertThatThrownBy(() -> consultaService.cadastrarSerie(dto))
+                .isInstanceOf(ConflitoDeHorarioException.class)
+                .hasMessageContaining(primeira.plusWeeks(2).toString());
+
+        verify(consultaRepository, never()).saveAll(anyList());
+        verify(consultaRepository, never()).save(any());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("cadastrarSerie ignora consulta CANCELADA na checagem de conflito")
+    void cadastrarSerieIgnoraCancelada() {
+        UUID pacienteId = UUID.randomUUID();
+        LocalDateTime primeira = LocalDateTime.now().plusDays(7).withNano(0);
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        Consulta cancelada = Fixtures.consulta(logado, paciente, primeira, Status.CANCELADA);
+        cancelada.setId(UUID.randomUUID());
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of(cancelada));
+        when(consultaRepository.saveAll(anyList())).thenAnswer(invocacao -> {
+            List<Consulta> recebidas = invocacao.getArgument(0);
+            recebidas.forEach(c -> c.setId(UUID.randomUUID()));
+            return recebidas;
+        });
+
+        consultaService.cadastrarSerie(new ConsultaRecorrenteCadastroDTO(pacienteId, primeira, 2, null));
+
+        verify(consultaRepository).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("cadastrarSerie com paciente de outro psicologo responde 404 e nao grava nada")
+    void cadastrarSerieComPacienteDeOutroUsuario() {
+        UUID pacienteId = UUID.randomUUID();
+        LocalDateTime primeira = LocalDateTime.now().plusDays(7).withNano(0);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado)).thenReturn(Optional.empty());
+
+        ConsultaRecorrenteCadastroDTO dto =
+                new ConsultaRecorrenteCadastroDTO(pacienteId, primeira, 4, null);
+
+        assertThatThrownBy(() -> consultaService.cadastrarSerie(dto))
+                .isInstanceOf(PacienteNaoEncontradoException.class);
+
+        verify(consultaRepository, never()).saveAll(anyList());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("cadastrarSerie por dtLimite gera ate a data limite")
+    void cadastrarSeriePorDtLimite() {
+        UUID pacienteId = UUID.randomUUID();
+        LocalDateTime primeira = LocalDateTime.now().plusDays(7).withNano(0);
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado))
+                .thenReturn(Optional.of(paciente));
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of());
+        when(consultaRepository.saveAll(anyList())).thenAnswer(invocacao -> {
+            List<Consulta> recebidas = invocacao.getArgument(0);
+            recebidas.forEach(c -> c.setId(UUID.randomUUID()));
+            return recebidas;
+        });
+
+        SerieConsultaResponseDTO resposta = consultaService.cadastrarSerie(
+                new ConsultaRecorrenteCadastroDTO(pacienteId, primeira, null,
+                        primeira.plusWeeks(3).toLocalDate()));
+
+        assertThat(resposta.quantidade()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("cancelarSerie apaga so as ocorrencias futuras, por soft delete, e audita cada uma")
+    void cancelarSerieApagaSoAsFuturas() {
+        UUID serieId = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+
+        Consulta passada = Fixtures.consulta(logado, paciente, LocalDateTime.now().minusWeeks(1), Status.REALIZADA);
+        passada.setId(UUID.randomUUID());
+        passada.setSerieId(serieId);
+        Consulta futura = Fixtures.consulta(logado, paciente, LocalDateTime.now().plusWeeks(1), Status.AGENDADA);
+        futura.setId(UUID.randomUUID());
+        futura.setSerieId(serieId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, logado))
+                .thenReturn(List.of(passada, futura));
+
+        SerieCancelamentoResponseDTO resposta = consultaService.cancelarSerie(serieId);
+
+        assertThat(resposta.ocorrenciasRemovidas()).isEqualTo(1);
+        assertThat(resposta.serieId()).isEqualTo(serieId);
+        assertThat(futura.getDeletedAt()).isNotNull();
+        assertThat(passada.getDeletedAt()).isNull();
+        verify(consultaRepository, never()).delete(any());
+        verify(auditoriaService, times(1)).registrar(logado, AcaoAuditoria.EXCLUSAO, "Consulta", futura.getId());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), eq(passada.getId()));
+    }
+
+    @Test
+    @DisplayName("cancelarSerie de serie sem ocorrencia futura devolve contagem zero, nao 404")
+    void cancelarSerieSemFuturasDevolveZero() {
+        UUID serieId = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+
+        Consulta passada = Fixtures.consulta(logado, paciente, LocalDateTime.now().minusWeeks(1), Status.REALIZADA);
+        passada.setId(UUID.randomUUID());
+        passada.setSerieId(serieId);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, logado))
+                .thenReturn(List.of(passada));
+
+        SerieCancelamentoResponseDTO resposta = consultaService.cancelarSerie(serieId);
+
+        assertThat(resposta.ocorrenciasRemovidas()).isZero();
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("cancelarSerie de serie inexistente ou de outro psicologo responde 404")
+    void cancelarSerieInexistente() {
+        UUID serieId = UUID.randomUUID();
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, logado)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> consultaService.cancelarSerie(serieId))
+                .isInstanceOf(ConsultaNaoEncontradaException.class);
+
+        verify(consultaRepository, never()).saveAll(anyList());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }
 }
