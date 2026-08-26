@@ -165,6 +165,11 @@ Documentação interativa em `/swagger-ui.html`.
 | `DELETE` | `/lembretes/{lembreteId}` | Remove lembrete (soft) |
 | `GET` | `/auditoria` | Trilha de auditoria do profissional (paginado) |
 
+Toda resposta de consulta carrega o `serieId` da sua série (`null` quando a consulta
+é avulsa). Sem isso o cancelamento da série só seria alcançável por um cliente que
+tivesse guardado a resposta da criação — e o psicólogo voltaria a cancelar uma
+ocorrência por vez, que é o problema que a série existe para resolver.
+
 Sub-recurso fica sob o paciente (a URL é a fonte da verdade do `pacienteId`);
 ação sobre o recurso individual fica em rota própria, porque só precisa do
 próprio id.
