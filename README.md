@@ -93,7 +93,10 @@ Sete migrations até aqui (`V1` a `V7`), nomeadas `V<n>__<AAAAMMDD>.sql`.
   Testcontainers**, com as migrations aplicadas do zero.
 - **HTTP** — `@SpringBootTest` + `MockMvc` sobre o mesmo container. Cobre filtro
   JWT, cadeia de segurança, binding, serialização do `PagedModel` e o
-  `@RestControllerAdvice`.
+  `@RestControllerAdvice`. Inclui um teste de composição que percorre
+  `registrar → login → criar paciente → anotar → listar` com o token que o
+  próprio login devolveu — nenhum teste por endpoint prova que os passos
+  encaixam.
 
 Nenhuma das camadas é redundante. O isolamento depende do *nome* do método
 derivado (`findByIdAndPaciente_UsuarioAndDeletedAtIsNull`), e nome de método só
@@ -106,6 +109,13 @@ Foi a camada HTTP que revelou, ao entrar, que o registro respondia `200` em vez
 de `201`, que token expirado virava `500` (exceção subindo de dentro do filtro,
 fora do alcance do `@RestControllerAdvice`) e que requisição sem token
 respondia `403` em vez de `401`. Os três corrigidos.
+
+E foi o teste de composição que revelou o pior deles: o mapper de anotação não
+ligava o campo do DTO ao da entidade, então **toda criação de anotação
+respondia `500`** — o registro de sessão, o dado central do produto. O MapStruct
+não casa nomes diferentes e não avisa: gera o método, compila e não copia o
+valor. Os testes de service mockavam o mapper, então validavam o mock. Mapper com
+renomeação só é provado atravessando HTTP com o mapper real.
 
 `SchemaMigrationTest` garante que toda coluna `deleted_at_*` mapeada existe no
 schema — o mapeamento não pode divergir da migration sem quebrar a suíte.
@@ -138,7 +148,7 @@ a ordem padrão em silêncio.
 | Entidade | Regras |
 |---|---|
 | `Usuario` | O psicólogo. Email único. Sem roles (MVP single-tenant por profissional). |
-| `Paciente` | Pertence a um `Usuario`. Soft delete. |
+| `Paciente` | Pertence a um `Usuario`. Soft delete. Listagem aceita filtro por nome, ou devolve todos. |
 | `Consulta` | Status `AGENDADA`/`REALIZADA`/`CANCELADA`/`FALTOU`. Conflito de horário validado numa janela de 50 min, ignorando canceladas e soft-deletadas. Na atualização, exclui a própria consulta da comparação. Soft delete. Série recorrente materializada por completo na criação e agrupada por `serieId`; conflito em qualquer ocorrência aborta a série inteira. |
 | `Anotacao` | Registro de sessão. **Sem `PUT`** — histórico não é editável. Listagem paginada. Soft delete. |
 | `Lembrete` | Vinculado ao `Paciente`. Sem `PUT` genérico: ação dedicada `PATCH /lembretes/{id}/concluir`. Listagem paginada. Soft delete. |
@@ -152,9 +162,9 @@ Documentação interativa em `/swagger-ui.html`.
 |---|---|---|
 | `POST` | `/auth/registrar` | Cria psicólogo |
 | `POST` | `/auth/login` | Devolve o JWT |
-| `POST` `GET` | `/pacientes` | Cadastra / lista pacientes |
+| `POST` `GET` | `/pacientes` | Cadastra / lista pacientes (`?nome` opcional filtra) |
 | `GET` `PUT` `DELETE` | `/pacientes/{id}` | Detalha / atualiza / remove (soft) |
-| `POST` `GET` | `/consultas` | Agenda consulta / agenda do dia |
+| `POST` `GET` | `/consultas` | Agenda consulta / lista a agenda (`?de`+`?ate` opcionais; sem eles, hoje) |
 | `GET` `PUT` `DELETE` | `/consultas/{id}` | Detalha / atualiza / remove (soft) |
 | `POST` | `/consultas/recorrentes` | Agenda uma série semanal (2 a 52 sessões) |
 | `DELETE` | `/consultas/series/{serieId}` | Cancela as ocorrências futuras da série |
@@ -163,7 +173,12 @@ Documentação interativa em `/swagger-ui.html`.
 | `POST` `GET` | `/pacientes/{pacienteId}/lembretes` | Cria / lista lembretes (paginado) |
 | `PATCH` | `/lembretes/{lembreteId}/concluir` | Conclui lembrete |
 | `DELETE` | `/lembretes/{lembreteId}` | Remove lembrete (soft) |
-| `GET` | `/auditoria` | Trilha de auditoria do profissional (paginado) |
+| `GET` | `/auditoria` | Trilha de auditoria do profissional (paginado; `?entidade`+`?entidadeId` opcionais) |
+
+Toda resposta de consulta carrega o `serieId` da sua série (`null` quando a consulta
+é avulsa). Sem isso o cancelamento da série só seria alcançável por um cliente que
+tivesse guardado a resposta da criação — e o psicólogo voltaria a cancelar uma
+ocorrência por vez, que é o problema que a série existe para resolver.
 
 Sub-recurso fica sob o paciente (a URL é a fonte da verdade do `pacienteId`);
 ação sobre o recurso individual fica em rota própria, porque só precisa do
@@ -174,6 +189,11 @@ Erros seguem semântica HTTP explícita, centralizados num `@RestControllerAdvic
 profissional), `409` duplicado ou conflito de horário, `400` validação — com a
 lista de campo + mensagem. Requisição sem token, ou com token expirado ou
 inválido, responde `401` pela própria cadeia de segurança.
+
+Os `400` de regra — intervalo de datas pela metade ou invertido em
+`/consultas`, `entidadeId` sem `entidade` em `/auditoria` — devolvem o mesmo
+envelope da validação de bean, com o campo culpado nomeado. Um cliente trata uma
+forma de `400`, não três.
 
 ## Rodando localmente
 

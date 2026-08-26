@@ -19,6 +19,7 @@ import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResp
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
+import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.mapper.ConsultaMapper;
 import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
@@ -88,8 +89,37 @@ public class ConsultaService {
         LocalDateTime inicioDoDia = LocalDate.now().atStartOfDay();
         LocalDateTime fimDoDia = LocalDate.now().atTime(LocalTime.MAX);
 
+        return buscarEMapearAgenda(usuarioLogado, inicioDoDia, fimDoDia);
+    }
+
+    /**
+     * 'de' e 'ate' sao opcionais, mas nao independentes: com os dois ausentes
+     * preserva o contrato antigo (agenda de hoje, via listarAgendaDoDia); com
+     * so um deles ou com o intervalo invertido e erro do cliente (400), nunca
+     * uma adivinhacao silenciosa de intervalo.
+     */
+    public List<ConsultaResponseDTO> listarAgenda(LocalDate de, LocalDate ate) {
+        if (de == null && ate == null) {
+            return listarAgendaDoDia();
+        }
+
+        if (de == null || ate == null) {
+            String campoAusente = de == null ? "de" : "ate";
+            throw new PeriodoInvalidoException(campoAusente,
+                    "Informe 'de' e 'ate' juntos, ou nenhum dos dois.");
+        }
+
+        if (ate.isBefore(de)) {
+            throw new PeriodoInvalidoException("ate", "'ate' nao pode ser anterior a 'de'.");
+        }
+
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+        return buscarEMapearAgenda(usuarioLogado, de.atStartOfDay(), ate.atTime(LocalTime.MAX));
+    }
+
+    private List<ConsultaResponseDTO> buscarEMapearAgenda(Usuario usuario, LocalDateTime inicio, LocalDateTime fim) {
         List<Consulta> consultas = consultaRepository
-                .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(usuarioLogado, inicioDoDia, fimDoDia);
+                .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(usuario, inicio, fim);
 
         return consultas.stream()
                 .map(consultaMapper::toResponseDTO)

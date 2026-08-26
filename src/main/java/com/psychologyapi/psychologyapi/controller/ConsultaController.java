@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,8 +31,10 @@ public class ConsultaController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ConsultaResponseDTO>> listarAgendaDoDia(){
-        List<ConsultaResponseDTO> consultas = consultaService.listarAgendaDoDia();
+    public ResponseEntity<List<ConsultaResponseDTO>> listarAgenda(
+            @RequestParam(required = false) LocalDate de,
+            @RequestParam(required = false) LocalDate ate){
+        List<ConsultaResponseDTO> consultas = consultaService.listarAgenda(de, ate);
         return ResponseEntity.status(HttpStatus.OK).body(consultas);
     }
 

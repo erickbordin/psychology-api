@@ -18,6 +18,8 @@ import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.LembreteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
+import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoException;
+import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
 
 @RestControllerAdvice
@@ -77,6 +79,27 @@ public class GlobalExceptionsHandler {
         return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(PeriodoInvalidoException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErroRespostaDTO handlePeriodoInvalido(PeriodoInvalidoException e) {
+        return new ErroRespostaDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "Erro de validação",
+                List.of(new ErroCampoDTO(e.getCampo(), e.getMessage())));
+    }
 
+    /**
+     * Reaproveita o mesmo formato de 400 da validacao de bean (ErroRespostaDTO):
+     * entidadeId sem entidade nao e erro de bind, mas e erro de validacao do
+     * mesmo jeito, e o contrato de 400 da API deve ser um so.
+     */
+    @ExceptionHandler(FiltroAuditoriaInvalidoException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErroRespostaDTO handleFiltroAuditoriaInvalido(FiltroAuditoriaInvalidoException e) {
+        return new ErroRespostaDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "Erro de validação",
+                List.of(new ErroCampoDTO("entidadeId", e.getMessage())));
+    }
 
 }
