@@ -31,6 +31,9 @@ import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
 import com.psychologyapi.psychologyapi.service.serie.OcorrenciasSemanais;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -266,6 +269,24 @@ public class ConsultaService {
                 consulta.getId()));
 
         return new SerieCancelamentoResponseDTO(serieId, futuras.size());
+    }
+
+    /**
+     * Historico de atendimento do paciente. Paginado porque cresce sem limite com
+     * o tempo, e auditado como VISUALIZACAO do paciente — e acesso ao historico de
+     * alguem identificado, nao uma listagem generica.
+     */
+    public Page<ConsultaResponseDTO> listarPorPaciente(UUID pacienteId, Pageable pageable) {
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+        Paciente paciente = pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, usuarioLogado)
+                .orElseThrow(() -> new PacienteNaoEncontradoException("Paciente nao encontrado"));
+
+        Page<Consulta> consultas = consultaRepository
+                .findByPacienteAndUsuarioAndDeletedAtIsNullOrderByDtConsultaDesc(paciente, usuarioLogado, pageable);
+
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.VISUALIZACAO, "Paciente", paciente.getId());
+
+        return consultas.map(consultaMapper::toResponseDTO);
     }
 
 }
