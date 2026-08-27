@@ -158,6 +158,10 @@ Optional<Lembrete> findByIdAndPaciente_Usuario(UUID id, Usuario usuario);
 ```
 
 ### Soft delete (aplicado em `Paciente`, `Anotacao`, `Consulta` e `Lembrete`)
+
+`refresh_token` é a única tabela **sem** `deleted_at`, de propósito:
+`revoked_at_refresh_token` já cobre o encerramento lógico, e token vencido é lixo
+de infraestrutura, não prontuário. A limpeza física acontece no login, sem job.
 Campo `deletedAt` (`LocalDateTime`, nullable, sem `@PrePersist` — nasce
 `null`). Métodos de repository usados nos fluxos normais têm o sufixo
 `AndDeletedAtIsNull`; **não existem versões sem esse filtro** no repository

@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 
 import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
@@ -123,5 +124,29 @@ class ConsultaRepositoryTest {
 
         assertThat(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, dono)).hasSize(1);
         assertThat(consultaRepository.findBySerieIdAndUsuarioAndDeletedAtIsNull(serieId, intruso)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("historico do paciente ignora consulta de outro paciente e soft-deletada")
+    void historicoDoPacienteFiltraDonoEDeletadas() {
+        Usuario dono = em.persistFlushFind(Fixtures.usuario("dono@teste.com"));
+        Paciente alvo = em.persistFlushFind(Fixtures.paciente(dono, "Alvo"));
+        Paciente outro = em.persistFlushFind(Fixtures.paciente(dono, "Outro"));
+
+        em.persistFlushFind(Fixtures.consulta(dono, alvo,
+                LocalDateTime.of(2026, 8, 20, 9, 0), Status.REALIZADA));
+        em.persistFlushFind(Fixtures.consulta(dono, outro,
+                LocalDateTime.of(2026, 8, 21, 9, 0), Status.AGENDADA));
+
+        Consulta apagada = Fixtures.consulta(dono, alvo,
+                LocalDateTime.of(2026, 8, 22, 9, 0), Status.AGENDADA);
+        apagada.setDeletedAt(LocalDateTime.now());
+        em.persistFlushFind(apagada);
+
+        assertThat(consultaRepository
+                .findByPacienteAndUsuarioAndDeletedAtIsNullOrderByDtConsultaDesc(alvo, dono, PageRequest.of(0, 20))
+                .getContent())
+                .extracting(Consulta::getDtConsulta)
+                .containsExactly(LocalDateTime.of(2026, 8, 20, 9, 0));
     }
 }

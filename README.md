@@ -140,6 +140,15 @@ tratar — o envelope do login com credencial inválida e o nada da cadeia. A me
 é a mesma para os três casos: distinguir token ausente de expirado de assinatura
 inválida só ajudaria quem está sondando a API.
 
+A validade de 15 min só é viável porque existe renovação: `POST /auth/refresh`
+troca um refresh token opaco — guardado como SHA-256 em `refresh_token` e entregue
+em cookie `HttpOnly` — por um access token novo. A rotação é a cada uso: um refresh
+reapresentado depois de revogado revoga a cadeia inteira daquele usuário, porque
+duas partes com a mesma credencial significa que existe uma cópia.
+
+Detalhes e alternativas rejeitadas em
+`docs/superpowers/specs/2026-08-26-sessao-com-refresh-design.md`.
+
 ### Paginação com `PagedModel`
 
 Aplicada em `Anotacao`, `Lembrete` e `LogAuditoria` — as listagens que crescem sem
@@ -168,9 +177,12 @@ Documentação interativa em `/swagger-ui.html`.
 | Método | Rota | Descrição |
 |---|---|---|
 | `POST` | `/auth/registrar` | Cria psicólogo |
-| `POST` | `/auth/login` | Devolve o JWT |
+| `POST` | `/auth/login` | Devolve o JWT e o cookie de refresh |
+| `POST` | `/auth/refresh` | Renova o access token a partir do cookie de refresh |
+| `POST` | `/auth/logout` | Revoga o refresh corrente e limpa o cookie |
 | `POST` `GET` | `/pacientes` | Cadastra / lista pacientes (`?nome` opcional filtra) |
 | `GET` `PUT` `DELETE` | `/pacientes/{id}` | Detalha / atualiza / remove (soft) |
+| `GET` | `/pacientes/{pacienteId}/consultas` | Histórico de consultas do paciente (paginado) |
 | `POST` `GET` | `/consultas` | Agenda consulta / lista a agenda (`?de`+`?ate` opcionais; sem eles, hoje) |
 | `GET` `PUT` `DELETE` | `/consultas/{id}` | Detalha / atualiza / remove (soft) |
 | `POST` | `/consultas/recorrentes` | Agenda uma série semanal (2 a 52 sessões) |
@@ -262,6 +274,12 @@ só o JRE. Deploy automático a cada push na `main`. Variáveis de ambiente
 (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`,
 `SPRING_DATASOURCE_PASSWORD`, `JWT_SECRET`) ficam no painel da plataforma, nunca
 no repositório. `server.port=${PORT:8080}` — a porta é injetada pela plataforma.
+
+O frontend acrescenta quatro variáveis: `APP_CORS_ORIGINS` (a origem do frontend,
+separada por vírgula se houver mais de uma — nunca `*`, que o próprio spec de CORS
+proíbe combinar com credenciais), `APP_REFRESH_EXPIRACAO_DIAS` (padrão 14),
+`APP_REFRESH_COOKIE_SEGURO` e `APP_REFRESH_COOKIE_SAMESITE` (`true` e `None` em
+produção, onde API e frontend têm origens distintas).
 
 ## Roadmap
 
