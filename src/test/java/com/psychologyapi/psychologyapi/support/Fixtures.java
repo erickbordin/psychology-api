@@ -7,6 +7,7 @@ import com.psychologyapi.psychologyapi.model.Anotacao;
 import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Lembrete;
 import com.psychologyapi.psychologyapi.model.Paciente;
+import com.psychologyapi.psychologyapi.model.RefreshToken;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
@@ -70,5 +71,13 @@ public final class Fixtures {
         Consulta consulta = consulta(dono, paciente, dtConsulta, Status.AGENDADA);
         consulta.setSerieId(serieId);
         return consulta;
+    }
+
+    public static RefreshToken refreshToken(Usuario dono, String hashToken, LocalDateTime expiraEm) {
+        RefreshToken token = new RefreshToken();
+        token.setUsuario(dono);
+        token.setHashToken(hashToken);
+        token.setExpiresAt(expiraEm);
+        return token;
     }
 }
