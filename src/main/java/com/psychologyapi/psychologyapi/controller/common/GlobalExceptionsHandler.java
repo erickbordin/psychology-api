@@ -20,6 +20,7 @@ import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException
 import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
+import com.psychologyapi.psychologyapi.exceptions.SessaoInvalidaException;
 
 /**
  * Todo erro da API sai no mesmo envelope, o {@link ErroRespostaDTO}: status,
@@ -41,6 +42,12 @@ public class GlobalExceptionsHandler {
     @ExceptionHandler(BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ErroRespostaDTO handleBadCredentialsException(BadCredentialsException e) {
+        return semCampos(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
+
+    @ExceptionHandler(SessaoInvalidaException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErroRespostaDTO handleSessaoInvalida(SessaoInvalidaException e) {
         return semCampos(HttpStatus.UNAUTHORIZED, e.getMessage());
     }
 
