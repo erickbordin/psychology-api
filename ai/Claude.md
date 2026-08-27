@@ -238,23 +238,28 @@ encontra o bean gerado (`NoSuchBeanDefinitionException`).
   memória sem `save()` não persiste.
 
 ### Transação
-`@Transactional` (`org.springframework.transaction.annotation`) aparece em
-exatamente dois métodos do projeto: `ConsultaService.cadastrarSerie` e
-`ConsultaService.cancelarSerie`. Motivo: `cadastrarSerie` faz N inserts de
-`Consulta` mais N inserts de auditoria, e `cancelarSerie` faz N updates
-(soft delete) mais N inserts de auditoria — tudo-ou-nada, porque uma série
-parcialmente gravada é pior que nenhuma série. Novo método que grave mais
-de uma linha logicamente relacionada segue o mesmo padrão.
+**Todo método de service que grava mais de uma linha leva
+`@Transactional`** (`org.springframework.transaction.annotation`). E isso é
+quase todo método de mutação do projeto, porque **toda mutação grava duas
+linhas**: a entidade e o `log_auditoria`. São 13 métodos hoje — os três de
+`Paciente`, os três de `Consulta`, os dois de `Anotacao`, os três de
+`Lembrete`, mais `cadastrarSerie` e `cancelarSerie`, que gravam N e não 2.
 
-**Não** leia isso como "os outros fluxos são atômicos e por isso dispensam
-transação". Eles não são: `cadastrar`, `atualizarConsulta` e `deletarConsulta`
-gravam **duas** linhas cada um (a entidade mais o `log_auditoria`) sem
-transação ao redor do par, e `deletarConsulta` ainda audita **antes** do
-`save` — um save que falhe ali deixa trilha de `EXCLUSAO` de uma exclusão que
-não aconteceu. É lacuna pré-existente, não coberta por teste, e o custo real é
-baixo (trilha de auditoria divergindo do dado num erro raro), mas é lacuna, e
-quem for mexer nesses métodos deve saber disso em vez de assumir que estão
-seguros.
+Sem a anotação, cada `save` roda na transação própria do `SimpleJpaRepository`
+e commita sozinho: um erro entre os dois writes deixa dado sem trilha, ou
+trilha sem dado.
+
+Método que grava **uma** linha só não precisa: `buscarPorId` e
+`AnotacaoService.listarPorPaciente` gravam apenas a linha de auditoria da
+leitura, e um `save` isolado já é atômico. Esses seguem sem anotação de
+propósito.
+
+**A auditoria vem sempre DEPOIS do `save`**, nunca antes. Os quatro
+`deletar*` faziam o contrário até 2026-08-26: auditavam e depois salvavam, e um
+save que falhasse deixava trilha de `EXCLUSAO` de uma exclusão que não
+aconteceu. Cada um tem hoje um teste com `InOrder` fixando a ordem — verificado
+por mutação: inverter a ordem faz o teste falhar com
+`Verification in order failure`.
 
 ### Controller
 - `@RequestBody` deve vir de `org.springframework.web.bind.annotation`,
@@ -524,9 +529,14 @@ service/repository foram corrigidas: exclusão física em `deletarPaciente`,
 `anotacao.deleted_at_anotacao`, `deletedAt` declarado como `nullable = false` e
 `server.jwt.secret` órfão.
 
-Duas divergências de mapper foram encontradas em 2026-08-26 e corrigidas — e as
-duas eram do tipo mais incômodo, em que **este documento estava certo e o código
-não cumpria**: a seção de mapper acima já exigia `@Mapping` explícito para nome
+Três divergências foram encontradas em 2026-08-26 e corrigidas. A terceira: a
+seção "Transação" acima descrevia `@Transactional` como coisa de dois métodos,
+enquanto **toda** mutação do projeto grava duas linhas e nenhuma tinha
+transação, e os quatro `deletar*` auditavam antes do save. Corrigido nos 13
+métodos, com teste de ordem em cada `deletar*`.
+
+As outras duas eram de mapper, e do tipo mais incômodo, em que **este documento
+estava certo e o código não cumpria**: a seção de mapper acima já exigia `@Mapping` explícito para nome
 divergente, e nem `AnotacaoMapper.toEntity` nem `PacienteMapper.toResponseDTO`
 tinham. Resultado: criação de anotação devolvia `500` em produção, e resposta de
 paciente omitia telefone e data de nascimento. Detalhe na seção de mapper. Lição
