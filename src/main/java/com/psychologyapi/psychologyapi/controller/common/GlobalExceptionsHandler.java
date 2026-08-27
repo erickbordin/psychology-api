@@ -3,7 +3,6 @@ package com.psychologyapi.psychologyapi.controller.common;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -22,17 +21,33 @@ import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoExcepti
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
 
+/**
+ * Todo erro da API sai no mesmo envelope, o {@link ErroRespostaDTO}: status,
+ * mensagem e a lista de campos culpados.
+ *
+ * O 400 preenche a lista com um item por campo. O 401, o 404 e o 409 nao tem
+ * campo culpado — a lista vem vazia e a mensagem carrega o motivo. O cliente le
+ * uma forma de erro, nao duas: com texto puro em uns status e JSON em outros,
+ * tratar falha exigiria dois caminhos de parsing.
+ *
+ * O 401 da cadeia de seguranca (sem token, token expirado ou invalido) nao passa
+ * por aqui — excecao lancada num filtro sobe antes do DispatcherServlet, fora do
+ * alcance do @RestControllerAdvice. Quem monta o envelope naquele caso e o
+ * ErroRespostaAuthenticationEntryPoint.
+ */
 @RestControllerAdvice
 public class GlobalExceptionsHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<String> handleBadCredentialsException(BadCredentialsException e) {
-        return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErroRespostaDTO handleBadCredentialsException(BadCredentialsException e) {
+        return semCampos(HttpStatus.UNAUTHORIZED, e.getMessage());
     }
 
     @ExceptionHandler(RegistroDuplicadoException.class)
-    public ResponseEntity<String> handleRegistroDuplicadoException(RegistroDuplicadoException e) {
-        return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErroRespostaDTO handleRegistroDuplicadoException(RegistroDuplicadoException e) {
+        return semCampos(HttpStatus.CONFLICT, e.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -51,32 +66,32 @@ public class GlobalExceptionsHandler {
 
     @ExceptionHandler(PacienteNaoEncontradoException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ResponseEntity<String> handlePacienteNaoEncontrado(PacienteNaoEncontradoException e){
-        return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+    public ErroRespostaDTO handlePacienteNaoEncontrado(PacienteNaoEncontradoException e){
+        return semCampos(HttpStatus.NOT_FOUND, e.getMessage());
     }   
 
     @ExceptionHandler(ConsultaNaoEncontradaException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ResponseEntity<String> handleConsultaNaoEncontrada(ConsultaNaoEncontradaException e){
-        return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+    public ErroRespostaDTO handleConsultaNaoEncontrada(ConsultaNaoEncontradaException e){
+        return semCampos(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
     @ExceptionHandler(AnotacaoNaoEncontradaException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ResponseEntity<String> handleAnotacaoNaoEncontrada(AnotacaoNaoEncontradaException e){
-        return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+    public ErroRespostaDTO handleAnotacaoNaoEncontrada(AnotacaoNaoEncontradaException e){
+        return semCampos(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
     @ExceptionHandler(LembreteNaoEncontradoException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ResponseEntity<String> handleLembreteNaoEncontrado(LembreteNaoEncontradoException e){
-        return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+    public ErroRespostaDTO handleLembreteNaoEncontrado(LembreteNaoEncontradoException e){
+        return semCampos(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
     @ExceptionHandler(ConflitoDeHorarioException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ResponseEntity<String> handelConflitoDeHorario(ConflitoDeHorarioException e){
-        return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
+    public ErroRespostaDTO handelConflitoDeHorario(ConflitoDeHorarioException e){
+        return semCampos(HttpStatus.CONFLICT, e.getMessage());
     }
 
     @ExceptionHandler(PeriodoInvalidoException.class)
@@ -100,6 +115,14 @@ public class GlobalExceptionsHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Erro de validação",
                 List.of(new ErroCampoDTO("entidadeId", e.getMessage())));
+    }
+
+    /**
+     * Erro sem campo culpado. A lista vazia — e nao ausente — mantem a forma do
+     * envelope estavel: o cliente sempre encontra "erros" como array.
+     */
+    private static ErroRespostaDTO semCampos(HttpStatus status, String mensagem) {
+        return new ErroRespostaDTO(status.value(), mensagem, List.of());
     }
 
 }

@@ -45,14 +45,18 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /auth/registrar com email duplicado responde 409")
+    @DisplayName("POST /auth/registrar com email duplicado responde 409 no envelope de erro")
     void registrarDuplicadoResponde409() throws Exception {
         psicologoComSenha("ana@teste.com", "senhaforte123");
 
         mockMvc.perform(post("/auth/registrar")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"nome\":\"Psicologa Ana\",\"email\":\"ana@teste.com\",\"senha\":\"senhaforte123\"}"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.mensagem").isNotEmpty())
+                .andExpect(jsonPath("$.erros").isArray())
+                .andExpect(jsonPath("$.erros.length()").value(0));
     }
 
     @Test
@@ -78,13 +82,17 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /auth/login com senha errada responde 401")
+    @DisplayName("POST /auth/login com senha errada responde 401 no envelope de erro")
     void loginComSenhaErradaResponde401() throws Exception {
         psicologoComSenha("ana@teste.com", "senhaforte123");
 
         mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"emailUsuario\":\"ana@teste.com\",\"senha\":\"senhaerrada\"}"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.mensagem").isNotEmpty())
+                .andExpect(jsonPath("$.erros").isArray())
+                .andExpect(jsonPath("$.erros.length()").value(0));
     }
 }

@@ -97,7 +97,11 @@ class ConsultaSerieControllerTest {
                 .header(HttpHeaders.AUTHORIZATION, bearerDe(dono))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(corpoPorQuantidade(paciente.getId(), primeira, 4)))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.mensagem").isNotEmpty())
+                .andExpect(jsonPath("$.erros").isArray())
+                .andExpect(jsonPath("$.erros.length()").value(0));
 
         assertThat(consultaRepository.count()).isEqualTo(antes);
     }

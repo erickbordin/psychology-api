@@ -129,9 +129,16 @@ Não usa `DaoAuthenticationProvider`. `CustomAuthenticationProvider` +
 o `SecurityContextHolder`; sessão `STATELESS`, `/auth/**` público, resto autenticado.
 
 Token inválido ou expirado não propaga exceção: o filtro segue sem autenticar e a
-cadeia responde `401`, via `HttpStatusEntryPoint`. Exceção lançada num filtro sobe
-antes do `DispatcherServlet`, onde o `@RestControllerAdvice` não alcança — sem esse
-tratamento, um token vencido (a validade é de 15 min) devolveria `500`.
+cadeia responde `401`, via `ErroRespostaAuthenticationEntryPoint`. Exceção lançada
+num filtro sobe antes do `DispatcherServlet`, onde o `@RestControllerAdvice` não
+alcança — sem esse tratamento, um token vencido (a validade é de 15 min) devolveria
+`500`.
+
+O entry point existe para o corpo, não para o status: um `HttpStatusEntryPoint`
+resolveria o `401` com corpo vazio, e o cliente teria duas formas de `401` para
+tratar — o envelope do login com credencial inválida e o nada da cadeia. A mensagem
+é a mesma para os três casos: distinguir token ausente de expirado de assinatura
+inválida só ajudaria quem está sondando a API.
 
 ### Paginação com `PagedModel`
 
@@ -186,14 +193,25 @@ próprio id.
 
 Erros seguem semântica HTTP explícita, centralizados num `@RestControllerAdvice`:
 `401` credencial inválida, `404` não encontrado (inclui registro de outro
-profissional), `409` duplicado ou conflito de horário, `400` validação — com a
-lista de campo + mensagem. Requisição sem token, ou com token expirado ou
-inválido, responde `401` pela própria cadeia de segurança.
+profissional), `409` duplicado ou conflito de horário, `400` validação.
+Requisição sem token, ou com token expirado ou inválido, responde `401` pela
+própria cadeia de segurança.
 
-Os `400` de regra — intervalo de datas pela metade ou invertido em
-`/consultas`, `entidadeId` sem `entidade` em `/auditoria` — devolvem o mesmo
-envelope da validação de bean, com o campo culpado nomeado. Um cliente trata uma
-forma de `400`, não três.
+**Toda resposta de erro sai no mesmo envelope**, o `ErroRespostaDTO`:
+
+```json
+{ "status": 404, "mensagem": "Paciente não encontrado.", "erros": [] }
+```
+
+O `400` preenche `erros` com um item `{campo, mensagem}` por campo; `401`, `404` e
+`409` não têm campo culpado e mandam a lista vazia — vazia, e não ausente, para que
+a forma do envelope não mude entre um status e outro. Um cliente lê uma forma de
+erro, não duas: com JSON em uns status e texto puro em outros, tratar falha exigiria
+dois caminhos de parsing.
+
+Isso vale também para os `400` de regra — intervalo de datas pela metade ou
+invertido em `/consultas`, `entidadeId` sem `entidade` em `/auditoria` —, que usam
+o mesmo envelope da validação de bean, com o campo culpado nomeado.
 
 ## Rodando localmente
 

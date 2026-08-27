@@ -2,6 +2,7 @@ package com.psychologyapi.psychologyapi.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,10 +49,15 @@ class SegurancaHttpTest {
     }
 
     @Test
-    @DisplayName("rota protegida sem token responde 401")
+    @DisplayName("rota protegida sem token responde 401 no mesmo envelope do 400")
     void semTokenResponde401() throws Exception {
         mockMvc.perform(get("/auditoria"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.mensagem").isNotEmpty())
+                .andExpect(jsonPath("$.erros").isArray())
+                .andExpect(jsonPath("$.erros.length()").value(0));
     }
 
     @Test
@@ -81,7 +87,12 @@ class SegurancaHttpTest {
 
         mockMvc.perform(get("/pacientes/" + paciente.getId())
                 .header(HttpHeaders.AUTHORIZATION, bearerDe(intruso)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.mensagem").isNotEmpty())
+                .andExpect(jsonPath("$.erros").isArray())
+                .andExpect(jsonPath("$.erros.length()").value(0));
     }
 
     @Test
