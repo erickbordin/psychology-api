@@ -1,0 +1,22 @@
+node_modules
+dist
+dist-ssr
+*.local
+.tsbuild
+*.tsbuildinfo
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# testing / e2e
+coverage
+playwright-report
+test-results
+blob-report

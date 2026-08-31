@@ -1,0 +1,11 @@
+# Build
+target/
+.mvn/
+*.jar
+*.class
+
+# Eclipse / language server Java (gerados pelo JDT, nao versionar)
+.classpath
+.project
+.factorypath
+.settings/

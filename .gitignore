@@ -2,17 +2,9 @@
 .env
 *.env
 
-# Ignorar arquivos de compilação e build
-target/
-.mvn/
+# IDE
 .idea/
 .vscode/
-# Eclipse / language server Java (gerados pelo JDT, nao versionar)
-.classpath
-.project
-.factorypath
-.settings/
+
 # Worktrees dos subagentes (scratch, nao versionar)
 .claude/worktrees/
-*.jar
-*.class

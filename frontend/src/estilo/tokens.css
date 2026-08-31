@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/**
+ * "O enquadre": faixa de luminancia estreita de proposito. Nada grita numa sala
+ * onde ha alguem sendo descrito. O acento e reservado para uma coisa so — o que
+ * esta aberto agora.
+ */
+@theme {
+  --color-fundo: #dedcd4;
+  --color-superficie: #eae8e1;
+
+  --color-tinta: #22241f;
+  --color-tinta-2: #5a5c52;
+  --color-tinta-3: #8b8d82;
+  --color-linha: #c8c6bc;
+
+  --color-acento: #5b4a7a;
+
+  --color-sucesso: #4a6b52;
+  --color-atencao: #8a6a3a;
+  --color-perigo: #8a4a45;
+
+  --font-serif: "Literata", Georgia, serif;
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--color-fundo);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-acento) 22%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

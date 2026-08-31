@@ -4,8 +4,20 @@ Contexto do projeto para qualquer sessão de IA trabalhando neste repositório.
 
 ## Visão geral
 
-Sistema de gestão para psicólogos autônomos (MVP). Backend Java/Spring Boot,
-frontend React/TypeScript (repositório separado, ainda não iniciado).
+Sistema de gestão para psicólogos autônomos (MVP). Monorepo com duas aplicações:
+backend Java/Spring Boot em `backend/` e frontend React/TypeScript em
+`frontend/`. Este arquivo cobre o backend; o contexto do frontend está no
+`frontend/README.md`.
+
+```
+psychology-api/
+├── backend/     API REST — Java 21, Spring Boot, PostgreSQL, Flyway
+├── frontend/    Interface — React 19, TypeScript, Vite, Tailwind
+├── docs/        Specs e planos das duas pontas
+└── ai/          Este arquivo
+```
+
+**Todos os caminhos de backend citados abaixo são relativos a `backend/`.**
 
 **Filosofia do projeto:** MVP enxuto e deliberado. Antes de sugerir uma
 feature nova, verifique se ela está fora do escopo combinado — ver seção
@@ -41,10 +53,10 @@ Sem essas variáveis de ambiente definidas, a aplicação **não sobe** —
 ## Testes
 
 ```bash
-sh ./mvnw test
+cd backend && sh ./mvnw test
 ```
 
-Tres camadas, todas em `src/test/java/com/psychologyapi/psychologyapi`:
+Tres camadas, todas em `backend/src/test/java/com/psychologyapi/psychologyapi`:
 
 - **Unitários de service** (`service/`) — Mockito puro, sem Spring e sem
   banco. Cobrem a regra de isolamento entre usuários (paciente/consulta/
@@ -344,7 +356,7 @@ própria, decisão consciente:
 
 **Schema é versionado via Flyway.** `flyway-core` +
 `flyway-database-postgresql` estão no `pom.xml` e as migrations vivem em
-`src/main/resources/db/migration/`. Não há `spring.flyway.enabled=false`
+`backend/src/main/resources/db/migration/`. Não há `spring.flyway.enabled=false`
 nem `spring.jpa.hibernate.ddl-auto` no `application.properties` — ou seja,
 o Flyway roda por auto-configuração no boot e o Hibernate **não** cria nem
 altera tabela (default `none` para datasource não-embarcado).
