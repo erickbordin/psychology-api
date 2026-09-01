@@ -1,1 +1,0 @@
-ALTER TABLE paciente ADD COLUMN deleted_at_paciente TIMESTAMP;
