@@ -78,7 +78,9 @@ describe('LoginPage', () => {
     )
 
     renderizarLogin()
-    await userEvent.click(await screen.findByRole('button', { name: 'Criar conta' }))
+    // no modo login o botao branco leva ao cadastro; no modo cadastro ele volta
+    // para "Já tenho conta", entao "Cadastrar" nunca fica ambiguo na tela
+    await userEvent.click(await screen.findByRole('button', { name: 'Cadastrar' }))
     await userEvent.type(screen.getByLabelText('Nome'), 'Ana Moreira')
     await userEvent.type(screen.getByLabelText('E-mail'), 'ana-arroba-teste')
     await userEvent.type(screen.getByLabelText('Senha'), 'senhaforte123')

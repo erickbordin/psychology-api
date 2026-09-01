@@ -6,6 +6,7 @@ import { ErroApi } from '../../api/erro'
 import { registrar } from '../../api/recursos/auth'
 import { Botao } from '../../ui/Botao'
 import { Campo } from '../../ui/Campo'
+import { IconeCerebro } from '../../ui/icones'
 import { useSessao } from './useSessao'
 
 type Modo = 'login' | 'registro'
@@ -114,34 +115,48 @@ export function LoginPage() {
       : null
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center gap-10 px-6 py-16">
-      <div className="flex flex-col gap-4">
-        <span className="font-serif text-lg leading-none">psychology</span>
-        <h1 className="font-serif text-4xl leading-tight">{ehLogin ? 'Entrar' : 'Criar conta'}</h1>
-        <p className="text-sm text-tinta-2">
-          {ehLogin
-            ? 'Seus pacientes e as anotações de sessão ficam aqui.'
-            : 'Uma conta por profissional. Ninguém mais enxerga seus pacientes.'}
-        </p>
-      </div>
+    <main className="flex min-h-screen items-center justify-center px-5 py-12">
+      {/*
+        Cartao unico e centrado: a tela de entrada nao tem barra lateral nem nada
+        para navegar, e qualquer outro elemento aqui seria coisa para o olho
+        checar antes de digitar a senha.
+      */}
+      <div className="w-full max-w-sm rounded-2xl border border-linha bg-superficie p-8 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.12)]">
+        <div className="flex flex-col items-center gap-3">
+          <IconeCerebro tamanho={40} className="text-acento" />
+          <h1 className="text-2xl font-bold tracking-tight">{ehLogin ? 'Entrar' : 'Criar conta'}</h1>
+          <p className="text-center text-sm text-tinta-2">
+            {ehLogin
+              ? 'Seus pacientes e as anotações de sessão ficam aqui.'
+              : 'Uma conta por profissional. Ninguém mais enxerga seus pacientes.'}
+          </p>
+        </div>
 
-      {/* form de verdade, e nao um punhado de inputs: e o que faz o Enter no
-          ultimo campo enviar, do jeito que qualquer tela de login se comporta. */}
-      <form onSubmit={(evento) => void enviar(evento)} className="flex flex-col gap-8">
-        <div className="flex flex-col gap-6">
+        {/* form de verdade, e nao um punhado de inputs: e o que faz o Enter no
+            ultimo campo enviar, do jeito que qualquer tela de login se comporta. */}
+        <form onSubmit={(evento) => void enviar(evento)} className="mt-7 flex flex-col gap-5">
           {ehLogin ? null : (
             <Campo
               rotulo="Nome"
               valor={nome}
               aoMudar={setNome}
+              exemplo="Seu nome completo"
               autoPreenchimento="name"
               erro={erroDoCampo('nome', nome)}
             />
           )}
+          {/*
+            Campo de texto, e nao `type="email"`: a validacao nativa do
+            navegador aborta o submit antes do fetch quando o formato esta
+            errado, e a mensagem de formato deste produto vem da API, presa ao
+            campo culpado. Com `type="email"` o usuario levava um balao do
+            navegador e o erro do servidor nunca aparecia.
+          */}
           <Campo
             rotulo="E-mail"
             valor={email}
             aoMudar={setEmail}
+            exemplo="seu@email.com"
             autoPreenchimento="username"
             erro={erroDoCampo('email', email)}
           />
@@ -150,31 +165,35 @@ export function LoginPage() {
             tipo="password"
             valor={senha}
             aoMudar={setSenha}
+            exemplo="••••••••"
             autoPreenchimento={ehLogin ? 'current-password' : 'new-password'}
             erro={erroDoCampo('senha', senha)}
           />
-        </div>
 
-        {avisoGeral ? (
-          <p className="border-l-2 border-perigo bg-superficie px-4 py-3 text-sm">{avisoGeral}</p>
-        ) : null}
+          {avisoGeral ? (
+            <p className="rounded-xl border border-perigo/30 bg-perigo-suave px-4 py-3 text-sm text-perigo">
+              {avisoGeral}
+            </p>
+          ) : null}
 
-        <div className="flex flex-col items-start gap-5">
-          <Botao type="submit" disabled={enviando}>
-            {ehLogin ? 'Entrar' : 'Cadastrar'}
-          </Botao>
-          <Botao
-            variante="texto"
-            onClick={() => {
-              setModo(ehLogin ? 'registro' : 'login')
-              setErro(null)
-              setFaltando([])
-            }}
-          >
-            {ehLogin ? 'Criar conta' : 'Já tenho conta'}
-          </Botao>
-        </div>
-      </form>
+          <div className="flex flex-col gap-3">
+            <Botao type="submit" largo disabled={enviando}>
+              {ehLogin ? 'Entrar' : 'Cadastrar'}
+            </Botao>
+            <Botao
+              variante="secundario"
+              largo
+              onClick={() => {
+                setModo(ehLogin ? 'registro' : 'login')
+                setErro(null)
+                setFaltando([])
+              }}
+            >
+              {ehLogin ? 'Cadastrar' : 'Já tenho conta'}
+            </Botao>
+          </div>
+        </form>
+      </div>
     </main>
   )
 }
