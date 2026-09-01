@@ -27,24 +27,31 @@ test('registrar, entrar, cadastrar paciente, anotar, agendar e conferir a trilha
 
   await page.goto('/login')
 
-  await page.getByRole('button', { name: 'Criar conta' }).click()
+  // a barra lateral tem os mesmos nomes que os atalhos do painel: navegar
+  // sempre por ela evita o strict mode do Playwright reclamar de dois links
+  const barra = page.getByRole('navigation')
+
+  await page.getByRole('button', { name: 'Cadastrar' }).click()
   await page.getByLabel('Nome', { exact: true }).fill('Ana da Fumaça')
   await page.getByLabel('E-mail').fill(email)
   await page.getByLabel('Senha').fill(senha)
   await page.getByRole('button', { name: 'Cadastrar' }).click()
 
-  // autenticar entra na aplicacao — a agenda do dia e a porta
-  await expect(page.getByRole('heading', { name: 'Agenda' })).toBeVisible()
+  // autenticar entra na aplicacao — o painel e a porta
+  await expect(page.getByRole('heading', { name: /^Olá/ })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Pacientes' }).click()
+  await barra.getByRole('link', { name: 'Pacientes' }).click()
   await expect(page.getByRole('heading', { name: 'Pacientes' })).toBeVisible()
   await page.getByRole('button', { name: 'Novo paciente' }).click()
   await page.getByLabel('Nome', { exact: true }).fill('Paciente da Fumaça')
   await page.getByLabel('Data de nascimento').fill('1991-04-12')
-  await page.getByRole('button', { name: 'Cadastrar' }).click()
+  await page.getByRole('button', { name: 'Salvar' }).click()
 
   await page.getByRole('link', { name: /Paciente da Fumaça/ }).click()
   await expect(page.getByRole('heading', { name: 'Paciente da Fumaça' })).toBeVisible()
+
+  // a ficha abre na visao geral; a aba de anotacoes vem do cartao
+  await page.getByRole('link', { name: 'Anotações' }).click()
 
   const anotacao = 'Primeira sessão registrada pelo teste de fumaça.'
   await page.getByLabel('Anotação da sessão').fill(anotacao)
@@ -61,8 +68,8 @@ test('registrar, entrar, cadastrar paciente, anotar, agendar e conferir a trilha
 
   // agenda: prova o formato de LocalDateTime que o cliente monta
   const dia = daquiADias(7)
-  await page.getByRole('link', { name: 'Agenda' }).click()
-  await expect(page.getByRole('heading', { name: 'Agenda' })).toBeVisible()
+  await barra.getByRole('link', { name: 'Agenda' }).click()
+  await expect(page.getByRole('heading', { name: /^Hoje,/ })).toBeVisible()
   await page.getByRole('button', { name: 'Nova consulta' }).click()
   await page.getByLabel('Paciente').selectOption({ label: 'Paciente da Fumaça' })
   await page.getByLabel('Data', { exact: true }).fill(dia)
@@ -89,14 +96,14 @@ test('registrar, entrar, cadastrar paciente, anotar, agendar e conferir a trilha
   await expect(page.getByText('série').first()).toBeVisible()
 
   // a ficha ve as mesmas consultas pelo sub-recurso do paciente
-  await page.getByRole('link', { name: 'Pacientes' }).click()
+  await barra.getByRole('link', { name: 'Pacientes' }).click()
   await expect(page.getByRole('heading', { name: 'Pacientes' })).toBeVisible()
   await page.getByRole('link', { name: /Paciente da Fumaça/ }).click()
   await page.getByRole('link', { name: 'Consultas' }).click()
   await expect(page.getByText('4 consultas')).toBeVisible()
 
   // trilha: prova o PagedModel e que toda mutacao acima virou log
-  await page.getByRole('link', { name: 'Trilha' }).click()
+  await barra.getByRole('link', { name: 'Trilha' }).click()
   await expect(page.getByRole('heading', { name: 'Trilha' })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'Registro' })).toBeVisible()
   await expect(page.getByText('criou').first()).toBeVisible()
@@ -111,7 +118,7 @@ test('registrar, entrar, cadastrar paciente, anotar, agendar e conferir a trilha
 test('400 de validacao da API real marca o campo culpado', async ({ page }) => {
   await page.goto('/login')
 
-  await page.getByRole('button', { name: 'Criar conta' }).click()
+  await page.getByRole('button', { name: 'Cadastrar' }).click()
   await page.getByLabel('Nome', { exact: true }).fill('Ana da Fumaça')
   await page.getByLabel('E-mail').fill('isto-nao-e-um-email')
   await page.getByLabel('Senha').fill('senhaforte123')
