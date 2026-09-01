@@ -5,7 +5,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-const API = 'http://localhost:8080'
+/**
+ * 8080 e a porta padrao do `debug.sh`, mas nem sempre esta livre na maquina.
+ * `API_URL=http://localhost:8090 npm run dev` reaponta o proxy sem editar este
+ * arquivo — antes era preciso mexer no codigo, e a mudanca acabava commitada
+ * por engano.
+ */
+const API = process.env.API_URL ?? 'http://localhost:8080'
 const CAMINHOS_DA_API = ['/auth', '/pacientes', '/consultas', '/anotacoes', '/lembretes', '/auditoria']
 
 /**
