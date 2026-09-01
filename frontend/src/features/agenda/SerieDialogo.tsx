@@ -109,7 +109,7 @@ export function SerieDialogo({ aoFechar }: { aoFechar: () => void }) {
         descobrir que a primeira data estava errada.
       */}
       {datas.length > 0 ? (
-        <div className="flex flex-col gap-2 border-l-2 border-acento pl-4">
+        <div className="flex flex-col gap-2 rounded-xl bg-acento-suave px-4 py-3.5">
           <p className="text-sm font-medium text-tinta-2">
             {datas.length === 1 ? '1 sessão' : `${datas.length} sessões`} às {hora}
           </p>
@@ -127,7 +127,7 @@ export function SerieDialogo({ aoFechar }: { aoFechar: () => void }) {
       ) : null}
 
       {falha ? (
-        <p className="border-l-2 border-perigo bg-superficie px-4 py-3 text-sm">
+        <p className="rounded-xl border border-perigo/30 bg-perigo-suave px-4 py-3 text-sm text-perigo">
           {falha.status === 409
             ? `Conflito de horário: nenhuma sessão foi criada. ${falha.mensagem}`
             : falha.erros.length === 0
@@ -136,11 +136,11 @@ export function SerieDialogo({ aoFechar }: { aoFechar: () => void }) {
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-6">
+      <div className="flex flex-wrap items-center gap-4">
         <Botao onClick={() => void criarSerie()} disabled={criar.isPending}>
           Criar série
         </Botao>
-        <Botao variante="texto" onClick={aoFechar}>
+        <Botao variante="secundario" onClick={aoFechar}>
           Cancelar
         </Botao>
       </div>

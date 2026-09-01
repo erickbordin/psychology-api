@@ -52,14 +52,14 @@ export function NovaConsultaDialogo({ aoFechar }: { aoFechar: () => void }) {
       <Campo rotulo="Hora" tipo="time" valor={hora} aoMudar={setHora} />
 
       {falha && falha.erros.length === 0 ? (
-        <p className="border-l-2 border-perigo bg-superficie px-4 py-3 text-sm">{falha.mensagem}</p>
+        <p className="rounded-xl border border-perigo/30 bg-perigo-suave px-4 py-3 text-sm text-perigo">{falha.mensagem}</p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-6">
+      <div className="flex flex-wrap items-center gap-4">
         <Botao onClick={() => void agendar()} disabled={criar.isPending}>
           Agendar
         </Botao>
-        <Botao variante="texto" onClick={aoFechar}>
+        <Botao variante="secundario" onClick={aoFechar}>
           Cancelar
         </Botao>
       </div>

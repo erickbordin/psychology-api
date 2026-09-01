@@ -72,7 +72,7 @@ export function ConsultaDialogo({
             opcoes={STATUS.map((valor) => ({ valor, rotulo: valor.toLowerCase() }))}
           />
 
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4">
             <Botao
               disabled={atualizar.isPending}
               onClick={() =>
@@ -86,11 +86,11 @@ export function ConsultaDialogo({
             >
               Salvar
             </Botao>
-            <Botao variante="texto" onClick={aoFechar}>
+            <Botao variante="secundario" onClick={aoFechar}>
               Cancelar
             </Botao>
             <span className="flex-1" />
-            <Botao variante="texto" onClick={() => setPasso('exclusao')}>
+            <Botao variante="discreto" onClick={() => setPasso('exclusao')}>
               Excluir
             </Botao>
           </div>
@@ -104,19 +104,19 @@ export function ConsultaDialogo({
           ) : null}
         </>
       ) : passo === 'exclusao' ? (
-        <div className="flex flex-wrap items-center gap-6">
+        <div className="flex flex-wrap items-center gap-4">
           <Botao
             disabled={excluir.isPending}
             onClick={() => void executar(() => excluir.mutateAsync(consulta.id))}
           >
             Excluir consulta
           </Botao>
-          <Botao variante="texto" onClick={() => setPasso('edicao')}>
+          <Botao variante="secundario" onClick={() => setPasso('edicao')}>
             Manter
           </Botao>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-6">
+        <div className="flex flex-wrap items-center gap-4">
           <Botao
             disabled={cancelarSerie.isPending}
             onClick={() =>
@@ -125,14 +125,14 @@ export function ConsultaDialogo({
           >
             Cancelar série
           </Botao>
-          <Botao variante="texto" onClick={() => setPasso('edicao')}>
+          <Botao variante="secundario" onClick={() => setPasso('edicao')}>
             Manter a série
           </Botao>
         </div>
       )}
 
       {falha ? (
-        <p className="border-l-2 border-perigo bg-superficie px-4 py-3 text-sm">{falha.mensagem}</p>
+        <p className="rounded-xl border border-perigo/30 bg-perigo-suave px-4 py-3 text-sm text-perigo">{falha.mensagem}</p>
       ) : null}
     </Dialogo>
   )

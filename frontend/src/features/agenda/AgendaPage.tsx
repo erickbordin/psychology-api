@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import type { Consulta } from '../../api/tipos'
-import { Botao } from '../../ui/Botao'
+import { Avatar } from '../../ui/Avatar'
+import { Botao, BotaoDeIcone } from '../../ui/Botao'
 import { Campo } from '../../ui/Campo'
-import { Chip } from '../../ui/Chip'
+import { Cartao } from '../../ui/Cartao'
+import { Chip, Etiqueta } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
-import { dataDeSessao, hojeIso, hora } from '../../ui/data'
+import { IconeLapis, IconeMais } from '../../ui/icones'
+import { dataDeSessao, diaEMes, hojeIso, hora } from '../../ui/data'
 import { ConsultaDialogo } from './ConsultaDialogo'
 import { NovaConsultaDialogo } from './NovaConsultaDialogo'
 import { SerieDialogo } from './SerieDialogo'
@@ -20,6 +23,17 @@ function porDia(consultas: Consulta[]): [string, Consulta[]][] {
     dias.set(dia, [...(dias.get(dia) ?? []), consulta])
   }
   return [...dias.entries()].sort(([a], [b]) => a.localeCompare(b))
+}
+
+/**
+ * O titulo diz o dia, nao o nome da tela: quem esta aqui sabe que abriu a
+ * agenda, e o que ele precisa ler e "hoje" ou o intervalo que escolheu.
+ */
+function titulo(de: string, ate: string): string {
+  if (de === ate) {
+    return de === hojeIso() ? `Hoje, ${diaEMes(de)}` : diaEMes(de)
+  }
+  return `${diaEMes(de)} – ${diaEMes(ate)}`
 }
 
 export function AgendaPage() {
@@ -39,33 +53,38 @@ export function AgendaPage() {
 
   const consultas = agenda.data ?? []
   const dias = porDia(consultas)
+  const umDiaSo = dias.length <= 1
 
   return (
-    <div className="flex flex-col gap-10">
-      <header className="flex flex-wrap items-end justify-between gap-6 border-b border-linha pb-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="font-serif text-4xl leading-none">Agenda</h1>
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight">{titulo(de, ate)}</h1>
           {agenda.data ? (
             <p className="text-sm text-tinta-2">
               {consultas.length === 1 ? '1 consulta' : `${consultas.length} consultas`}
             </p>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <Botao onClick={() => setCriandoSerie(true)} variante="texto">
-            Série semanal
-          </Botao>
-          <Botao onClick={() => setCriando(true)}>Nova consulta</Botao>
-        </div>
+        <Botao icone={<IconeMais tamanho={18} />} onClick={() => setCriando(true)}>
+          Nova consulta
+        </Botao>
       </header>
 
-      <div className="flex flex-wrap items-end gap-6">
+      {/* o intervalo e um controle, nao conteudo: fica num cartao raso, acima da
+          lista, para nao competir com os nomes dos pacientes */}
+      <Cartao className="flex flex-wrap items-end gap-4 p-4">
         <Campo rotulo="De" tipo="date" valor={de} aoMudar={(valor) => mudarIntervalo(valor, ate)} />
         <Campo rotulo="Até" tipo="date" valor={ate} aoMudar={(valor) => mudarIntervalo(de, valor)} />
-        <Botao variante="texto" onClick={() => mudarIntervalo(hojeIso(), hojeIso())}>
-          Hoje
-        </Botao>
-      </div>
+        <div className="flex flex-wrap items-center gap-4 pb-1.5">
+          <Botao variante="texto" onClick={() => mudarIntervalo(hojeIso(), hojeIso())}>
+            Hoje
+          </Botao>
+          <Botao variante="texto" onClick={() => setCriandoSerie(true)}>
+            Série semanal
+          </Botao>
+        </div>
+      </Cartao>
 
       {agenda.isPending ? <p className="text-sm text-tinta-3">Carregando…</p> : null}
 
@@ -73,32 +92,37 @@ export function AgendaPage() {
         consultas.length === 0 ? (
           <EstadoVazio>Nenhuma consulta neste intervalo.</EstadoVazio>
         ) : (
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-7">
             {dias.map(([dia, doDia]) => (
-              <section key={dia} className="flex flex-col gap-3">
-                <h2 className="text-sm font-medium text-tinta-2">{dataDeSessao(dia)}</h2>
-                <ul className="border-t border-linha">
+              <section key={dia} className="flex flex-col gap-2.5">
+                {/* com um dia so na tela, o titulo acima ja disse a data */}
+                {umDiaSo ? null : (
+                  <h2 className="text-sm font-semibold text-tinta-2">{dataDeSessao(dia)}</h2>
+                )}
+                <ul className="flex flex-col gap-2.5">
                   {doDia.map((consulta) => (
-                    <li
-                      key={consulta.id}
-                      className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-linha py-4"
-                    >
-                      <span className="w-14 shrink-0 text-sm tabular-nums">
-                        {hora(consulta.dtConsulta)}
-                      </span>
-                      <Link
-                        to={`/pacientes/${consulta.pacienteId}`}
-                        className="flex-1 font-serif text-lg underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
-                      >
-                        {consulta.pacienteNome}
-                      </Link>
-                      {consulta.serieId ? (
-                        <span className="text-sm text-tinta-3">série</span>
-                      ) : null}
-                      <Chip status={consulta.status} />
-                      <Botao variante="texto" onClick={() => setEmEdicao(consulta)}>
-                        Editar
-                      </Botao>
+                    <li key={consulta.id}>
+                      <Cartao className="flex items-center gap-4 p-3.5">
+                        <Avatar nome={consulta.pacienteNome} />
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <Link
+                            to={`/pacientes/${consulta.pacienteId}`}
+                            className="w-fit rounded-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+                          >
+                            {consulta.pacienteNome}
+                          </Link>
+                          <span className="text-sm tabular-nums text-tinta-2">
+                            {hora(consulta.dtConsulta)}
+                          </span>
+                        </div>
+                        {consulta.serieId ? <Etiqueta>série</Etiqueta> : null}
+                        <Chip status={consulta.status} />
+                        <BotaoDeIcone
+                          rotulo="Editar"
+                          icone={<IconeLapis tamanho={18} />}
+                          onClick={() => setEmEdicao(consulta)}
+                        />
+                      </Cartao>
                     </li>
                   ))}
                 </ul>
