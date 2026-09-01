@@ -1,0 +1,8 @@
+# SPA: qualquer caminho que nao seja arquivo cai no index, e o React Router
+# resolve a rota. Sem isto, recarregar em /pacientes ou abrir o link direto de
+# uma ficha responde 404 do host — o mesmo problema que o bypass do proxy
+# resolve em desenvolvimento.
+#
+# Lido por Netlify e Cloudflare Pages. Na Vercel quem manda e o vercel.json; no
+# Render, a regra equivalente e um Rewrite /* -> /index.html no painel.
+/*  /index.html  200
