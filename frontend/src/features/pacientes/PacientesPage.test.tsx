@@ -58,7 +58,7 @@ describe('PacientesPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Novo paciente' }))
     await userEvent.type(screen.getByLabelText('Nome'), 'Ana Moreira')
     await userEvent.type(screen.getByLabelText('Data de nascimento'), '1991-04-12')
-    await userEvent.click(screen.getByRole('button', { name: 'Cadastrar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     expect(await screen.findByText('Ana Moreira')).toBeInTheDocument()
   })
@@ -82,7 +82,7 @@ describe('PacientesPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Novo paciente' }))
     await userEvent.type(screen.getByLabelText('Nome'), 'Ana Moreira')
     await userEvent.type(screen.getByLabelText('Data de nascimento'), '12/04/1991')
-    await userEvent.click(screen.getByRole('button', { name: 'Cadastrar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() =>
       expect(screen.getByText('A data de nascimento é obrigatória.')).toBeInTheDocument(),

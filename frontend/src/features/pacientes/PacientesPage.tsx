@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
-import { ErroApi } from '../../api/erro'
-import { Botao } from '../../ui/Botao'
+import { Avatar } from '../../ui/Avatar'
+import { Botao, BotaoDeIcone } from '../../ui/Botao'
 import { Campo } from '../../ui/Campo'
+import { Cartao } from '../../ui/Cartao'
 import { EstadoVazio } from '../../ui/EstadoVazio'
+import { IconeLapis, IconeLupa, IconeMais, IconeSeta } from '../../ui/icones'
 import { dataCurta } from '../../ui/data'
 import { EdicaoDePaciente } from './EdicaoDePaciente'
+import { NovoPaciente } from './NovoPaciente'
 import type { Paciente } from '../../api/tipos'
-import { useCriarPaciente, usePacientes } from './queries'
+import { usePacientes } from './queries'
 
 export function PacientesPage() {
   /**
@@ -20,91 +23,47 @@ export function PacientesPage() {
   const nome = parametros.get('nome') ?? ''
 
   const { data: pacientes, isPending, error } = usePacientes(nome)
-  const criar = useCriarPaciente()
   const [criando, setCriando] = useState(false)
   const [emEdicao, setEmEdicao] = useState<Paciente | null>(null)
-  const [nomeNovo, setNomeNovo] = useState('')
-  const [nascimento, setNascimento] = useState('')
-  const [vazios, setVazios] = useState<string[]>([])
-
-  const falha = criar.error instanceof ErroApi ? criar.error : null
-
-  function erroDoCampo(campo: string, valorDoCampo: string): string | undefined {
-    if (vazios.includes(campo) && !valorDoCampo.trim()) return 'campo obrigatorio'
-    return falha?.mensagemDoCampo(campo)
-  }
-
-  async function cadastrar() {
-    const faltando = [
-      ...(nomeNovo.trim() ? [] : ['nome']),
-      ...(nascimento.trim() ? [] : ['dataNascimento']),
-    ]
-    setVazios(faltando)
-    if (faltando.length > 0) return
-
-    try {
-      await criar.mutateAsync({ nome: nomeNovo, dataNascimento: nascimento })
-      setCriando(false)
-      setNomeNovo('')
-      setNascimento('')
-    } catch (problema) {
-      if (!(problema instanceof ErroApi)) throw problema
-    }
-  }
 
   const total = pacientes?.length ?? 0
 
+  if (criando) {
+    return <NovoPaciente aoFechar={() => setCriando(false)} />
+  }
+
   return (
-    <div className="flex flex-col gap-10">
-      <header className="flex flex-wrap items-end justify-between gap-6 border-b border-linha pb-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="font-serif text-4xl leading-none">Pacientes</h1>
-          {pacientes ? (
-            <p className="text-sm text-tinta-2">
-              {total === 1 ? '1 paciente' : `${total} pacientes`}
-            </p>
-          ) : null}
-        </div>
-        <Botao onClick={() => setCriando((antes) => !antes)}>Novo paciente</Botao>
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Pacientes</h1>
+        {pacientes ? (
+          <p className="text-sm text-tinta-2">
+            {total === 1 ? '1 paciente' : `${total} pacientes`}
+          </p>
+        ) : null}
       </header>
 
-      <div className="max-w-sm">
-        <Campo
-          rotulo="Buscar por nome"
-          valor={nome}
-          aoMudar={(valor) =>
-            setParametros(valor ? { nome: valor } : {}, { replace: true })
-          }
-          exemplo="parte do nome"
-        />
+      {/* busca e cadastro na mesma linha: sao as duas unicas coisas que se faz
+          nesta tela antes de escolher um paciente */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-56 flex-1">
+          <Campo
+            rotulo="Buscar por nome"
+            rotuloOculto
+            valor={nome}
+            adorno={<IconeLupa tamanho={18} />}
+            exemplo="Pesquisar paciente"
+            aoMudar={(valor) => setParametros(valor ? { nome: valor } : {}, { replace: true })}
+          />
+        </div>
+        <Botao icone={<IconeMais tamanho={18} />} onClick={() => setCriando(true)}>
+          Novo paciente
+        </Botao>
       </div>
-
-      {criando ? (
-        <section className="flex max-w-md flex-col gap-6 border border-linha p-6">
-          <Campo
-            rotulo="Nome"
-            valor={nomeNovo}
-            aoMudar={setNomeNovo}
-            erro={erroDoCampo('nome', nomeNovo)}
-          />
-          <Campo
-            rotulo="Data de nascimento"
-            valor={nascimento}
-            aoMudar={setNascimento}
-            exemplo="1991-04-12"
-            erro={erroDoCampo('dataNascimento', nascimento)}
-          />
-          <div>
-            <Botao onClick={() => void cadastrar()} disabled={criar.isPending}>
-              Cadastrar
-            </Botao>
-          </div>
-        </section>
-      ) : null}
 
       {isPending ? <p className="text-sm text-tinta-3">Carregando…</p> : null}
       {error ? (
-        <p className="border-l-2 border-perigo bg-superficie px-4 py-3 text-sm">
+        <p className="rounded-xl border border-perigo/30 bg-perigo-suave px-4 py-3 text-sm text-perigo">
           {(error as Error).message}
         </p>
       ) : null}
@@ -114,29 +73,39 @@ export function PacientesPage() {
           nome ? (
             <EstadoVazio>Nenhum paciente com “{nome}” no nome.</EstadoVazio>
           ) : (
-            <p className="py-16 text-center text-sm text-tinta-2">
-              Nenhum paciente cadastrado ainda.
-            </p>
+            <EstadoVazio>Nenhum paciente cadastrado ainda.</EstadoVazio>
           )
         ) : (
-          <ul>
+          <ul className="flex flex-col gap-2.5">
             {pacientes.map((paciente) => (
-              <li
-                key={paciente.idPaciente}
-                className="flex items-baseline gap-5 border-b border-linha"
-              >
-                <Link
-                  to={`/pacientes/${paciente.idPaciente}`}
-                  className="-ml-3 flex flex-1 items-baseline justify-between gap-6 px-3 py-4 transition-colors hover:bg-superficie focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
-                >
-                  <span className="font-serif text-lg">{paciente.nome}</span>
-                  <span className="shrink-0 text-sm tabular-nums text-tinta-2">
-                    {dataCurta(paciente.dataNascimento)}
-                  </span>
-                </Link>
-                <Botao variante="texto" onClick={() => setEmEdicao(paciente)}>
-                  Editar
-                </Botao>
+              <li key={paciente.idPaciente}>
+                <Cartao className="flex items-center gap-2 pr-3.5">
+                  {/*
+                    O cartao inteiro e o link — area de clique de uma linha de
+                    lista, e nao um nome de 12 pixels de altura. O botao de
+                    editar fica FORA da ancora: botao dentro de link e HTML
+                    invalido, e o clique viraria navegacao.
+                  */}
+                  <Link
+                    to={`/pacientes/${paciente.idPaciente}`}
+                    className="flex min-w-0 flex-1 items-center gap-4 rounded-2xl p-3.5 transition-colors hover:bg-superficie-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+                  >
+                    <Avatar nome={paciente.nome} />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate font-semibold">{paciente.nome}</span>
+                      <span className="truncate text-sm tabular-nums text-tinta-2">
+                        {paciente.telefone ?? dataCurta(paciente.dataNascimento)}
+                      </span>
+                    </span>
+                    <span className="flex-1" />
+                    <IconeSeta tamanho={20} className="shrink-0 text-tinta-3" />
+                  </Link>
+                  <BotaoDeIcone
+                    rotulo="Editar"
+                    icone={<IconeLapis tamanho={18} />}
+                    onClick={() => setEmEdicao(paciente)}
+                  />
+                </Cartao>
               </li>
             ))}
           </ul>

@@ -71,11 +71,11 @@ export function EdicaoDePaciente({
       }
     >
       {confirmandoExclusao ? (
-        <div className="flex flex-wrap items-center gap-6">
+        <div className="flex flex-wrap items-center gap-4">
           <Botao onClick={() => void apagar()} disabled={excluir.isPending}>
             Excluir paciente
           </Botao>
-          <Botao variante="texto" onClick={() => setConfirmandoExclusao(false)}>
+          <Botao variante="secundario" onClick={() => setConfirmandoExclusao(false)}>
             Manter
           </Botao>
         </div>
@@ -84,6 +84,7 @@ export function EdicaoDePaciente({
           <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={falha?.mensagemDoCampo('nome')} />
           <Campo
             rotulo="Telefone"
+            tipo="tel"
             valor={telefone}
             aoMudar={setTelefone}
             erro={falha?.mensagemDoCampo('telefone')}
@@ -101,15 +102,15 @@ export function EdicaoDePaciente({
             exemplo="1991-04-12"
             erro={falha?.mensagemDoCampo('dataNascimento')}
           />
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4">
             <Botao onClick={() => void salvar()} disabled={atualizar.isPending}>
               Salvar
             </Botao>
-            <Botao variante="texto" onClick={aoFechar}>
+            <Botao variante="secundario" onClick={aoFechar}>
               Cancelar
             </Botao>
             <span className="flex-1" />
-            <Botao variante="texto" onClick={() => setConfirmandoExclusao(true)}>
+            <Botao variante="discreto" onClick={() => setConfirmandoExclusao(true)}>
               Excluir
             </Botao>
           </div>
@@ -117,7 +118,7 @@ export function EdicaoDePaciente({
       )}
 
       {falha && falha.erros.length === 0 ? (
-        <p className="border-l-2 border-perigo bg-superficie px-4 py-3 text-sm">{falha.mensagem}</p>
+        <p className="rounded-xl border border-perigo/30 bg-perigo-suave px-4 py-3 text-sm text-perigo">{falha.mensagem}</p>
       ) : null}
     </Dialogo>
   )
