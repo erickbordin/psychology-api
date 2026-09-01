@@ -1,5 +1,19 @@
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+const MESES_INTEIROS = [
+  'janeiro',
+  'fevereiro',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
+]
 
 /**
  * A API manda tanto `2026-08-19` quanto `2026-08-19T10:00:00`. Recortar antes do
@@ -80,4 +94,20 @@ export function paraLocalDateTime(data: string, relogio: string): string {
 /** Separa um `LocalDateTime` da API nos dois campos do formulario. */
 export function separarDataEHora(iso: string): { data: string; hora: string } {
   return { data: iso.split('T')[0] ?? '', hora: hora(iso) }
+}
+
+/** `28 de julho de 2025` — a linha sob a saudacao do painel. */
+export function dataLonga(iso: string): string {
+  const p = partes(iso)
+  if (!p) return iso
+  const [ano, mes, dia] = p
+  return `${dia} de ${MESES_INTEIROS[mes - 1]} de ${ano}`
+}
+
+/** `28 de julho` — o titulo da agenda, onde o ano nao ajuda a se localizar. */
+export function diaEMes(iso: string): string {
+  const p = partes(iso)
+  if (!p) return iso
+  const [, mes, dia] = p
+  return `${dia} de ${MESES_INTEIROS[mes - 1]}`
 }
