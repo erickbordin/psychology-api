@@ -34,7 +34,7 @@ test('registrar, entrar, cadastrar paciente, anotar, agendar e conferir a trilha
   await page.getByRole('button', { name: 'Cadastrar' }).click()
   await page.getByLabel('Nome', { exact: true }).fill('Ana da Fumaça')
   await page.getByLabel('E-mail').fill(email)
-  await page.getByLabel('Senha').fill(senha)
+  await page.getByLabel('Senha', { exact: true }).fill(senha)
   await page.getByRole('button', { name: 'Cadastrar' }).click()
 
   // autenticar entra na aplicacao — o painel e a porta
@@ -71,7 +71,7 @@ test('registrar, entrar, cadastrar paciente, anotar, agendar e conferir a trilha
   await barra.getByRole('link', { name: 'Agenda' }).click()
   await expect(page.getByRole('heading', { name: /^Hoje,/ })).toBeVisible()
   await page.getByRole('button', { name: 'Nova consulta' }).click()
-  await page.getByLabel('Paciente').selectOption({ label: 'Paciente da Fumaça' })
+  await page.getByLabel('Paciente', { exact: true }).selectOption({ label: 'Paciente da Fumaça' })
   await page.getByLabel('Data', { exact: true }).fill(dia)
   await page.getByLabel('Hora', { exact: true }).fill('15:00')
   await page.getByRole('button', { name: 'Agendar' }).click()
@@ -83,7 +83,7 @@ test('registrar, entrar, cadastrar paciente, anotar, agendar e conferir a trilha
 
   // serie: prova o XOR do horizonte contra o validador de classe da API
   await page.getByRole('button', { name: 'Série semanal' }).click()
-  await page.getByLabel('Paciente').selectOption({ label: 'Paciente da Fumaça' })
+  await page.getByLabel('Paciente', { exact: true }).selectOption({ label: 'Paciente da Fumaça' })
   await page.getByLabel('Primeira sessão').fill(daquiADias(14))
   await page.getByLabel('Hora', { exact: true }).fill('09:00')
   await page.getByLabel('Quantidade de sessões').fill('3')
@@ -121,7 +121,7 @@ test('400 de validacao da API real marca o campo culpado', async ({ page }) => {
   await page.getByRole('button', { name: 'Cadastrar' }).click()
   await page.getByLabel('Nome', { exact: true }).fill('Ana da Fumaça')
   await page.getByLabel('E-mail').fill('isto-nao-e-um-email')
-  await page.getByLabel('Senha').fill('senhaforte123')
+  await page.getByLabel('Senha', { exact: true }).fill('senhaforte123')
   await page.getByRole('button', { name: 'Cadastrar' }).click()
 
   await expect(page.getByText('formato de email invalido')).toBeVisible()
