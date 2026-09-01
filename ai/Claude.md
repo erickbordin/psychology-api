@@ -371,30 +371,21 @@ Convenção de nome das migrations deste projeto: `V<n>__<AAAAMMDD>.sql`
 arquivo muda o checksum e o Flyway falha na validação. Correção = nova
 migration.
 
-Migrations atuais:
-- `V1__20260730.sql` — cria `usuario`, `paciente`, `consulta`, `anotacao`,
-  `lembrete`
-- `V2__20260812.sql` — `lembrete.concluido`
-- `V3__20260817.sql` — `paciente.deleted_at_paciente`
-- `V4__20260819.sql` — cria `log_auditoria` + índices
-- `V5__20260820.sql` — `consulta.deleted_at_consulta` e
-  `lembrete.deleted_at_lembrete`
-- `V6__20260824.sql` — `anotacao.deleted_at_anotacao`
-- `V7__20260825.sql` — `consulta.id_serie` + índice `idx_consulta_serie`
+Migration atual: **uma só**, `V1__20260901.sql`, com o schema inteiro
+(`usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`, `log_auditoria`,
+`refresh_token`, mais os índices). As oito originais (`V1__20260730` a
+`V8__20260826`) foram fundidas nela em 01/09/2026, antes do primeiro deploy e
+com nenhum banco de produção existindo. Isso só foi possível porque não havia
+schema aplicado em lugar nenhum; daqui em diante, mudança é migration nova.
 
 Tabelas atuais: `usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`,
-`log_auditoria`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
+`log_auditoria`, `refresh_token`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
 acidental em cascata; ver soft delete acima como mitigação real).
 
-**Ponto em aberto sobre produção:** se as tabelas de produção foram criadas
-manualmente antes de o Flyway entrar no projeto e nunca houve baseline, a
-`V1` falha no boot ("relation already exists") — não há
-`spring.flyway.baseline-on-migrate` configurado. Confirmar antes do próximo
-deploy:
-
-```sql
-SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank;
-```
+**Banco local depois do squash:** quem tinha o banco de desenvolvimento com o
+histórico antigo (`V1`..`V8`) precisa recriá-lo — o Flyway recusa um histórico
+que não bate com os arquivos. `dropdb psychology-api && createdb psychology-api`,
+e o boot aplica a `V1` nova.
 
 ## Entidades e regras específicas
 
@@ -572,18 +563,9 @@ A camada de teste HTTP, ao entrar, pegou outras três — todas corrigidas:
 - Requisição sem token respondia `403`, não `401` — entry point default do
   Spring Security. Pego por `SegurancaHttpTest.semTokenResponde401`.
 
-A suíte está verde (68 testes); mantenha esta seção como o lugar de registrar
+A suíte está verde (169 testes); mantenha esta seção como o lugar de registrar
 qualquer contradição nova entre o código e as regras acima, sempre apontando o
 teste que a pega.
-
-**Pendência de produção:** a `V6` cria `anotacao.deleted_at_anotacao`. Se o
-banco de produção já recebeu essa coluna por DDL manual, a `V6` falha no boot
-(`SQL State 42701`, "column already exists") e a aplicação não sobe. O cenário
-foi reproduzido num banco de simulação: o Postgres é transacional, então **não
-fica linha com `success = false`** e `flyway repair` não resolve — o caminho é
-registrar a `V6` como aplicada. A query de diagnóstico, a tabela de decisão e o
-`INSERT` com o checksum correto (`-842779945`) estão em "Antes do primeiro
-deploy que leva a V6", no `backend/README.md`.
 
 ## Fora de escopo (não sugerir sem o usuário pedir explicitamente)
 
