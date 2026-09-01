@@ -4,8 +4,9 @@ Frontend do consultório — a interface do psicólogo autônomo para a
 [API](../backend/README.md), no mesmo repositório: painel do dia, agenda,
 cadastro de pacientes, anotação de sessão, série semanal e trilha de auditoria.
 
-> **Status:** as telas estão de pé e rodam ponta a ponta contra a API real.
-> Falta hospedar — hoje o conjunto só roda local.
+> **Status:** as telas estão de pé e rodam ponta a ponta contra a API real, e o
+> e2e de fumaça passa contra ela. A configuração de host está pronta; falta
+> criar o projeto na plataforma.
 
 ## Telas
 
@@ -115,7 +116,8 @@ As três primeiras o `debug.sh` já define para o ambiente local.
 
 | Variável | Padrão | Para que serve |
 |---|---|---|
-| `VITE_API_URL` | vazio | origem da API em produção. Em desenvolvimento fica vazia, e quem resolve é o proxy |
+| `VITE_API_URL` | vazio | origem da API em produção, lida no **build**. Em desenvolvimento fica vazia, e quem resolve é o proxy |
+| `API_URL` | `http://localhost:8080` | alvo do proxy do Vite. Só serve em desenvolvimento, para quando a 8080 estiver ocupada: `API_URL=http://localhost:8090 npm run dev` |
 
 ## Por que o proxy espelha os caminhos
 
@@ -186,6 +188,54 @@ npm run preview   # serve o dist/ para conferir o build
 Em produção não há proxy: origem própria, `VITE_API_URL` apontando para a API, e
 `APP_CORS_ORIGINS` no backend liberando essa origem.
 
+## Hospedagem
+
+O build é estático: qualquer host de arquivos serve, desde que faça **uma**
+coisa a mais — devolver o `index.html` para caminho que não casa arquivo. Sem
+essa regra, recarregar em `/pacientes` ou abrir o link direto de uma ficha
+responde 404 do host. Medido, num host estático sem a regra:
+
+```
+GET /            -> 200
+GET /pacientes   -> 404
+```
+
+A configuração já está no repositório:
+
+| Arquivo | Host |
+|---|---|
+| `vercel.json` | Vercel — `rewrites` de `/(.*)` para `/index.html`, e cache imutável em `/assets` |
+| `public/_redirects` | Netlify e Cloudflare Pages — copiado para `dist/` no build |
+| — | Render Static Site: a regra equivalente é um *Rewrite* `/*` → `/index.html` no painel |
+
+### Passo a passo
+
+1. Criar o projeto no host apontando para o diretório `frontend/` do
+   repositório. Build `npm run build`, saída `dist/`.
+2. Definir `VITE_API_URL` com a origem da API (ex.: `https://psychology-api.onrender.com`).
+   É lida no **build**: mudou a variável, refaça o deploy.
+3. No backend, no painel do Render:
+   - `APP_CORS_ORIGINS` = a origem do frontend, exata e sem barra no fim. Nunca `*` —
+     o próprio spec de CORS proíbe combinar `*` com credenciais.
+   - `APP_REFRESH_COOKIE_SEGURO=true` e `APP_REFRESH_COOKIE_SAMESITE=None` —
+     API e frontend em domínios distintos exigem os dois; `None` sem `Secure` o
+     navegador descarta.
+4. Conferir na origem publicada, nesta ordem: entrar → **F5 em `/pacientes`**
+   (prova a regra do host e o cookie de refresh) → cadastrar paciente → F5 em
+   `/agenda`.
+
+### O que já foi verificado localmente
+
+O bundle de produção rodou contra a API em **outra origem**, servido por um host
+estático com a regra de rewrite, e passou nos quatro passos do item 4 — sem erro
+de console e sem requisição falha.
+
+O que esse ensaio **não** cobre: o cookie de refresh entre domínios de verdade.
+Em `localhost:4173` → `localhost:8090` as portas mudam mas o site é o mesmo, e o
+cookie viaja sem precisar de `SameSite=None`. Em produção, com domínios
+distintos, é o passo 3 que decide — e o sintoma de erro é específico: login
+funciona, F5 desloga.
+
 ## Quando não sobe
 
 | Sintoma | Causa provável |
@@ -195,7 +245,9 @@ Em produção não há proxy: origem própria, `VITE_API_URL` apontando para a A
 | A API não sobe, porta em uso | outra aplicação na 8080. Suba com `PORT=8081` e ajuste o alvo do proxy em `vite.config.ts` |
 | A tela de login diz "Nao foi possivel conectar ao servidor" | a API não está no ar. O front distingue isso de credencial inválida de propósito |
 | `npm run e2e` falha logo no `/auth/registrar` | mesma coisa: o E2E **não** sobe a API, só o Vite |
-| Login funciona mas o F5 desloga | o cookie de refresh não está voltando. Confira se o proxy espelha `/auth` sem prefixo |
+| Login funciona mas o F5 desloga | o cookie de refresh não está voltando. Em desenvolvimento, confira se o proxy espelha `/auth` sem prefixo; em produção, `APP_REFRESH_COOKIE_SEGURO=true` e `APP_REFRESH_COOKIE_SAMESITE=None` |
+| Em produção, recarregar em `/pacientes` dá 404 do host | falta a regra `/*` → `/index.html`. Veja [Hospedagem](#hospedagem) |
+| Em produção, toda chamada falha com erro de CORS | `APP_CORS_ORIGINS` não tem a origem exata do frontend (sem barra no fim) |
 
 ## Estrutura
 

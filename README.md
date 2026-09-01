@@ -10,8 +10,10 @@ profissionais verificado por teste, exclusão reversível, registro de acesso, e
 access token que nunca é persistido no navegador.
 
 > **Status:** API no ar, frontend com as telas de pé — painel, agenda, pacientes,
-> cadastro, ficha e trilha — rodando ponta a ponta contra a API real. Falta
-> hospedar o frontend; hoje o conjunto só roda local.
+> cadastro, ficha e trilha — rodando ponta a ponta contra a API real, com o e2e
+> de fumaça passando contra ela. A configuração de host do frontend está no
+> repositório; falta criar o projeto na plataforma e apontar as variáveis
+> ([passo a passo](frontend/README.md#hospedagem)).
 
 ## Layout
 
