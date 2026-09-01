@@ -9,8 +9,9 @@ paciente. Isso definiu as decisões de projeto de cada lado: isolamento entre
 profissionais verificado por teste, exclusão reversível, registro de acesso, e
 access token que nunca é persistido no navegador.
 
-> **Status:** API no ar, frontend com as cinco telas de pé rodando ponta a ponta
-> contra a API real. Falta hospedar o frontend — hoje o conjunto só roda local.
+> **Status:** API no ar, frontend com as telas de pé — painel, agenda, pacientes,
+> cadastro, ficha e trilha — rodando ponta a ponta contra a API real. Falta
+> hospedar o frontend; hoje o conjunto só roda local.
 
 ## Layout
 

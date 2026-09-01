@@ -1,20 +1,22 @@
 # psychology-web — frontend
 
 Frontend do consultório — a interface do psicólogo autônomo para a
-[API](../backend/README.md), no mesmo repositório: agenda do dia,
+[API](../backend/README.md), no mesmo repositório: painel do dia, agenda,
 cadastro de pacientes, anotação de sessão, série semanal e trilha de auditoria.
 
-> **Status:** as cinco telas da spec estão de pé e rodam ponta a ponta contra a
-> API real. Falta hospedar — hoje o conjunto só roda local.
+> **Status:** as telas estão de pé e rodam ponta a ponta contra a API real.
+> Falta hospedar — hoje o conjunto só roda local.
 
 ## Telas
 
 | Rota | O que faz |
 |---|---|
 | `/login` | entrar e criar conta |
+| `/` | painel: consultas de hoje, pacientes cadastrados e os dois atalhos |
 | `/agenda?de&ate` | agenda do intervalo; sem parâmetros, hoje. Agendar, remarcar, mudar status, excluir |
 | `/agenda` → *Série semanal* | série com preview das datas antes de criar, e cancelamento da série inteira |
 | `/pacientes?nome` | lista com busca, cadastro, edição e exclusão |
+| `/pacientes/:id` | ficha do paciente: consultas, última anotação, lembretes pendentes e histórico |
 | `/pacientes/:id/anotacoes` | registrar e ler as sessões |
 | `/pacientes/:id/lembretes` | pendências do paciente, com conclusão otimista |
 | `/pacientes/:id/consultas` | histórico de consultas, só leitura |
@@ -22,6 +24,29 @@ cadastro de pacientes, anotação de sessão, série semanal e trilha de auditor
 
 Filtro e paginação vivem na URL, nunca em `useState`: recarregar preserva, o link
 é compartilhável e cada parâmetro casa um a um com o da API.
+
+## Sistema visual
+
+Papel branco sobre fundo azulado frio, uma família só (Inter), cartão de canto
+16px com filete de 1px, e a barra de ícones fixa à esquerda com os quatro
+destinos. Os tokens ficam em `src/estilo/tokens.css` e são a única fonte de cor
+do produto — nenhum componente escreve hex.
+
+O **azul é reservado para ação**: botão primário, item ativo da barra, link,
+ícone de seção. Nada mais no produto usa azul, e é isso que faz o olho achar o
+que se pode clicar sem procurar. Amarelo aparece uma vez só, no cartão de
+lembretes da ficha — se tudo fosse destaque, nada seria.
+
+Dois campos do desenho de referência **não** existem aqui, porque não existem na
+API: "Esqueci minha senha" (não há endpoint de recuperação) e "Observações" no
+cadastro de paciente (o `PacienteDTO` tem nome, telefone, e-mail e data de
+nascimento). Desenhar o controle sem o que responde por ele seria prometer o que
+o produto não faz.
+
+A saudação do painel vem do `sub` do access token, derivando um primeiro nome do
+trecho antes do arroba (`src/features/auth/perfil.ts`). É derivação, não verdade:
+a API não devolve o nome do profissional em lugar nenhum. Quando devolver — um
+`/auth/me`, por exemplo — esse arquivo sai.
 
 ## Subindo o conjunto
 
@@ -103,6 +128,12 @@ marcado `Path=/auth`, e sob um prefixo o navegador veria `/api/auth/refresh` e
 simplesmente não o enviaria. A renovação quebraria só em desenvolvimento — o pior
 lugar para descobrir isso.
 
+O preço do espelho é que `/pacientes` e `/auditoria` são caminho de API **e**
+rota de tela. Recarregar a página em `/pacientes` entregava o JSON da API no
+lugar do app. Daí o `bypass` no `vite.config.ts`: navegação de documento pede
+`text/html` e volta para o `index.html`; chamada do cliente pede JSON e segue
+para a API.
+
 ## Sessão
 
 O access token vive **apenas em memória**. Quem sustenta o recarregamento é o
@@ -124,7 +155,7 @@ derrubariam a sessão de um usuário legítimo.
 ## Testes
 
 ```bash
-npm test          # 70 testes de unidade e de componente, com MSW
+npm test          # 74 testes de unidade e de componente, com MSW
 npm run e2e       # 2 testes de fumaça — exigem a API no ar
 ```
 
@@ -176,12 +207,13 @@ src/
 │   ├── tipos.ts         espelho dos DTOs
 │   └── recursos/        auth · paciente · consulta · anotacao · lembrete · auditoria
 ├── features/
-│   ├── auth/            LoginPage · SessaoProvider · useSessao
-│   ├── pacientes/       lista · busca · edição · queries.ts
-│   ├── ficha/           abas de anotações, lembretes e consultas · queries.ts
+│   ├── auth/            LoginPage · SessaoProvider · useSessao · perfil.ts
+│   ├── inicio/          painel do dia
+│   ├── pacientes/       lista · busca · cadastro · edição · queries.ts
+│   ├── ficha/           visão geral · abas de anotações, lembretes e consultas · queries.ts
 │   ├── agenda/          agenda · consulta · série · queries.ts
 │   └── auditoria/       trilha · queries.ts
-├── ui/                  Botao · Campo · Chip · Dialogo · Paginacao · Tabela · EstadoVazio · Selecao
+├── ui/                  Layout · Botao · Campo · Selecao · Chip · Cartao · Avatar · Dialogo · Tabela · Paginacao · EstadoVazio · icones
 ├── estilo/              tokens
 └── teste/               setup · servidor MSW · helpers de render
 ```
