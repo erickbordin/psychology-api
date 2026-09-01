@@ -40,14 +40,17 @@ describe('rotas', () => {
     servidorDeTeste.use(
       http.post('/auth/refresh', () => HttpResponse.json({ token: 'token-bom' })),
       http.get('/consultas', () => HttpResponse.json([])),
+      http.get('/pacientes', () => HttpResponse.json([])),
     )
 
     renderizarComRotas(definicaoDeRotas, '/login')
 
-    expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument()
+    // o painel e a porta da aplicacao; 'token-bom' nao e um JWT, entao nao ha
+    // nome para a saudacao e ela fica no cumprimento curto
+    expect(await screen.findByRole('heading', { name: 'Olá' })).toBeInTheDocument()
   })
 
-  it('a raiz cai na agenda do dia', async () => {
+  it('a raiz mostra o painel, que conta a agenda de hoje', async () => {
     const intervalos: string[] = []
     servidorDeTeste.use(
       http.post('/auth/refresh', () => HttpResponse.json({ token: 'token-bom' })),
@@ -56,11 +59,12 @@ describe('rotas', () => {
         intervalos.push(`${busca.get('de')}..${busca.get('ate')}`)
         return HttpResponse.json([])
       }),
+      http.get('/pacientes', () => HttpResponse.json([])),
     )
 
     renderizarComRotas(definicaoDeRotas, '/')
 
-    expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Olá' })).toBeInTheDocument()
     const hoje = new Date()
     const iso = [
       hoje.getFullYear(),
@@ -111,11 +115,14 @@ describe('rotas', () => {
           createdAt: '2026-03-11T10:00:00',
         }),
       ),
-      http.get('/pacientes/p-1/anotacoes', () =>
-        HttpResponse.json({
-          content: [],
-          page: { size: 20, number: 0, totalElements: 0, totalPages: 1 },
-        }),
+      // a visao geral da ficha le os tres sub-recursos de uma vez
+      ...['anotacoes', 'lembretes', 'consultas'].map((recurso) =>
+        http.get(`/pacientes/p-1/${recurso}`, () =>
+          HttpResponse.json({
+            content: [],
+            page: { size: 20, number: 0, totalElements: 0, totalPages: 1 },
+          }),
+        ),
       ),
     )
 
