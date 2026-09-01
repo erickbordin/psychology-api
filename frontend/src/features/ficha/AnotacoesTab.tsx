@@ -3,6 +3,7 @@ import { useBlocker, useParams, useSearchParams } from 'react-router-dom'
 
 import { ErroApi } from '../../api/erro'
 import { Botao } from '../../ui/Botao'
+import { Cartao } from '../../ui/Cartao'
 import { Dialogo } from '../../ui/Dialogo'
 import { EstadoVazio } from '../../ui/EstadoVazio'
 import { Paginacao } from '../../ui/Paginacao'
@@ -66,44 +67,37 @@ export function AnotacoesTab() {
   const itens = anotacoes.data?.content ?? []
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       {bloqueio.state === 'blocked' ? (
-        <div className="flex flex-col gap-4 border-l-2 border-atencao bg-superficie px-5 py-4">
+        <Cartao tom="atencao" className="flex flex-col gap-4 p-5">
           <p className="text-sm">Você tem uma anotação não enviada. Sair perde o texto.</p>
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4">
             <Botao onClick={() => bloqueio.reset()}>Continuar aqui</Botao>
             <Botao variante="texto" onClick={() => bloqueio.proceed()}>
               Sair sem salvar
             </Botao>
           </div>
-        </div>
+        </Cartao>
       ) : null}
 
-      {/*
-        O compositor e o unico bloco da pagina sem filete embaixo: a borda aberta
-        e o modelo de dados aparecendo na tela. A trilha so cresce, e o que ja
-        foi registrado esta selado — cada anotacao abaixo e fechada por um filete.
-      */}
-      <section className="flex flex-col gap-3">
+      <Cartao className="flex flex-col gap-4 p-5">
         <div className="flex items-baseline justify-between gap-4">
-          <label htmlFor={idDoRascunho} className="text-sm font-medium text-tinta-2">
+          <label htmlFor={idDoRascunho} className="text-sm font-semibold">
             Anotação da sessão
           </label>
           <span className="text-sm text-tinta-2">
             {total === 1 ? '1 anotação' : `${total} anotações`}
           </span>
         </div>
-        <div className="border-l-2 border-acento pl-4">
-          <textarea
-            id={idDoRascunho}
-            rows={4}
-            value={rascunho}
-            placeholder="O que aconteceu nesta sessão."
-            onChange={(evento) => setRascunho(evento.target.value)}
-            className="w-full resize-y bg-transparent font-serif text-[17px] leading-relaxed outline-none placeholder:font-sans placeholder:text-base placeholder:text-tinta-3"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <textarea
+          id={idDoRascunho}
+          rows={4}
+          value={rascunho}
+          placeholder="O que aconteceu nesta sessão."
+          onChange={(evento) => setRascunho(evento.target.value)}
+          className="w-full resize-y rounded-xl border border-linha bg-superficie-2 px-3.5 py-3 text-[15px] leading-relaxed outline-none transition-colors placeholder:text-tinta-3 focus:border-acento focus:bg-superficie focus:ring-4 focus:ring-acento/15"
+        />
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <Botao onClick={() => void registrar()} disabled={criar.isPending}>
             Registrar anotação
           </Botao>
@@ -112,11 +106,11 @@ export function AnotacoesTab() {
           </span>
         </div>
         {criar.error instanceof ErroApi ? (
-          <p className="border-l-2 border-perigo bg-superficie px-4 py-3 text-sm">
+          <p className="rounded-xl border border-perigo/30 bg-perigo-suave px-4 py-3 text-sm text-perigo">
             {criar.error.mensagem}
           </p>
         ) : null}
-      </section>
+      </Cartao>
 
       <section className="flex flex-col gap-4">
         {itens.length === 0 ? (
@@ -124,21 +118,25 @@ export function AnotacoesTab() {
             <EstadoVazio>Nenhuma sessão registrada ainda.</EstadoVazio>
           )
         ) : (
-          <ol className="border-t border-linha">
+          /*
+            A trilha so cresce e o que ja foi registrado esta selado: cada
+            anotacao e um cartao fechado, com a data na coluna da esquerda para
+            o olho descer pelas datas sem ler os textos.
+          */
+          <ol className="flex flex-col gap-2.5">
             {itens.map((anotacao) => (
-              <li
-                key={anotacao.id}
-                className="grid gap-2 border-b border-linha py-6 sm:grid-cols-[7.5rem_1fr] sm:gap-7"
-              >
-                <span className="text-sm tabular-nums text-tinta-2">
-                  {dataDeSessao(anotacao.createdAt)}
-                </span>
-                <div className="flex flex-col items-start gap-3">
-                  <p className="font-serif text-[17px] leading-relaxed">{anotacao.conteudo}</p>
-                  <Botao variante="texto" onClick={() => setAApagar(anotacao.id)}>
-                    Apagar
-                  </Botao>
-                </div>
+              <li key={anotacao.id}>
+                <Cartao className="grid gap-3 p-5 sm:grid-cols-[8rem_1fr] sm:gap-6">
+                  <span className="text-sm font-medium tabular-nums text-tinta-2">
+                    {dataDeSessao(anotacao.createdAt)}
+                  </span>
+                  <div className="flex flex-col items-start gap-3">
+                    <p className="text-[15px] leading-relaxed">{anotacao.conteudo}</p>
+                    <Botao variante="discreto" onClick={() => setAApagar(anotacao.id)}>
+                      Apagar
+                    </Botao>
+                  </div>
+                </Cartao>
               </li>
             ))}
           </ol>
@@ -158,11 +156,11 @@ export function AnotacoesTab() {
         titulo="Apagar esta anotação?"
         descricao="Ela sai da ficha e não volta. O registro da exclusão fica na trilha de auditoria."
       >
-        <div className="flex flex-wrap items-center gap-6">
+        <div className="flex flex-wrap items-center gap-4">
           <Botao onClick={() => void apagar()} disabled={excluir.isPending}>
             Apagar anotação
           </Botao>
-          <Botao variante="texto" onClick={() => setAApagar(null)}>
+          <Botao variante="secundario" onClick={() => setAApagar(null)}>
             Manter
           </Botao>
         </div>

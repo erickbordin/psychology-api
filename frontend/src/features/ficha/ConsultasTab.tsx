@@ -1,8 +1,10 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
-import { Chip } from '../../ui/Chip'
+import { Cartao } from '../../ui/Cartao'
+import { Chip, Etiqueta } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
 import { Paginacao } from '../../ui/Paginacao'
+import { IconeCalendario } from '../../ui/icones'
 import { dataHora } from '../../ui/data'
 import { useConsultasDoPaciente } from './queries'
 
@@ -30,21 +32,30 @@ export function ConsultasTab() {
       {itens.length === 0 ? (
         consultas.isPending ? null : (
           <EstadoVazio>
-            Nenhuma consulta ainda. Agende pela <Link to="/agenda" className="text-acento underline underline-offset-4">agenda</Link>.
+            Nenhuma consulta ainda. Agende pela{' '}
+            <Link
+              to="/agenda"
+              className="font-medium text-acento underline underline-offset-4"
+            >
+              agenda
+            </Link>
+            .
           </EstadoVazio>
         )
       ) : (
-        <ul className="border-t border-linha">
+        <ul className="flex flex-col gap-2.5">
           {itens.map((consulta) => (
-            <li
-              key={consulta.id}
-              className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-linha py-4"
-            >
-              <span className="flex-1 text-sm tabular-nums">{dataHora(consulta.dtConsulta)}</span>
-              {consulta.serieId ? (
-                <span className="text-sm text-tinta-3">série semanal</span>
-              ) : null}
-              <Chip status={consulta.status} />
+            <li key={consulta.id}>
+              <Cartao className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
+                <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-acento-suave text-acento">
+                  <IconeCalendario tamanho={18} />
+                </span>
+                <span className="min-w-40 flex-1 text-sm tabular-nums">
+                  {dataHora(consulta.dtConsulta)}
+                </span>
+                {consulta.serieId ? <Etiqueta>série semanal</Etiqueta> : null}
+                <Chip status={consulta.status} />
+              </Cartao>
             </li>
           ))}
         </ul>

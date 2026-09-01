@@ -4,6 +4,8 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { ErroApi } from '../../api/erro'
 import { Botao } from '../../ui/Botao'
 import { Campo } from '../../ui/Campo'
+import { Cartao } from '../../ui/Cartao'
+import { Etiqueta } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
 import { Paginacao } from '../../ui/Paginacao'
 import { dataCurta } from '../../ui/data'
@@ -38,8 +40,8 @@ export function LembretesTab() {
   const itens = lembretes.data?.content ?? []
 
   return (
-    <div className="flex flex-col gap-10">
-      <section className="flex max-w-xl flex-col gap-4">
+    <div className="flex flex-col gap-6">
+      <Cartao className="flex flex-col gap-4 p-5">
         <Campo
           rotulo="Novo lembrete"
           valor={descricao}
@@ -47,7 +49,7 @@ export function LembretesTab() {
           exemplo="Retomar o registro de sono na próxima sessão."
           erro={falha?.mensagemDoCampo('descricao')}
         />
-        <div className="flex flex-wrap items-center gap-6">
+        <div className="flex flex-wrap items-center gap-4">
           <Botao onClick={() => void adicionar()} disabled={criar.isPending}>
             Adicionar lembrete
           </Botao>
@@ -55,7 +57,7 @@ export function LembretesTab() {
             {total === 1 ? '1 lembrete' : `${total} lembretes`}
           </span>
         </div>
-      </section>
+      </Cartao>
 
       <section className="flex flex-col gap-4">
         {itens.length === 0 ? (
@@ -63,32 +65,31 @@ export function LembretesTab() {
             <EstadoVazio>Nada pendente para este paciente.</EstadoVazio>
           )
         ) : (
-          <ul className="border-t border-linha">
+          <ul className="flex flex-col gap-2.5">
             {itens.map((lembrete) => (
-              <li
-                key={lembrete.id}
-                className="flex flex-wrap items-baseline gap-x-6 gap-y-2 border-b border-linha py-4"
-              >
-                <span
-                  className={`flex-1 text-sm ${
-                    lembrete.concluido ? 'text-tinta-3 line-through' : ''
-                  }`}
-                >
-                  {lembrete.descricao}
-                </span>
-                <span className="text-sm tabular-nums text-tinta-3">
-                  {dataCurta(lembrete.createdAt)}
-                </span>
-                {lembrete.concluido ? (
-                  <span className="text-sm text-sucesso">concluído</span>
-                ) : (
-                  <Botao variante="texto" onClick={() => concluir.mutate(lembrete.id)}>
-                    Concluir
+              <li key={lembrete.id}>
+                <Cartao className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
+                  <span
+                    className={`min-w-40 flex-1 text-sm ${
+                      lembrete.concluido ? 'text-tinta-3 line-through' : ''
+                    }`}
+                  >
+                    {lembrete.descricao}
+                  </span>
+                  <span className="text-sm tabular-nums text-tinta-3">
+                    {dataCurta(lembrete.createdAt)}
+                  </span>
+                  {lembrete.concluido ? (
+                    <Etiqueta tom="sucesso">concluído</Etiqueta>
+                  ) : (
+                    <Botao variante="texto" onClick={() => concluir.mutate(lembrete.id)}>
+                      Concluir
+                    </Botao>
+                  )}
+                  <Botao variante="discreto" onClick={() => excluir.mutate(lembrete.id)}>
+                    Excluir
                   </Botao>
-                )}
-                <Botao variante="discreto" onClick={() => excluir.mutate(lembrete.id)}>
-                  Excluir
-                </Botao>
+                </Cartao>
               </li>
             ))}
           </ul>
