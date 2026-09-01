@@ -4,11 +4,16 @@ import type { ReactNode } from 'react'
 
 import { renovarNoBoot } from '../../api/client'
 import * as auth from '../../api/recursos/auth'
-import { gravarAcesso, registrarPerdaDeSessao } from '../../api/sessaoEmMemoria'
+import { gravarAcesso, lerAcesso, registrarPerdaDeSessao } from '../../api/sessaoEmMemoria'
+import { emailDoToken, nomeDeExibicao } from './perfil'
+
+export type Usuario = { email: string; nome: string | null }
 
 export type Sessao = {
   autenticado: boolean
   carregando: boolean
+  /** Quem esta logado, para a saudacao do painel. Nulo enquanto visitante. */
+  usuario: Usuario | null
   entrar: (emailUsuario: string, senha: string) => Promise<void>
   sair: () => Promise<void>
 }
@@ -18,6 +23,7 @@ export const ContextoDeSessao = createContext<Sessao | null>(null)
 export function SessaoProvider({ children }: { children: ReactNode }) {
   const [autenticado, setAutenticado] = useState(false)
   const [carregando, setCarregando] = useState(true)
+  const [email, setEmail] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   /**
@@ -33,7 +39,11 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     let vivo = true
     renovarNoBoot()
       .then((renovou) => {
-        if (vivo) setAutenticado(renovou)
+        if (!vivo) return
+        setAutenticado(renovou)
+        // o e-mail vem do `sub` do token que o refresh acabou de gravar: no F5
+        // nao houve formulario de login para digitar nada
+        if (renovou) setEmail(emailDoToken(lerAcesso()))
       })
       .finally(() => {
         if (vivo) setCarregando(false)
@@ -44,12 +54,16 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    registrarPerdaDeSessao(() => setAutenticado(false))
+    registrarPerdaDeSessao(() => {
+      setAutenticado(false)
+      setEmail(null)
+    })
   }, [])
 
   const entrar = useCallback(async (emailUsuario: string, senha: string) => {
     const { token } = await auth.login(emailUsuario, senha)
     gravarAcesso(token)
+    setEmail(emailUsuario)
     setAutenticado(true)
   }, [])
 
@@ -63,12 +77,21 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     } finally {
       gravarAcesso(null)
       setAutenticado(false)
+      setEmail(null)
       queryClient.clear()
     }
   }, [queryClient])
 
   return (
-    <ContextoDeSessao.Provider value={{ autenticado, carregando, entrar, sair }}>
+    <ContextoDeSessao.Provider
+      value={{
+        autenticado,
+        carregando,
+        usuario: email ? { email, nome: nomeDeExibicao(email) } : null,
+        entrar,
+        sair,
+      }}
+    >
       {children}
     </ContextoDeSessao.Provider>
   )
