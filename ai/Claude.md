@@ -577,9 +577,13 @@ qualquer contradição nova entre o código e as regras acima, sempre apontando 
 teste que a pega.
 
 **Pendência de produção:** a `V6` cria `anotacao.deleted_at_anotacao`. Se o
-banco de produção já recebeu essa coluna por DDL manual, a `V6` falha no
-boot. Conferir antes do deploy e, se for o caso, tratar com `repair` ou
-marcar a migration como já aplicada.
+banco de produção já recebeu essa coluna por DDL manual, a `V6` falha no boot
+(`SQL State 42701`, "column already exists") e a aplicação não sobe. O cenário
+foi reproduzido num banco de simulação: o Postgres é transacional, então **não
+fica linha com `success = false`** e `flyway repair` não resolve — o caminho é
+registrar a `V6` como aplicada. A query de diagnóstico, a tabela de decisão e o
+`INSERT` com o checksum correto (`-842779945`) estão em "Antes do primeiro
+deploy que leva a V6", no `backend/README.md`.
 
 ## Fora de escopo (não sugerir sem o usuário pedir explicitamente)
 

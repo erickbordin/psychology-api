@@ -283,9 +283,58 @@ proíbe combinar com credenciais), `APP_REFRESH_EXPIRACAO_DIAS` (padrão 14),
 `APP_REFRESH_COOKIE_SEGURO` e `APP_REFRESH_COOKIE_SAMESITE` (`true` e `None` em
 produção, onde API e frontend têm origens distintas).
 
+### Antes do primeiro deploy que leva a V6
+
+A `V6` faz `ALTER TABLE anotacao ADD COLUMN deleted_at_anotacao`. Se a coluna já
+existir em produção por DDL manual, **o boot falha e a aplicação não sobe** —
+reproduzido num banco de simulação:
+
+```
+Migration of schema "public" to version "6 - 20260824" failed! Changes successfully rolled back.
+SQL State  : 42701
+Message    : ERROR: column "deleted_at_anotacao" of relation "anotacao" already exists
+```
+
+O Postgres é transacional, então o Flyway **não deixa linha com `success = false`**
+— `flyway repair` não tem o que consertar. Uma query diz o estado:
+
+```sql
+select
+  (select count(*) from flyway_schema_history
+     where version = '6')                                     as v6_registrada,
+  (select count(*) from information_schema.columns
+     where table_name = 'anotacao'
+       and column_name = 'deleted_at_anotacao')               as coluna_existe;
+```
+
+| `v6_registrada` | `coluna_existe` | O que fazer |
+|---|---|---|
+| 1 | 1 | nada. É o estado saudável |
+| 0 | 0 | nada. A `V6` roda sozinha no boot |
+| 0 | 1 | registrar a `V6` como aplicada, abaixo, **antes** de subir |
+| 1 | 0 | parar. Histórico e schema divergem; investigar antes de qualquer deploy |
+
+Registrar a `V6` como aplicada — o `checksum` é o do arquivo versionado e não
+pode ser inventado; `installed_rank` é o próximo da tabela:
+
+```sql
+INSERT INTO flyway_schema_history
+  (installed_rank, version, description, type, script,
+   checksum, installed_by, installed_on, execution_time, success)
+VALUES
+  ((select coalesce(max(installed_rank), 0) + 1 from flyway_schema_history),
+   '6', '20260824', 'SQL', 'V6__20260824.sql',
+   -842779945, current_user, now(), 0, true);
+```
+
+Validado ponta a ponta: com a coluna criada à mão o boot falhava; depois do
+`INSERT`, a `V7` e a `V8` aplicaram e a aplicação subiu.
+
 ## Roadmap
 
-- Hospedar o frontend — hoje o conjunto só roda local
+- Hospedar o frontend — a configuração de host já está no repositório
+  (`frontend/vercel.json` e `frontend/public/_redirects`); falta criar o projeto
+  na plataforma e apontar as variáveis
 
 ## Fora de escopo
 
