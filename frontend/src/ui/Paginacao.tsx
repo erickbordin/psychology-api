@@ -16,12 +16,12 @@ export function Paginacao({ pagina, totalPaginas, contagem, aoMudar }: Props) {
   if (totalPaginas <= 1) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-6">
-      <Botao variante="texto" disabled={pagina === 0} onClick={() => aoMudar(pagina - 1)}>
+    <div className="flex flex-wrap items-center gap-4">
+      <Botao variante="secundario" disabled={pagina === 0} onClick={() => aoMudar(pagina - 1)}>
         Anterior
       </Botao>
       <Botao
-        variante="texto"
+        variante="secundario"
         disabled={pagina >= totalPaginas - 1}
         onClick={() => aoMudar(pagina + 1)}
       >

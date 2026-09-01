@@ -16,8 +16,8 @@ export function Selecao({ rotulo, valor, aoMudar, opcoes, vazio, erro }: Props) 
   const idDoErro = `${id}-erro`
 
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-tinta-2">
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-tinta">
         {rotulo}
       </label>
       <select
@@ -26,8 +26,10 @@ export function Selecao({ rotulo, valor, aoMudar, opcoes, vazio, erro }: Props) 
         aria-invalid={erro ? true : undefined}
         aria-describedby={erro ? idDoErro : undefined}
         onChange={(evento) => aoMudar(evento.target.value)}
-        className={`border-b bg-superficie px-3 py-2.5 text-base outline-none transition-colors ${
-          erro ? 'border-perigo' : 'border-linha focus:border-acento'
+        className={`h-11 rounded-xl border bg-superficie px-3 text-base outline-none transition-colors focus:ring-4 ${
+          erro
+            ? 'border-perigo focus:ring-perigo/15'
+            : 'border-linha focus:border-acento focus:ring-acento/15'
         }`}
       >
         {vazio ? <option value="">{vazio}</option> : null}
