@@ -15,16 +15,20 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 
+/** Pendencia clinica do paciente — sem data, sem envio (spec 5.2). Nao
+ *  confundir com AvisoDeConsulta, que e mensagem agendada presa a uma
+ *  Consulta. Uma entidade so, tentando ser as duas, foi a raiz do
+ *  "lembrete nao lembra nada". */
 @Entity
-@Table(name = "lembrete", schema = "public")
+@Table(name = "pendencia", schema = "public")
 @Data
-public class Lembrete {
+public class Pendencia {
 
     @Id
-    @Column(name = "id_lembrete", nullable = false)
+    @Column(name = "id_pendencia", nullable = false)
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_paciente", nullable = false)
     private Paciente paciente;
@@ -32,13 +36,13 @@ public class Lembrete {
     @Column(name = "descricao", nullable = false)
     private String descricao;
 
-    @Column(name = "created_at_lembrete", nullable = false)
+    @Column(name = "created_at_pendencia", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "concluido", nullable = false)
     private Boolean concluido;
 
-    @Column(name = "deleted_at_lembrete")
+    @Column(name = "deleted_at_pendencia")
     private LocalDateTime deletedAt;
 
     @PrePersist

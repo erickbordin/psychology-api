@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -7,6 +8,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -43,8 +46,18 @@ public class Paciente {
     @Column(name = "dt_nascimento_paciente", nullable = true)
     private LocalDate dataNascimentoPaciente;
 
-    @Column(name = "observacoes_paciente", nullable = true)
-    private String observacoesPaciente;
+    @Column(name = "valor_sessao_paciente", nullable = true, precision = 10, scale = 2)
+    private BigDecimal valorSessao;
+
+    @Column(name = "consentimento_aviso_em_paciente", nullable = true)
+    private LocalDateTime consentimentoAvisoEm;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "canal_aviso_paciente", nullable = false, length = 20)
+    private CanalAviso canalAviso;
+
+    @Column(name = "token_descadastro_paciente", nullable = false, unique = true, length = 64)
+    private String tokenDescadastro;
 
     @Column(name = "created_at_paciente", nullable = false)
     private LocalDateTime createdAt;
@@ -56,7 +69,7 @@ public class Paciente {
     private List<Consulta> consultas;
 
     @OneToMany(mappedBy = "paciente")
-    private List<Lembrete> lembretes;
+    private List<Pendencia> pendencias;
 
     @Column(name = "deleted_at_paciente")
     private LocalDateTime deletedAt;
@@ -64,5 +77,16 @@ public class Paciente {
     @PrePersist
     private void prePersist() {
         this.createdAt = LocalDateTime.now();
+        if (this.canalAviso == null) {
+            this.canalAviso = CanalAviso.NENHUM;
+        }
+        if (this.tokenDescadastro == null) {
+            // 32 bytes de aleatoriedade criptografica em Base64 URL-safe: cabe
+            // num link sem escape e nao e adivinhavel a partir do id
+            byte[] bytes = new byte[32];
+            new java.security.SecureRandom().nextBytes(bytes);
+            this.tokenDescadastro = java.util.Base64.getUrlEncoder()
+                    .withoutPadding().encodeToString(bytes);
+        }
     }
 }

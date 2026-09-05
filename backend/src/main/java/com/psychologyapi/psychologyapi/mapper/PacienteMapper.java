@@ -18,11 +18,14 @@ public interface PacienteMapper {
     @Mapping(target = "dataNascimentoPaciente", source = "dataNascimento")
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "usuario", ignore = true)
-    @Mapping(target = "observacoesPaciente", ignore = true)
+    @Mapping(target = "valorSessao", ignore = true)
+    @Mapping(target = "consentimentoAvisoEm", ignore = true)
+    @Mapping(target = "canalAviso", ignore = true)
+    @Mapping(target = "tokenDescadastro", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "anotacoes", ignore = true)
     @Mapping(target = "consultas", ignore = true)
-    @Mapping(target = "lembretes", ignore = true)
+    @Mapping(target = "pendencias", ignore = true)
     Paciente toEntity(PacienteCadastroDTO dto);
 
 

@@ -82,6 +82,18 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("senha curta e recusada com 400 (spec 6.1: unica falha de seguranca da analise)")
+    void senhaCurtaERecusada() throws Exception {
+        // cadastro valido em tudo, menos a senha
+        mockMvc.perform(post("/auth/registrar")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                         {"nome":"Marina Aguiar","email":"marina@example.com","senha":"a"}
+                         """))
+               .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("POST /auth/login com senha errada responde 401 no envelope de erro")
     void loginComSenhaErradaResponde401() throws Exception {
         psicologoComSenha("ana@teste.com", "senhaforte123");

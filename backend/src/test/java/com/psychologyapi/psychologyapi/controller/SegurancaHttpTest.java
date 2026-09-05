@@ -2,6 +2,7 @@ package com.psychologyapi.psychologyapi.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -117,7 +118,44 @@ class SegurancaHttpTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.erros").isArray())
-                .andExpect(jsonPath("$.erros[*].campo").value(org.hamcrest.Matchers.hasItems("nome",
-                        "dataNascimento")));
+                .andExpect(jsonPath("$.erros[*].campo")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder("nome")));
     }
+
+    @Test
+    @DisplayName("POST /pacientes sem dataNascimento responde 201: data de nascimento e opcional (decisao do dono)")
+    void cadastroSemDataDeNascimentoResponde201() throws Exception {
+        Usuario dono = psicologo("dono@teste.com");
+
+        mockMvc.perform(post("/pacientes")
+                .header(HttpHeaders.AUTHORIZATION, bearerDe(dono))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nome\":\"Sem Data\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nome").value("Sem Data"))
+                .andExpect(jsonPath("$.dataNascimento").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("PUT /pacientes/{id} com telefone maior que o limite da coluna responde 400 com o campo culpado (I6)")
+    void atualizacaoComTelefoneMuitoLongoResponde400() throws Exception {
+        Usuario dono = psicologo("dono@teste.com");
+        Paciente paciente = pacienteRepository.save(Fixtures.paciente(dono, "Ana"));
+
+        mockMvc.perform(put("/pacientes/" + paciente.getId())
+                .header(HttpHeaders.AUTHORIZATION, bearerDe(dono))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"telefone\":\"123456789012345678901\"}")) // 21 caracteres, coluna e VARCHAR(20)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.erros[*].campo").value(org.hamcrest.Matchers.hasItem("telefone")));
+    }
+
+    // O outro cenario do I6 (NOT NULL estourado ao apagar nome numa
+    // atualizacao parcial) nao da pra provar por aqui: o @HttpTest e
+    // @Transactional de classe, entao a transacao do metodo de servico so
+    // participa da transacao do teste em vez de comitar — o flush que
+    // dispararia a excecao fica pendente ate o rollback do teste e nunca
+    // chega a acontecer contra o Postgres. Esse caminho e coberto de forma
+    // isolada por GlobalExceptionsHandlerTest.
 }

@@ -19,7 +19,7 @@ import com.psychologyapi.psychologyapi.service.ConsultaService;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Sub-recurso sob paciente, como anotacao e lembrete: a URL e a fonte da verdade
+ * Sub-recurso sob paciente, como anotacao e pendencia: a URL e a fonte da verdade
  * do pacienteId. Fica fora do ConsultaController porque a raiz e /pacientes.
  */
 @RestController

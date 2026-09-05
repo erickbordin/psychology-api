@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -41,6 +42,19 @@ public class Consulta {
     @Enumerated(EnumType.STRING)
     @Column(name = "status_consulta", nullable = false)
     private Status status;
+
+    // COPIA do valor vigente no agendamento, nao referencia ao paciente:
+    // reajustar a sessao de 150 para 200 nao pode reescrever o historico
+    // faturado (5.3). Nulo quando a consulta foi agendada sem valor definido,
+    // nem no paciente nem no padrao do usuario
+    @Column(name = "valor_consulta", nullable = true, precision = 10, scale = 2)
+    private BigDecimal valor;
+
+    /** Data da baixa. Nulo so significa "a receber" quando o status e
+     *  REALIZADA — falta nao e cobrada (spec 5.3). Quem somar dinheiro
+     *  filtrando so por este campo conta falta como divida. */
+    @Column(name = "pago_em_consulta", nullable = true)
+    private LocalDateTime pagoEm;
 
     @Column(name = "created_at_consulta", nullable = false)
     private LocalDateTime createdAt;

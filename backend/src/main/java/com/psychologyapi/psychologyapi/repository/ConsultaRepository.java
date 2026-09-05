@@ -21,4 +21,9 @@ public interface ConsultaRepository extends JpaRepository<Consulta, UUID>{
     Page<Consulta> findByPacienteAndUsuarioAndDeletedAtIsNullOrderByDtConsultaDesc(
             Paciente paciente, Usuario usuario, Pageable pageable);
 
+    // usado por PacienteService.deletarPaciente para cancelar as sessoes
+    // ainda nao realizadas (spec 5.10) — sem paginacao, e uso interno de
+    // servico, nao endpoint de listagem
+    List<Consulta> findByPacienteAndUsuarioAndDeletedAtIsNull(Paciente paciente, Usuario usuario);
+
 }

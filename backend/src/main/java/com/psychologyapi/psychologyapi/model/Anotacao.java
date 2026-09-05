@@ -24,6 +24,12 @@ public class Anotacao {
     @JoinColumn(name = "id_paciente", nullable = false)
     private Paciente paciente;
 
+    /** A sessao a que esta anotacao pertence. Nulo = anotacao avulsa: vale,
+     *  mas nao entra na linha do tempo da ficha (spec 5.1). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_consulta", nullable = true)
+    private Consulta consulta;
+
     @Column(name = "anotacao", nullable = false)
     private String conteudo;
 

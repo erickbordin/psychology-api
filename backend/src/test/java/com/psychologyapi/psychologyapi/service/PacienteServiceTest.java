@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,9 +28,12 @@ import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteCadastroD
 import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.mapper.PacienteMapper;
+import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
+import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
+import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
 import com.psychologyapi.psychologyapi.support.Fixtures;
@@ -39,6 +43,8 @@ class PacienteServiceTest {
 
     @Mock
     private PacienteRepository pacienteRepository;
+    @Mock
+    private ConsultaRepository consultaRepository;
     @Mock
     private PacienteMapper pacienteMapper;
     @Mock
@@ -246,6 +252,77 @@ class PacienteServiceTest {
         verify(pacienteRepository).save(paciente);
         verify(pacienteRepository, never()).delete(any());
         verify(auditoriaService).registrar(logado, AcaoAuditoria.EXCLUSAO, "Paciente", id);
+    }
+
+    @Test
+    @DisplayName("deletarPaciente: cancela a sessao futura e nao mexe na passada (spec 5.10)")
+    void deletarCancelaApenasSessoesFuturasNaoRealizadas() {
+        UUID pacienteId = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        Consulta futuraAgendada = Fixtures.consulta(logado, paciente, LocalDateTime.now().plusDays(3), Status.AGENDADA);
+        futuraAgendada.setId(UUID.randomUUID());
+
+        Consulta passadaRealizada = Fixtures.consulta(logado, paciente, LocalDateTime.now().minusDays(3), Status.REALIZADA);
+        passadaRealizada.setId(UUID.randomUUID());
+        LocalDateTime pagoEmOriginal = LocalDateTime.now().minusDays(2);
+        passadaRealizada.setPagoEm(pagoEmOriginal);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado)).thenReturn(Optional.of(paciente));
+        when(consultaRepository.findByPacienteAndUsuarioAndDeletedAtIsNull(paciente, logado))
+                .thenReturn(List.of(futuraAgendada, passadaRealizada));
+
+        pacienteService.deletarPaciente(pacienteId);
+
+        // a futura foi cancelada...
+        assertThat(futuraAgendada.getStatus()).isEqualTo(Status.CANCELADA);
+
+        // ...e a passada continua exatamente como estava: mesmo status, mesma
+        // data, mesma baixa financeira. Historico e fato, nao agendamento.
+        assertThat(passadaRealizada.getStatus()).isEqualTo(Status.REALIZADA);
+        assertThat(passadaRealizada.getPagoEm()).isEqualTo(pagoEmOriginal);
+
+        ArgumentCaptor<List<Consulta>> captor = ArgumentCaptor.forClass(List.class);
+        verify(consultaRepository).saveAll(captor.capture());
+        assertThat(captor.getValue()).containsExactly(futuraAgendada);
+    }
+
+    /**
+     * Isola a fronteira de STATUS da fronteira de DATA (re-revisao de
+     * 2026-09-05): o teste acima so testa REALIZADA junto com data passada,
+     * entao se o filtro de status sumisse do codigo por engano — e so a data
+     * seguisse protegendo o passado — aquele teste continuaria verde. Aqui as
+     * duas consultas sao FUTURAS e ja tem status terminal; se o filtro de
+     * status nao existisse, as duas seriam canceladas.
+     */
+    @Test
+    @DisplayName("deletarPaciente: consulta futura mas ja REALIZADA ou FALTOU fica intacta (spec 5.10)")
+    void deletarNaoMexeEmFuturaJaRealizadaOuFaltou() {
+        UUID pacienteId = UUID.randomUUID();
+        Paciente paciente = Fixtures.paciente(logado, "Ana");
+        paciente.setId(pacienteId);
+
+        Consulta futuraRealizada = Fixtures.consulta(logado, paciente, LocalDateTime.now().plusDays(1), Status.REALIZADA);
+        futuraRealizada.setId(UUID.randomUUID());
+
+        Consulta futuraFaltou = Fixtures.consulta(logado, paciente, LocalDateTime.now().plusDays(2), Status.FALTOU);
+        futuraFaltou.setId(UUID.randomUUID());
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado)).thenReturn(Optional.of(paciente));
+        when(consultaRepository.findByPacienteAndUsuarioAndDeletedAtIsNull(paciente, logado))
+                .thenReturn(List.of(futuraRealizada, futuraFaltou));
+
+        pacienteService.deletarPaciente(pacienteId);
+
+        assertThat(futuraRealizada.getStatus()).isEqualTo(Status.REALIZADA);
+        assertThat(futuraFaltou.getStatus()).isEqualTo(Status.FALTOU);
+
+        ArgumentCaptor<List<Consulta>> captor = ArgumentCaptor.forClass(List.class);
+        verify(consultaRepository).saveAll(captor.capture());
+        assertThat(captor.getValue()).isEmpty();
     }
 
     @Test

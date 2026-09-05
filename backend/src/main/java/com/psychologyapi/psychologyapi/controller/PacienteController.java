@@ -51,7 +51,7 @@ public class PacienteController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PacienteResponseDTO> atualizarPaciente(@PathVariable UUID id, @RequestBody PacienteAtualizacaoDTO dto){
+    public ResponseEntity<PacienteResponseDTO> atualizarPaciente(@PathVariable UUID id, @RequestBody @Valid PacienteAtualizacaoDTO dto){
         PacienteResponseDTO paciente = pacienteService.atualizarPaciente(id, dto);
         return ResponseEntity.status(HttpStatus.OK).body(paciente);
     }

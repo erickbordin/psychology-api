@@ -2,6 +2,7 @@ package com.psychologyapi.psychologyapi.controller.common;
 
 import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
@@ -15,7 +16,7 @@ import com.psychologyapi.psychologyapi.controller.dto.error.ErroRespostaDTO;
 import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
-import com.psychologyapi.psychologyapi.exceptions.LembreteNaoEncontradoException;
+import com.psychologyapi.psychologyapi.exceptions.PendenciaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
@@ -89,9 +90,9 @@ public class GlobalExceptionsHandler {
         return semCampos(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
-    @ExceptionHandler(LembreteNaoEncontradoException.class)
+    @ExceptionHandler(PendenciaNaoEncontradaException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErroRespostaDTO handleLembreteNaoEncontrado(LembreteNaoEncontradoException e){
+    public ErroRespostaDTO handlePendenciaNaoEncontrada(PendenciaNaoEncontradaException e){
         return semCampos(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
@@ -122,6 +123,25 @@ public class GlobalExceptionsHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Erro de validação",
                 List.of(new ErroCampoDTO("entidadeId", e.getMessage())));
+    }
+
+    /**
+     * Rede de seguranca contra estouro de limite/constraint que a validacao de
+     * bean nao pegou antes (DTO desatualizado em relacao ao banco, ou um campo
+     * ainda sem @Size) — sem este handler o cliente leva 500 onde a 6.1 pede
+     * 400 (I6 do laudo da revisao do conjunto, 2026-09-05).
+     *
+     * Nao tenta apontar o campo culpado: a mensagem do Postgres para
+     * "value too long" nao carrega o nome da coluna, so o tipo/tamanho, entao
+     * qualquer tentativa de adivinhar o campo aqui seria frágil. Apontar o
+     * campo com precisao e trabalho do @Size no DTO (validado antes de chegar
+     * aqui); este handler so evita que o que escapar disso vire 500.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErroRespostaDTO handleDataIntegrityViolationException(DataIntegrityViolationException e) {
+        return semCampos(HttpStatus.BAD_REQUEST,
+                "Não foi possível salvar: um dos valores informados é inválido ou excede o limite permitido.");
     }
 
     /**

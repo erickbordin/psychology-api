@@ -1,10 +1,10 @@
-package com.psychologyapi.psychologyapi.controller.dto.lembrete;
+package com.psychologyapi.psychologyapi.controller.dto.pendencia;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record LembreteResponseDTO( 
-    
+public record PendenciaResponseDTO(
+
     UUID id,
     String descricao,
     Boolean concluido,

@@ -14,51 +14,51 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 
-import com.psychologyapi.psychologyapi.model.Lembrete;
+import com.psychologyapi.psychologyapi.model.Pendencia;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.support.Fixtures;
 import com.psychologyapi.psychologyapi.support.PostgresContainerConfig;
 
 /**
- * Lembrete nao tem Usuario direto: o dono e alcancado via Paciente, entao o
+ * Pendencia nao tem Usuario direto: o dono e alcancado via Paciente, entao o
  * isolamento depende da navegacao aninhada Paciente_Usuario no nome do metodo.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(PostgresContainerConfig.class)
-class LembreteRepositoryTest {
+class PendenciaRepositoryTest {
 
     @Autowired
     private TestEntityManager em;
 
     @Autowired
-    private LembreteRepository lembreteRepository;
+    private PendenciaRepository pendenciaRepository;
 
     @Test
-    @DisplayName("busca por id nao enxerga lembrete de paciente de outro psicologo")
-    void naoRetornaLembreteDePacienteDeOutroUsuario() {
+    @DisplayName("busca por id nao enxerga pendencia de paciente de outro psicologo")
+    void naoRetornaPendenciaDePacienteDeOutroUsuario() {
         Usuario dono = em.persistAndFlush(Fixtures.usuario("dono@teste.com"));
         Usuario intruso = em.persistAndFlush(Fixtures.usuario("intruso@teste.com"));
         Paciente paciente = em.persistAndFlush(Fixtures.paciente(dono, "Ana"));
 
-        Lembrete lembrete = em.persistAndFlush(Fixtures.lembrete(paciente, "ligar para a paciente"));
+        Pendencia pendencia = em.persistAndFlush(Fixtures.pendencia(paciente, "ligar para a paciente"));
 
-        assertThat(lembreteRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(lembrete.getId(), dono))
+        assertThat(pendenciaRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(pendencia.getId(), dono))
                 .isPresent();
-        assertThat(lembreteRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(lembrete.getId(), intruso))
+        assertThat(pendenciaRepository.findByIdAndPaciente_UsuarioAndDeletedAtIsNull(pendencia.getId(), intruso))
                 .isEmpty();
     }
 
     @Test
-    @DisplayName("listagem ignora lembrete excluido e ordena do mais novo para o mais antigo")
+    @DisplayName("listagem ignora pendencia excluida e ordena do mais novo para o mais antigo")
     void listagemIgnoraSoftDeleteEOrdenaDesc() {
         Usuario dono = em.persistAndFlush(Fixtures.usuario("dono@teste.com"));
         Paciente paciente = em.persistAndFlush(Fixtures.paciente(dono, "Ana"));
 
-        Lembrete antigo = em.persistAndFlush(Fixtures.lembrete(paciente, "antigo"));
-        Lembrete recente = em.persistAndFlush(Fixtures.lembrete(paciente, "recente"));
-        Lembrete excluido = em.persistAndFlush(Fixtures.lembrete(paciente, "excluido"));
+        Pendencia antigo = em.persistAndFlush(Fixtures.pendencia(paciente, "antigo"));
+        Pendencia recente = em.persistAndFlush(Fixtures.pendencia(paciente, "recente"));
+        Pendencia excluido = em.persistAndFlush(Fixtures.pendencia(paciente, "excluido"));
 
         antigo.setCreatedAt(LocalDateTime.now().minusDays(2));
         recente.setCreatedAt(LocalDateTime.now());
@@ -66,23 +66,23 @@ class LembreteRepositoryTest {
         excluido.setDeletedAt(LocalDateTime.now());
         em.flush();
 
-        List<Lembrete> lembretes = lembreteRepository
+        List<Pendencia> pendencias = pendenciaRepository
                 .findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(paciente, dono,
                         PageRequest.of(0, 20))
                 .getContent();
 
-        assertThat(lembretes).extracting(Lembrete::getDescricao).containsExactly("recente", "antigo");
+        assertThat(pendencias).extracting(Pendencia::getDescricao).containsExactly("recente", "antigo");
     }
 
     @Test
-    @DisplayName("lembrete nasce nao concluido e nao excluido")
+    @DisplayName("pendencia nasce nao concluida e nao excluida")
     void defaultsDoPrePersist() {
         Usuario dono = em.persistAndFlush(Fixtures.usuario("dono@teste.com"));
         Paciente paciente = em.persistAndFlush(Fixtures.paciente(dono, "Ana"));
 
-        Lembrete lembrete = em.persistAndFlush(Fixtures.lembrete(paciente, "ligar"));
+        Pendencia pendencia = em.persistAndFlush(Fixtures.pendencia(paciente, "ligar"));
 
-        assertThat(lembrete.getConcluido()).isFalse();
-        assertThat(lembrete.getDeletedAt()).isNull();
+        assertThat(pendencia.getConcluido()).isFalse();
+        assertThat(pendencia.getDeletedAt()).isNull();
     }
 }

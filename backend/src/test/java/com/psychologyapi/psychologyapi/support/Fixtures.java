@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import com.psychologyapi.psychologyapi.model.Anotacao;
 import com.psychologyapi.psychologyapi.model.Consulta;
-import com.psychologyapi.psychologyapi.model.Lembrete;
+import com.psychologyapi.psychologyapi.model.Pendencia;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.RefreshToken;
 import com.psychologyapi.psychologyapi.model.Status;
@@ -43,11 +43,11 @@ public final class Fixtures {
         return consulta;
     }
 
-    public static Lembrete lembrete(Paciente paciente, String descricao) {
-        Lembrete lembrete = new Lembrete();
-        lembrete.setPaciente(paciente);
-        lembrete.setDescricao(descricao);
-        return lembrete;
+    public static Pendencia pendencia(Paciente paciente, String descricao) {
+        Pendencia pendencia = new Pendencia();
+        pendencia.setPaciente(paciente);
+        pendencia.setDescricao(descricao);
+        return pendencia;
     }
 
     public static Anotacao anotacao(Usuario dono, Paciente paciente, String conteudo) {
