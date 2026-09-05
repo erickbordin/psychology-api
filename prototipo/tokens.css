@@ -1,0 +1,65 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+
+:root {
+  --superficie:     #ffffff;
+  --superficie-2:   #f1f3f4;
+  --linha:          #dadce0;
+
+  --tinta:          #3c4043;
+  --tinta-2:        #5f6368;
+  --tinta-3:        #80868b;
+
+  /* Direcao visual: linguagem do Google Calendar (decisao do dono do
+     produto, tomada depois de ver o prototipo publicado — ver TRAVAS.md,
+     balde [decisao do dono]). A regra antiga — "azul e SO acao: botao
+     primario, item ativo da navegacao, icone de secao" — morreu: no
+     Calendar o azul e a cor do EVENTO, nao do botao; manter a regra antiga
+     e adotar o Calendar era impossivel.
+
+     Regra nova, no lugar dela: ACAO E FORMA, NAO COR. A FORMA e o que
+     separa: pilula = acao, bloco chapado com barra a esquerda = evento.
+     Por isso os dois podem ser azuis sem confundir — e e assim no Calendar,
+     onde o evento e bloco azul e o "Salvar" do dialogo e pilula azul. */
+  --acento:         #1a73e8;
+  --acento-escuro:  #1967d2;
+  --acento-suave:   #e8f0fe;
+  --acento-linha:   #d2e3fc;
+
+  --agora:          #ea4335;
+  --sucesso:        #188038;
+  --sucesso-suave:  #e6f4ea;
+  --atencao:        #e37400;
+  --atencao-suave:  #fef7e0;
+  --atencao-linha:  #fbe6ad;
+  --perigo:         #d93025;
+  --perigo-suave:   #fce8e6;
+
+  /* sombra da pilula elevada (botao primario) — mesma dupla-camada do
+     "Criar" do Calendar/Material; nenhuma cor fica escrita a mao fora
+     daqui, entao a sombra tambem vira token. */
+  --sombra-1: rgba(60, 64, 67, .30);
+  --sombra-2: rgba(60, 64, 67, .15);
+
+  --fonte: "Roboto", ui-sans-serif, system-ui, sans-serif;
+
+  --gap-1: 4px;  --gap-2: 8px;  --gap-3: 12px;
+  --gap-4: 16px; --gap-5: 20px; --gap-6: 24px; --gap-7: 32px;
+  --raio: 4px;   --raio-g: 8px;
+}
+
+body {
+  margin: 0;
+  background: var(--superficie-2);
+  color: var(--tinta);
+  font-family: var(--fonte);
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(input, select, textarea, button) { font-family: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

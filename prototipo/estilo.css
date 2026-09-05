@@ -1,0 +1,296 @@
+.moldura { display: flex; min-height: 100vh; }
+
+.lateral {
+  position: sticky; top: 0; height: 100vh;
+  width: 208px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: var(--gap-1);
+  padding: var(--gap-5) var(--gap-3);
+  background: var(--superficie);
+  border-right: 1px solid var(--linha);
+}
+.lateral .marca {
+  font-weight: 700; font-size: 15px; color: var(--tinta);
+  text-decoration: none; padding: 0 var(--gap-3) var(--gap-5);
+}
+.lateral ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.lateral a[data-tela] {
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: 10px var(--gap-3); border-radius: var(--raio);
+  color: var(--tinta-2); text-decoration: none; font-size: 14px; font-weight: 500;
+}
+.lateral a[data-tela]:hover { background: var(--superficie-2); color: var(--tinta); }
+/* nova regra (ver tokens.css): acao e forma, nao cor — o item ativo da nav
+   nao precisa mais ser o unico azul solido da tela. Vira pilula suave,
+   como o item selecionado do rail do Calendar/Gmail. */
+.lateral a.ativo { background: var(--acento-suave); color: var(--acento-escuro); border-radius: 999px; }
+.lateral .rodape { margin-top: auto; }
+
+main { flex: 1; min-width: 0; padding: var(--gap-6) var(--gap-6); }
+main > section { max-width: 960px; margin: 0 auto; }
+
+/* bordas de cartao saem — a estrutura vem da grade em fio de cabelo e do
+   espaco (fundo da pagina em --superficie-2, cartao em --superficie),
+   nao de moldura em cada bloco. */
+.cartao {
+  background: var(--superficie);
+  border-radius: var(--raio-g); padding: var(--gap-4);
+}
+h1 { font-size: 26px; margin: 0 0 var(--gap-1); letter-spacing: -.02em; }
+.sub { color: var(--tinta-2); font-size: 14px; margin: 0 0 var(--gap-6); }
+/* acao e forma, nao cor. A FORMA e o que separa: pilula = acao, bloco
+   chapado com barra a esquerda = evento. Por isso a pilula pode ser azul
+   sem reintroduzir a regra antiga — e o botao de acao padrao do Calendar
+   (o "Salvar" do dialogo) e exatamente isto: pilula azul preenchida.
+   A primeira versao deste reskin fez o primario branco+sombra, copiando o
+   botao "Criar", que e um caso especial: com primario e secundario os dois
+   brancos, so a sombra separava, e a hierarquia sumia. */
+.botao {
+  border: 0; border-radius: 999px; padding: 9px var(--gap-5);
+  background: var(--acento); color: var(--superficie); font-size: 14px; font-weight: 500; cursor: pointer;
+  box-shadow: 0 1px 2px 0 var(--sombra-1), 0 1px 3px 1px var(--sombra-2);
+}
+.botao:hover { background: var(--acento-escuro); box-shadow: 0 1px 3px 0 var(--sombra-1), 0 4px 8px 3px var(--sombra-2); }
+/* secundario continua pilula (ainda e acao) mas sem elevacao — a hierarquia
+   vem da sombra, nao da cor. */
+.botao.secundario { background: var(--superficie); color: var(--tinta-2); border: 1px solid var(--linha); box-shadow: none; }
+.botao.mini { padding: 5px 14px; font-size: 13px; font-weight: 500; }
+
+/* tela hoje */
+.cabecalho-dia { display: flex; justify-content: space-between; align-items: flex-start; }
+.acoes-cabecalho-dia { display: flex; align-items: center; gap: var(--gap-2); }
+.destaque { background: var(--acento-suave); border-left: 3px solid var(--acento); margin-bottom: var(--gap-6); }
+.etiqueta { font-size: 13px; color: var(--tinta-2); }
+.nome-grande { display: block; font-size: 24px; margin: var(--gap-1) 0 var(--gap-2); }
+.alerta-falta { color: var(--atencao); background: var(--atencao-suave); border: 1px solid var(--atencao-linha);
+  border-radius: var(--raio); padding: var(--gap-2) var(--gap-3); font-size: 13px; margin: 0 0 var(--gap-4); }
+.titulo-secao { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--tinta-3); margin: var(--gap-6) 0 var(--gap-3); }
+.faixa-pendencias { padding: 0; }
+.linha-pendencia {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--gap-3);
+  align-items: center; padding: var(--gap-2) var(--gap-4); border-bottom: 1px solid var(--linha); }
+.linha-pendencia:last-child { border-bottom: 0; }
+.hora { font-variant-numeric: tabular-nums; font-weight: 600; }
+.marca-falta { font-size: 12px; color: var(--atencao); }
+
+/* faixa horizontal do dia — decisao do dono (linguagem Google Calendar): o
+   tempo corre para a direita, sessao vira bloco posicionado pelo horario,
+   largura proporcional a duracao (50min), buraco fica vazio de verdade.
+   Janela interna 08:00-17:00 (540min) — comeca antes das 9h so a linha do
+   "agora" (08:40) tem onde aparecer; a regua so rotula de 9h a 17h. */
+.faixa-dia { padding: var(--gap-4) var(--gap-4) var(--gap-3); overflow-x: auto; }
+.regua-horas {
+  position: relative; height: 18px; min-width: 1400px; margin-bottom: var(--gap-2);
+}
+.marca-hora {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font-size: 12px; color: var(--tinta-3); font-variant-numeric: tabular-nums;
+}
+.trilho-dia {
+  position: relative; min-width: 1400px; height: 148px;
+  border-top: 1px solid var(--linha);
+}
+.linha-hora {
+  position: absolute; top: 0; bottom: 0; width: 1px; background: var(--linha);
+}
+.linha-agora {
+  position: absolute; top: -5px; bottom: 0; width: 2px; background: var(--agora); z-index: 2;
+}
+.linha-agora::before {
+  content: ""; position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
+  width: 10px; height: 10px; border-radius: 50%; background: var(--agora);
+}
+/* bloco de sessao: chapado, raio pequeno, sem sombra — a mesma linguagem do
+   "evento" definida em tokens.css. */
+.sessao-bloco {
+  position: absolute; top: 8px; bottom: 8px; box-sizing: border-box;
+  background: var(--acento-suave); border-left: 3px solid var(--acento);
+  border-radius: var(--raio); padding: var(--gap-2) var(--gap-2);
+  display: flex; flex-direction: column; gap: 4px; overflow: hidden;
+}
+.sessao-bloco.passada { opacity: .55; }
+.sessao-bloco .hora { font-size: 12px; }
+.sessao-bloco .paciente {
+  font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sessao-bloco .marca-falta { font-size: 11px; }
+.sessao-bloco .acoes { display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
+.sessao-bloco .acoes .botao.mini { width: 100%; text-align: center; }
+.sessao-bloco .acoes .chip { justify-content: center; }
+
+/* modo privacidade — spec §4: painel fica aberto em tela cheia no consultorio.
+   fix: escopado a #tela-hoje — antes vazava pra Pacientes/Ficha/Financeiro,
+   que reaproveitam as mesmas classes genericas (ver TRAVAS.md). */
+#tela-hoje.privado .paciente,
+#tela-hoje.privado .nome-grande,
+#tela-hoje.privado .linha-pendencia span:first-child { filter: blur(5px); }
+
+/* fix: botao precisa parecer ligado — antes nao tinha estado visivel algum */
+#privacidade.ativo { background: var(--acento-suave); color: var(--acento-escuro); border-color: var(--acento-linha); }
+
+/* fix round 1 — chips que substituem os botoes de acao depois do clique */
+.chip {
+  display: inline-flex; align-items: center; padding: 5px 10px;
+  border-radius: var(--raio); font-size: 13px; font-weight: 500;
+  background: var(--superficie-2); color: var(--tinta-2);
+}
+.chip.realizada { background: var(--sucesso-suave); color: var(--sucesso); }
+.chip.faltou { background: var(--atencao-suave); color: var(--atencao); }
+
+.linha-pendencia.resolvida span:first-child { text-decoration: line-through; color: var(--tinta-3); }
+
+/* tela agenda — grade semanal Google Calendar. 6 colunas (72px da regua +
+   5 dias): o JS continua emitindo 6 filhos por linha, so a grade em
+   fio de cabelo troca de gap+fundo simulado para border de verdade —
+   borda superior/esquerda no container, direita/inferior em cada slot,
+   sem dobrar traco nas divisas internas. */
+.barra-agenda { display: flex; gap: var(--gap-3); margin-bottom: var(--gap-5); flex-wrap: wrap; }
+.grade-semana {
+  display: grid; grid-template-columns: 72px repeat(5, 1fr); position: relative;
+  border-top: 1px solid var(--linha); border-left: 1px solid var(--linha);
+}
+.slot {
+  background: var(--superficie); min-height: 46px; padding: var(--gap-2);
+  font-size: 13px; display: flex; align-items: center;
+  border-right: 1px solid var(--linha); border-bottom: 1px solid var(--linha);
+}
+.slot.rotulo { background: var(--superficie-2); color: var(--tinta-2); font-weight: 600; justify-content: center; }
+.slot.hora { font-variant-numeric: tabular-nums; align-items: flex-start; padding-top: 6px; }
+/* cabecalho do dia: "SEG" pequeno em maiuscula + numero grande embaixo,
+   como o Calendar — o dia de hoje ganha o numero num circulo preenchido. */
+.dia-cabecalho { flex-direction: column; gap: 2px; }
+.dia-nome { font-size: 11px; letter-spacing: .04em; color: var(--tinta-2); font-weight: 600; }
+.dia-numero {
+  font-size: 16px; font-weight: 500; color: var(--tinta);
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.dia-numero.hoje { background: var(--acento); color: var(--superficie); }
+/* sessao ocupada: bloco chapado azul, texto branco, raio pequeno, sem
+   sombra — mesma linguagem de "evento" do tokens.css — com barra de 3px
+   mais escura a esquerda. */
+.slot.ocupado {
+  background: var(--acento); color: var(--superficie); font-weight: 500; cursor: pointer;
+  border-radius: var(--raio); border-left: 3px solid var(--acento-escuro); margin: 2px;
+}
+/* fix trava C2 (TRAVAS.md): slot livre precisa parecer clicavel e marcar
+   visivelmente ao ser clicado — nunca engolir o clique em silencio. */
+.slot:not(.rotulo):not(.ocupado) { cursor: pointer; }
+.slot:not(.rotulo):not(.ocupado):hover { background: var(--superficie-2); }
+/* linha do agora na semana: marcador decorativo posicionado por
+   grid-column/grid-row (coluna de hoje, topo da primeira linha de hora) —
+   pointer-events:none pra nunca interceptar o clique do slot por baixo. */
+.linha-agora-agenda {
+  align-self: start; height: 2px; background: var(--agora); margin-top: -1px;
+  position: relative; z-index: 1; pointer-events: none;
+}
+.linha-agora-agenda::before {
+  content: ""; position: absolute; top: -4px; left: -1px;
+  width: 10px; height: 10px; border-radius: 50%; background: var(--agora);
+}
+.status-agenda { font-size: 13px; min-height: 18px; margin: var(--gap-3) 0 0; color: var(--tinta-2); }
+.status-agenda.aviso { color: var(--atencao); }
+.status-agenda.ok { color: var(--sucesso); }
+.nota-conflito { font-size: 13px; color: var(--tinta-2); margin-top: var(--gap-4); }
+
+/* tela pacientes e ficha (Task 5) — fusão consulta+anotação numa linha do
+   tempo única, testada contra o cenário C2 (Helena Vaz) */
+.busca { flex: 1; min-width: 200px; height: 38px; padding: 0 var(--gap-3);
+  border: 1px solid var(--linha); border-radius: var(--raio); font-size: 14px; }
+.vazio { padding: var(--gap-4); color: var(--tinta-3); font-style: italic; }
+.linha-paciente { display: grid; grid-template-columns: 1fr auto auto; gap: var(--gap-4);
+  padding: var(--gap-2) var(--gap-4); border-bottom: 1px solid var(--linha);
+  text-decoration: none; color: var(--tinta); align-items: center; }
+.linha-paciente:last-child { border-bottom: 0; }
+.linha-paciente:hover { background: var(--superficie-2); }
+.desde, .valor { font-size: 13px; color: var(--tinta-2); }
+.voltar { font-size: 13px; color: var(--tinta-2); text-decoration: none; }
+.cabecalho-ficha { display: flex; justify-content: space-between; align-items: flex-start;
+  margin: var(--gap-3) 0 var(--gap-4); }
+.acoes-ficha { display: flex; gap: var(--gap-3); align-items: center; }
+.colunas-ficha { display: grid; grid-template-columns: 1fr 260px; gap: var(--gap-6); align-items: start; }
+.registro-novo textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--linha);
+  border-radius: var(--raio); padding: var(--gap-3); font-size: 14px; resize: vertical; margin-bottom: var(--gap-3); }
+.linha-tempo { display: flex; flex-direction: column; gap: var(--gap-3); margin-top: var(--gap-4); }
+.sessao-item header { display: flex; gap: var(--gap-3); align-items: center; margin-bottom: var(--gap-2); }
+.sessao-item p { margin: 0; font-size: 14px; color: var(--tinta-2); }
+.sem-anotacao { color: var(--tinta-3); font-style: italic; }
+/* .chip, .chip.realizada e .chip.faltou já existem (fix round 1, tela hoje)
+   — só as variantes que faltavam: */
+.chip.devendo, .chip.alerta, .chip.cancelada { background: var(--atencao-suave); color: var(--atencao); }
+.chip.pago { background: var(--sucesso-suave); color: var(--sucesso); }
+/* Task 7 (§5.3, decisão do dono): falta não é cobrada — tom neutro, nem
+   sucesso (pago) nem atenção (a receber), pra não sugerir dívida nenhuma. */
+.chip.nao-cobrada { background: var(--superficie-2); color: var(--tinta-3); }
+.status-ficha, .status-registro, .status-pacientes { font-size: 13px; min-height: 18px; color: var(--tinta-2); }
+.status-ficha, .status-pacientes { margin: 0 0 var(--gap-4); }
+.status-registro { margin: var(--gap-2) 0 0; }
+.status-ficha.aviso, .status-pacientes.aviso, .status-registro.aviso { color: var(--atencao); }
+.status-registro.ok, .status-ficha.ok, .status-pacientes.ok { color: var(--sucesso); }
+@media (max-width: 860px) { .colunas-ficha { grid-template-columns: 1fr; } }
+
+/* tela financeiro (Task 6) */
+.indicadores { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-4); margin-bottom: var(--gap-6); }
+.indicador { display: flex; flex-direction: column; gap: var(--gap-1); }
+.indicador span { font-size: 13px; color: var(--tinta-2); }
+.indicador strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+.indicador .ok { color: var(--sucesso); }
+.indicador .pendente { color: var(--atencao); }
+.linha-pendencia.baixado span:first-child { text-decoration: line-through; color: var(--tinta-3); }
+.status-financeiro { font-size: 13px; min-height: 18px; margin: var(--gap-3) 0 0; color: var(--tinta-2); }
+.status-financeiro.aviso { color: var(--atencao); }
+.status-financeiro.ok { color: var(--sucesso); }
+@media (max-width: 860px) { .indicadores { grid-template-columns: 1fr; } }
+
+/* tela ajustes (Task 7) — prévia do aviso de consulta, spec §7.1 */
+.campo-linha { display: flex; flex-direction: column; gap: var(--gap-4); }
+.campo-linha label { display: flex; flex-direction: column; gap: var(--gap-2); font-size: 14px; font-weight: 500; }
+.campo-linha label.inline { flex-direction: row; align-items: center; gap: var(--gap-2); font-weight: 400; }
+.campo-linha input[type=number], .campo-linha select {
+  height: 40px; padding: 0 var(--gap-3); border: 1px solid var(--linha);
+  border-radius: var(--raio); font-size: 14px; max-width: 260px; }
+/* Task 7 (§4⑤, decisão do dono): corpo do lembrete vira blocos fixos —
+   as duas obrigatórias em caixa neutra (nunca editáveis, sempre visíveis),
+   as opcionais como checkbox comum, reaproveitando label.inline acima. */
+.aviso-frases-fixas { display: flex; flex-direction: column; gap: 4px; margin: 0;
+  background: var(--superficie-2); padding: var(--gap-3); border-radius: var(--raio);
+  font-size: 14px; color: var(--tinta); }
+.aviso-frases-fixas p { margin: 0; }
+.aviso-frases-opcionais { display: flex; flex-direction: column; gap: var(--gap-2); }
+.aviso-privacidade { font-size: 13px; color: var(--tinta-2); margin: 0;
+  background: var(--superficie-2); padding: var(--gap-3); border-radius: var(--raio); }
+.previa-email { padding: 0; overflow: hidden; }
+.previa-cabecalho { display: flex; flex-direction: column; gap: 2px;
+  padding: var(--gap-3) var(--gap-4); background: var(--superficie-2); border-bottom: 1px solid var(--linha); }
+.previa-cabecalho .de { font-size: 13px; color: var(--tinta-2); }
+.previa-cabecalho .assunto { font-weight: 600; }
+.previa-corpo { padding: var(--gap-4); font-size: 14px; color: var(--tinta-2); }
+.previa-corpo p { margin: 0 0 var(--gap-3); }
+.previa-antecedencia { font-size: 13px; color: var(--tinta-3); }
+.descadastro { font-size: 12px; color: var(--tinta-3); }
+.status-ajustes { font-size: 13px; min-height: 18px; margin: var(--gap-3) 0 0; color: var(--tinta-2); }
+.status-ajustes.aviso { color: var(--atencao); }
+
+/* estado vazio (Task 6) — o dia 1 do psicologo, que a Fase 0 nao desenhou em
+   tela nenhuma. .titulo/.texto sao nomes genericos de proposito (grep antes
+   de mexer: prototipo/estilo.css e dialogo.css nao tinham essas classes
+   soltas) — escopados sob .estado-vazio pra nunca colidir com outra tela. */
+.estado-vazio {
+  display: flex; flex-direction: column; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-7) var(--gap-4); text-align: center;
+}
+.estado-vazio .titulo { font-size: 16px; font-weight: 500; color: var(--tinta); }
+.estado-vazio .texto { font-size: 14px; color: var(--tinta-2); max-width: 42ch; }
+
+/* alternador "Ver como fica vazio" (Task 6, Step 3) — andaime de prototipo,
+   nao e feature do produto: precisa parecer diferente de um botao real
+   (borda tracejada, tom apagado), mesmo espirito do "Provisorio" que a
+   Agenda usava antes de Task 5 substituir por diálogo de verdade. */
+/* .botao.andaime (nao so .andaime): precisa empatar em especificidade com
+   .botao.secundario pra vencer no desempate por ordem — regra sozinha
+   perderia o background/border para o secundario mesmo vindo depois. */
+.botao.andaime {
+  border: 1px dashed var(--linha); background: var(--superficie-2);
+  color: var(--tinta-3); font-style: italic; box-shadow: none;
+}
+.botao.andaime:hover { background: var(--superficie-2); color: var(--tinta-2); }

@@ -1,0 +1,1383 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Protótipo — consultório</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="estilo.css">
+  <link rel="stylesheet" href="dialogo.css">
+</head>
+<body>
+  <div class="moldura">
+    <nav class="lateral" aria-label="Navegação principal">
+      <a class="marca" href="#/hoje">Consultório</a>
+      <ul>
+        <li><a href="#/hoje"      data-tela="hoje">🗓 <span>Hoje</span></a></li>
+        <li><a href="#/agenda"    data-tela="agenda">📆 <span>Agenda</span></a></li>
+        <li><a href="#/pacientes" data-tela="pacientes">👥 <span>Pacientes</span></a></li>
+        <li><a href="#/financeiro" data-tela="financeiro">💰 <span>Financeiro</span></a></li>
+      </ul>
+      <a class="rodape" href="#/ajustes" data-tela="ajustes">⚙ <span>Ajustes</span></a>
+    </nav>
+    <main id="conteudo">
+      <section id="tela-hoje" hidden>
+        <div class="cabecalho-dia">
+          <div>
+            <h1>Olá, Marina</h1>
+            <p class="sub" id="hoje-sub">terça, 1 de setembro · 6 sessões hoje</p>
+          </div>
+          <div class="acoes-cabecalho-dia">
+            <!-- Task 6, Step 3: andaime de prototipo pra ver o dia 1 (C7)
+                 sem apagar o dado de demonstracao. Nao e feature do produto —
+                 marcado visualmente como tal (.andaime) e com title. -->
+            <button class="botao secundario mini andaime" id="alternar-vazio"
+                    title="Ferramenta do protótipo — não é feature do produto">🛠 Ver como fica vazio</button>
+            <button class="botao secundario" id="privacidade">👁 Modo privacidade</button>
+          </div>
+        </div>
+
+        <div class="cartao destaque" id="cartao-proxima">
+          <span class="etiqueta" id="proxima-etiqueta">Próxima, em 20 minutos</span>
+          <strong class="nome-grande" id="proxima-nome">09:00 · Helena Vaz</strong>
+          <p class="alerta-falta" id="proxima-alerta">⚠ Faltou sem avisar na semana passada</p>
+          <a class="botao" href="#/ficha">Abrir ficha</a>
+        </div>
+
+        <h2 class="titulo-secao">O dia</h2>
+        <div class="cartao faixa-dia" id="lista-dia"></div>
+
+        <h2 class="titulo-secao">Ficou pendente</h2>
+        <div class="cartao faixa-pendencias" id="pendencias"></div>
+      </section>
+
+      <section id="tela-agenda" hidden>
+        <h1>Agenda</h1>
+        <p class="sub" id="periodo-agenda">Semana de 31 de agosto a 6 de setembro</p>
+
+        <div class="barra-agenda">
+          <button class="botao secundario mini" id="semana-anterior">← Semana anterior</button>
+          <button class="botao secundario mini" id="semana-seguinte">Semana seguinte →</button>
+          <button class="botao" id="nova-consulta">+ Nova consulta</button>
+          <button class="botao secundario" id="serie-semanal">Série semanal</button>
+        </div>
+
+        <div class="cartao grade-semana" id="grade"></div>
+
+        <p class="status-agenda" id="status-agenda" aria-live="polite"></p>
+
+        <p class="nota-conflito">
+          Horário ocupado aparece destacado, com o nome de quem está nele,
+          <strong>antes</strong> de qualquer tentativa de marcar.
+        </p>
+      </section>
+
+      <section id="tela-pacientes" hidden>
+        <h1>Pacientes</h1>
+        <p class="sub" id="pacientes-sub">3 cadastrados</p>
+        <div class="barra-agenda">
+          <input class="busca" id="busca-pacientes" type="search" placeholder="Buscar por nome" aria-label="Buscar paciente">
+          <button class="botao" id="novo-paciente">+ Novo paciente</button>
+        </div>
+        <p class="status-pacientes" id="status-pacientes" aria-live="polite"></p>
+        <div class="cartao" id="lista-pacientes"></div>
+      </section>
+
+      <section id="tela-ficha" hidden>
+        <a class="voltar" href="#/pacientes">← Pacientes</a>
+        <div class="cabecalho-ficha cartao">
+          <div>
+            <h1 id="ficha-nome">Helena Vaz</h1>
+            <p class="sub" id="ficha-sub">34 anos · desde março de 2026 · 14 sessões · R$ 180,00 por sessão</p>
+          </div>
+          <div class="acoes-ficha">
+            <span class="chip alerta" id="chip-aviso-email">Aviso por e-mail: não autorizado</span>
+            <button class="botao secundario mini" id="editar-ficha">Editar</button>
+          </div>
+        </div>
+        <p class="status-ficha" id="status-ficha" aria-live="polite"></p>
+
+        <div class="colunas-ficha">
+          <div>
+            <h2 class="titulo-secao">Sessões</h2>
+            <div class="cartao registro-novo">
+              <textarea id="anotacao-hoje" placeholder="Anotação da sessão de hoje…" rows="3"></textarea>
+              <div class="barra-agenda">
+                <button class="botao" id="registrar-sessao">Registrar sessão</button>
+                <button class="botao secundario" id="agendar-retorno">Agendar retorno</button>
+              </div>
+              <p class="status-registro" id="status-registro" aria-live="polite"></p>
+            </div>
+            <div class="linha-tempo" id="linha-tempo"></div>
+          </div>
+
+          <aside>
+            <h2 class="titulo-secao">Pendências</h2>
+            <div class="cartao" id="pendencias-paciente"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="tela-financeiro" hidden>
+        <h1>Financeiro</h1>
+        <p class="sub" id="financeiro-sub">agosto de 2026</p>
+
+        <div class="indicadores">
+          <div class="cartao indicador"><span>Faturado</span><strong id="ind-faturado"></strong></div>
+          <div class="cartao indicador"><span>Recebido</span><strong class="ok" id="ind-recebido"></strong></div>
+          <div class="cartao indicador"><span>A receber</span><strong class="pendente" id="ind-a-receber"></strong></div>
+        </div>
+
+        <h2 class="titulo-secao">Quem está devendo</h2>
+        <div class="cartao" id="devendo"></div>
+
+        <h2 class="titulo-secao" id="titulo-baixa-lote">Sessões da semana passada</h2>
+        <div class="cartao" id="baixa-lote">
+          <div class="linha-pendencia" data-sessao="0" data-paciente="Bruna Teixeira"><span><label><input type="checkbox" checked data-valor="180"> Bruna Teixeira · 24 ago · R$ 180</label></span><span></span></div>
+          <div class="linha-pendencia" data-sessao="1" data-paciente="Bruna Teixeira"><span><label><input type="checkbox" checked data-valor="180"> Bruna Teixeira · 26 ago · R$ 180</label></span><span></span></div>
+          <div class="linha-pendencia" data-sessao="2" data-paciente="Ivan Prado"><span><label><input type="checkbox" checked data-valor="180"> Ivan Prado · 25 ago · R$ 180</label></span><span></span></div>
+          <div class="linha-pendencia" data-sessao="3" data-paciente="Ivan Prado"><span><label><input type="checkbox" checked data-valor="180"> Ivan Prado · 27 ago · R$ 180</label></span><span></span></div>
+          <div class="linha-pendencia"><span><strong id="resumo-baixa"></strong></span><button class="botao" id="dar-baixa">Dar baixa</button></div>
+        </div>
+        <p class="status-financeiro" id="status-financeiro" aria-live="polite"></p>
+      </section>
+
+      <section id="tela-ajustes" hidden>
+        <h1>Ajustes</h1>
+        <p class="sub">Marina Aguiar · uma conta por profissional</p>
+
+        <h2 class="titulo-secao">Sessão</h2>
+        <div class="cartao campo-linha">
+          <label>Valor padrão da sessão <input type="number" id="valor-padrao-sessao" value="180"></label>
+        </div>
+
+        <h2 class="titulo-secao">Aviso de consulta</h2>
+        <div class="cartao campo-linha">
+          <label>Antecedência
+            <select id="antecedencia-aviso">
+              <option value="24h">24 horas antes</option>
+              <option value="2h">2 horas antes</option>
+              <option value="vespera">Na véspera, às 18h</option>
+            </select>
+          </label>
+          <span class="campo-rotulo">Corpo do lembrete</span>
+          <div class="aviso-frases-fixas">
+            <p>Olá, {paciente}.</p>
+            <p>Você tem um horário marcado para {data}, às {hora}.</p>
+          </div>
+          <p class="sub" style="margin:0">
+            Estas duas frases são fixas — sempre aparecem, do jeito que estão, e
+            não têm caixa de marcar para desligar.
+          </p>
+
+          <span class="campo-rotulo">Frases opcionais</span>
+          <div class="aviso-frases-opcionais" id="aviso-frases-opcionais">
+            <label class="inline">
+              <input type="checkbox" id="aviso-frase-remarcar" checked>
+              Se precisar remarcar, é só responder este e-mail.
+            </label>
+            <label class="inline">
+              <input type="checkbox" id="aviso-frase-chegada">
+              Chegue com alguns minutos de antecedência.
+            </label>
+            <label class="inline">
+              <input type="checkbox" id="aviso-frase-duracao">
+              Nosso encontro dura 50 minutos.
+            </label>
+          </div>
+
+          <p class="aviso-privacidade">
+            As frases são fixas porque o aviso chega num lugar que o paciente não
+            controla: tela de bloqueio, computador de casa, e-mail do trabalho.
+            Nada que revele o motivo da consulta pode sair daqui — nem no
+            assunto, nem no corpo.
+          </p>
+          <label class="inline">
+            <input type="checkbox" id="incluir-titulo"> Incluir meu título profissional no e-mail
+          </label>
+          <p class="aviso-privacidade">
+            Desligado, o e-mail não revela que a mensagem é de um psicólogo. Quem vir a
+            caixa de entrada do paciente não descobre que ele faz terapia.
+          </p>
+          <p class="sub" style="margin:0">
+            Vale para quem autorizou o aviso — o consentimento fica registrado na
+            ficha de cada paciente, não aqui.
+          </p>
+        </div>
+
+        <h2 class="titulo-secao">Como o aviso chega</h2>
+        <div class="cartao previa-email">
+          <div class="previa-cabecalho">
+            <span class="de" id="previa-de">Marina Aguiar</span>
+            <span class="assunto">Lembrete de agendamento</span>
+          </div>
+          <div class="previa-corpo">
+            <!-- Task 7 (§4⑤, decisao do dono de 4/9/2026): corpo vem da
+                 montagem de blocos fixos (2 obrigatorias + as opcionais
+                 marcadas), nunca de texto digitado — ver pintarPreviaEmail().
+                 O que fica fora da montagem continua fixo aqui: a linha de
+                 antecedencia (ja gerada pelo select) e o descadastro (base
+                 do consentimento — psicologo nao pode apagar a saida do
+                 paciente). -->
+            <div id="previa-texto"></div>
+            <p class="previa-antecedencia" id="previa-antecedencia"></p>
+            <p class="descadastro">Não quer mais receber estes lembretes? <a href="#/ajustes" id="descadastrar">Descadastrar</a></p>
+          </div>
+        </div>
+
+        <h2 class="titulo-secao">Trilha de acesso</h2>
+        <div class="cartao">
+          <p class="sub" style="margin:0">
+            Tudo que foi criado, alterado, consultado e excluído nesta conta.
+            <a href="#/ajustes" id="abrir-trilha">Abrir trilha</a>
+          </p>
+        </div>
+        <p class="status-ajustes" id="status-ajustes" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <!-- Diálogo de paciente (Task 4) — irmão de <main>, nunca dentro dele: o
+         roteador esconde tudo que casa com "#conteudo > section", e um
+         diálogo dentro de <main> seria engolido por ele e nunca apareceria. -->
+    <div class="mascara" id="dialogo-paciente" hidden>
+      <div class="dialogo" role="dialog" aria-modal="true" aria-labelledby="titulo-paciente">
+        <div class="dialogo-cabecalho">
+          <h2 id="titulo-paciente">Novo paciente</h2>
+          <button class="botao secundario mini" data-fechar="dialogo-paciente">Fechar</button>
+        </div>
+        <form id="form-paciente">
+          <div class="dialogo-corpo">
+            <div class="campo">
+              <label class="campo-rotulo" for="pac-nome">Nome</label>
+              <input id="pac-nome" type="text" autocomplete="name">
+              <span class="campo-erro" id="erro-pac-nome" data-erro-de="pac-nome"></span>
+            </div>
+
+            <div class="campo-duplo">
+              <div class="campo">
+                <label class="campo-rotulo" for="pac-nascimento">Data de nascimento</label>
+                <input id="pac-nascimento" type="date">
+                <span class="campo-erro" id="erro-pac-nascimento" data-erro-de="pac-nascimento"></span>
+              </div>
+              <div class="campo">
+                <label class="campo-rotulo" for="pac-valor">Valor da sessão</label>
+                <input id="pac-valor" type="number" step="0.01" min="0" placeholder="180,00">
+                <span class="campo-erro" id="erro-pac-valor" data-erro-de="pac-valor"></span>
+              </div>
+            </div>
+
+            <div class="campo">
+              <label class="campo-rotulo" for="pac-telefone">
+                Telefone <span class="campo-opcional">· opcional</span>
+              </label>
+              <input id="pac-telefone" type="tel" inputmode="numeric" placeholder="(51) 99999-9999">
+              <span class="campo-erro" id="erro-pac-telefone" data-erro-de="pac-telefone"></span>
+            </div>
+
+            <div class="campo">
+              <label class="campo-rotulo" for="pac-email">
+                E-mail <span class="campo-opcional" id="rotulo-email-opcional">· opcional</span>
+              </label>
+              <input id="pac-email" type="text" autocomplete="email" placeholder="nome@exemplo.com">
+              <span class="campo-erro" id="erro-pac-email" data-erro-de="pac-email"></span>
+            </div>
+
+            <div class="campo">
+              <label class="campo-rotulo">Lembrete da consulta</label>
+              <label class="campo-inline">
+                <input type="checkbox" id="pac-consentimento">
+                O paciente autorizou receber lembrete da consulta
+              </label>
+              <div class="campo" id="bloco-canal" hidden>
+                <label class="campo-rotulo" for="pac-canal">Por onde</label>
+                <select id="pac-canal">
+                  <option value="EMAIL">E-mail</option>
+                  <option value="NENHUM">Nenhum, por enquanto</option>
+                </select>
+              </div>
+              <p class="aviso-privacidade">
+                O consentimento fica registrado com a data. O paciente pode
+                cancelar a qualquer momento pelo link do próprio e-mail.
+              </p>
+            </div>
+          </div>
+
+          <p class="anuncio" data-anuncio aria-live="polite"></p>
+
+          <div class="dialogo-rodape">
+            <button type="button" class="botao secundario" data-fechar="dialogo-paciente">Cancelar</button>
+            <button type="submit" class="botao">Salvar paciente</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Diálogo de consulta (Task 5) — mesma regra do diálogo de paciente
+         acima: irmão de <main>, nunca dentro dele. Serve os três pontos de
+         entrada (+ Nova consulta, slot livre da grade, Agendar retorno). -->
+    <div class="mascara" id="dialogo-consulta" hidden>
+      <div class="dialogo" role="dialog" aria-modal="true" aria-labelledby="titulo-consulta">
+        <div class="dialogo-cabecalho">
+          <h2 id="titulo-consulta">Nova consulta</h2>
+          <button class="botao secundario mini" data-fechar="dialogo-consulta">Fechar</button>
+        </div>
+        <form id="form-consulta">
+          <div class="dialogo-corpo">
+            <div class="campo">
+              <label class="campo-rotulo" for="con-paciente">Paciente</label>
+              <select id="con-paciente"></select>
+              <span class="campo-erro" id="erro-con-paciente" data-erro-de="con-paciente"></span>
+            </div>
+            <div class="campo-duplo">
+              <div class="campo">
+                <label class="campo-rotulo" for="con-data">Data</label>
+                <input id="con-data" type="date">
+                <span class="campo-erro" id="erro-con-data" data-erro-de="con-data"></span>
+              </div>
+              <div class="campo">
+                <label class="campo-rotulo" for="con-hora">Horário</label>
+                <input id="con-hora" type="time" step="600">
+                <span class="campo-erro" id="erro-con-hora" data-erro-de="con-hora"></span>
+              </div>
+            </div>
+            <p class="campo-aviso" id="aviso-consulta"></p>
+          </div>
+          <p class="anuncio" data-anuncio aria-live="polite"></p>
+          <div class="dialogo-rodape">
+            <button type="button" class="botao secundario" data-fechar="dialogo-consulta">Cancelar</button>
+            <button type="submit" class="botao" id="salvar-consulta">Agendar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="dados.js"></script>
+  <script src="validacao.js"></script>
+  <script>
+    // --- Dialogo: casca (Task 3) ---
+    // abrirDialogo/fecharDialogo sao genericos — qualquer diálogo futuro
+    // (Tasks 4 e 5) usa este par, nunca reimplementa o proprio abrir/fechar.
+    let quemAbriu = null
+    // Task 6, Step 3: flag do alternador "Ver como fica vazio" — declarada
+    // aqui (topo) porque pintarFinanceiro() e o handler do alternador (mais
+    // abaixo) precisam dela; funcoes/handlers so leem no clique/repaint,
+    // muito depois deste `let` rodar, entao a ordem textual nao importa.
+    let modoVazio = false
+
+    function abrirDialogo(id) {
+      quemAbriu = document.activeElement
+      const m = document.getElementById(id)
+      m.hidden = false
+      const primeiro = m.querySelector('input, select, textarea')
+      if (primeiro) primeiro.focus()
+    }
+
+    function fecharDialogo(id) {
+      document.getElementById(id).hidden = true
+      if (quemAbriu) { quemAbriu.focus(); quemAbriu = null }
+    }
+
+    document.addEventListener('keydown', (evento) => {
+      if (evento.key !== 'Escape') return
+      const aberto = document.querySelector('.mascara:not([hidden])')
+      if (aberto) fecharDialogo(aberto.id)
+    })
+
+    // todo [data-fechar] fecha de verdade — um Cancelar que nao fecha e
+    // exatamente o defeito que este produto combate
+    document.addEventListener('click', (evento) => {
+      const alvo = evento.target.closest('[data-fechar]')
+      if (alvo) fecharDialogo(alvo.dataset.fechar)
+    })
+
+    // [data-abre] generico (Task 6, estados vazios): o botao de um estado
+    // vazio nao pode ser clique morto — e o primeiro botao que o usuario
+    // novo encontra (C7). A maioria so precisa abrir o dialogo puro, mas
+    // #dialogo-paciente tem abridor dedicado (abrirDialogoPaciente, mais
+    // abaixo) que reseta formulario e o modo criar/editar — sem isso,
+    // "+ Novo paciente" a partir do estado vazio herdaria o estado de uma
+    // edicao anterior (pacienteEditandoId) e o clique pareceria funcionar
+    // mas salvaria como edicao, nao como cadastro.
+    const ABRIDORES_DEDICADOS = { 'dialogo-paciente': () => abrirDialogoPaciente(null) }
+    document.addEventListener('click', (evento) => {
+      const alvo = evento.target.closest('[data-abre]')
+      if (!alvo) return
+      const id = alvo.dataset.abre
+      if (ABRIDORES_DEDICADOS[id]) ABRIDORES_DEDICADOS[id](); else abrirDialogo(id)
+    })
+
+    const TELAS = ['hoje','agenda','pacientes','ficha','financeiro','ajustes']
+
+    function mostrarTela(nome) {
+      const alvo = TELAS.includes(nome) ? nome : 'hoje'
+      document.querySelectorAll('#conteudo > section').forEach((secao) => {
+        secao.hidden = secao.id !== `tela-${alvo}`
+      })
+      document.querySelectorAll('.lateral a[data-tela]').forEach((link) => {
+        const ativo = link.dataset.tela === alvo
+          || (alvo === 'ficha' && link.dataset.tela === 'pacientes')
+        link.classList.toggle('ativo', ativo)
+        if (ativo) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current')
+      })
+    }
+
+    function rotear() { mostrarTela((location.hash || '#/hoje').replace('#/', '')) }
+    window.addEventListener('hashchange', rotear)
+    window.addEventListener('DOMContentLoaded', rotear)
+
+    // faixa horizontal do dia (decisao do dono, ver TRAVAS.md): o tempo
+    // corre pra direita, cada sessao vira bloco posicionado pelo horario,
+    // largura proporcional a duracao (50min), buraco fica vazio de verdade.
+    // Janela interna 08:00-17:00 (540min) — comeca antes das 9h so a linha
+    // do "agora" (DADOS.hoje.agora, nunca usada antes) tem onde aparecer; a
+    // regua em si so rotula de 9h a 17h.
+    const FAIXA_INICIO_MIN = 8 * 60
+    const FAIXA_FIM_MIN = 17 * 60
+    const FAIXA_TOTAL_MIN = FAIXA_FIM_MIN - FAIXA_INICIO_MIN
+    const DURACAO_SESSAO_MIN = 50
+
+    function paraMinutos(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number)
+      return h * 60 + m
+    }
+    function paraPctFaixa(minutoAbsoluto) {
+      return ((minutoAbsoluto - FAIXA_INICIO_MIN) / FAIXA_TOTAL_MIN) * 100
+    }
+
+    // --- Estados vazios (Task 6) ---
+    // Cada um diz por que esta vazio e qual e a primeira coisa a fazer —
+    // vazio que nao explica parece quebrado (C7, CENARIOS.md). pintarVazio
+    // devolve string (nao escreve innerHTML direto): #lista-dia precisa
+    // compor o vazio com a regua/trilho, nunca substituir a faixa inteira,
+    // senao mata a metafora do "agora" bem na tela que o usuario novo ve
+    // primeiro.
+    const VAZIOS = {
+      'lista-dia': {
+        titulo: 'Nenhuma sessão hoje',
+        texto: 'Quando você agendar consultas, elas aparecem aqui na linha do dia.',
+        acao: { rotulo: 'Abrir a agenda', href: '#/agenda' },
+      },
+      'lista-pacientes': {
+        titulo: 'Nenhum paciente ainda',
+        texto: 'Cadastre o primeiro paciente para começar a agendar sessões e registrar anotações.',
+        acao: { rotulo: '+ Novo paciente', dialogo: 'dialogo-paciente' },
+      },
+      'devendo': {
+        titulo: 'Ninguém devendo',
+        texto: 'Sessões realizadas sem baixa aparecem aqui.',
+      },
+      'pendencias': {
+        titulo: 'Nada pendente',
+        texto: 'Sessão sem status, sem anotação ou sem baixa aparece aqui.',
+      },
+      // nao estava no rascunho do brief — acrescentada porque a linha do
+      // tempo da ficha so e alcancavel por hash no conjunto vazio, mas nao
+      // pode ficar em branco mudo mesmo assim.
+      'linha-tempo': {
+        titulo: 'Nenhuma sessão registrada',
+        texto: 'As sessões desta paciente aparecem aqui, com a anotação de cada encontro, conforme forem realizadas.',
+      },
+    }
+
+    function pintarVazio(id) {
+      const v = VAZIOS[id]
+      const acao = v.acao
+        ? (v.acao.href
+            ? `<a class="botao" href="${v.acao.href}">${v.acao.rotulo}</a>`
+            : `<button class="botao" data-abre="${v.acao.dialogo}">${v.acao.rotulo}</button>`)
+        : ''
+      return `
+        <div class="estado-vazio">
+          <span class="titulo">${v.titulo}</span>
+          <p class="texto">${v.texto}</p>
+          ${acao}
+        </div>`
+    }
+
+    function pintarHoje() {
+      document.getElementById('hoje-sub').textContent =
+        `${DADOS.hoje.data} · ${DADOS.hoje.sessoes.length} ${DADOS.hoje.sessoes.length === 1 ? 'sessão' : 'sessões'} hoje`
+
+      const marcas = []
+      for (let h = 9; h <= 17; h++) marcas.push(h)
+
+      const regua = marcas.map((h) =>
+        `<span class="marca-hora" style="left:${paraPctFaixa(h * 60)}%">${h}h</span>`).join('')
+      const linhasHora = marcas.map((h) =>
+        `<div class="linha-hora" style="left:${paraPctFaixa(h * 60)}%"></div>`).join('')
+
+      const agoraMin = paraMinutos(DADOS.hoje.agora)
+      const agoraPct = paraPctFaixa(agoraMin)
+      const linhaAgora = (agoraPct >= 0 && agoraPct <= 100)
+        ? `<div class="linha-agora" style="left:${agoraPct}%"></div>` : ''
+
+      const larguraSessaoPct = (DURACAO_SESSAO_MIN / FAIXA_TOTAL_MIN) * 100
+      const blocos = DADOS.hoje.sessoes.map((s) => {
+        const inicioMin = paraMinutos(s.hora)
+        const passada = (inicioMin + DURACAO_SESSAO_MIN) <= agoraMin
+        return `
+          <div class="sessao-bloco${passada ? ' passada' : ''}" data-status="${s.status}"
+               style="left:${paraPctFaixa(inicioMin)}%;width:${larguraSessaoPct}%">
+            <span class="hora">${s.hora}</span>
+            <span class="paciente">${s.paciente}</span>
+            ${s.faltouAntes ? '<span class="marca-falta">faltou antes</span>' : ''}
+            <span class="acoes">
+              <button class="botao secundario mini botao-realizada">Realizada</button>
+              <button class="botao secundario mini botao-faltou">Faltou</button>
+            </span>
+          </div>`
+      }).join('')
+
+      // faixa mantem regua/trilho/linha do agora sempre — o vazio entra
+      // ABAIXO do trilho (nunca substituindo a faixa inteira).
+      document.getElementById('lista-dia').innerHTML = `
+        <div class="regua-horas">${regua}</div>
+        <div class="trilho-dia">${linhasHora}${linhaAgora}${blocos}</div>
+        ${DADOS.hoje.sessoes.length ? '' : pintarVazio('lista-dia')}`
+
+      document.getElementById('pendencias').innerHTML = DADOS.hoje.pendencias.length
+        ? DADOS.hoje.pendencias.map((p) => `
+            <div class="linha-pendencia" data-tipo="${p.tipo}">
+              <span>${p.texto}</span>
+              <button class="botao secundario mini botao-resolver">Resolver</button>
+            </div>`).join('')
+        : pintarVazio('pendencias')
+
+      // cartao de destaque: proxima sessao que ainda nao passou — a
+      // primeira coisa que C1 pede "sem clicar em nada". Sem sessao
+      // nenhuma que sirva (vazio, ou todas ja passaram), o cartao inteiro
+      // se esconde: anunciar "Proxima" sem paciente nenhum e a mesma
+      // mentira que motivou este conserto (trava conhecida, ver TRAVAS.md).
+      const cartaoProxima = document.getElementById('cartao-proxima')
+      const proxima = DADOS.hoje.sessoes.find((s) => paraMinutos(s.hora) + DURACAO_SESSAO_MIN > agoraMin)
+      cartaoProxima.hidden = !proxima
+      if (proxima) {
+        const faltamMin = paraMinutos(proxima.hora) - agoraMin
+        const etiqueta = faltamMin <= 0
+          ? 'Em andamento'
+          : faltamMin < 60
+            ? `Próxima, em ${faltamMin} minutos`
+            : `Próxima, em ${Math.floor(faltamMin / 60)}h${faltamMin % 60 ? ' ' + (faltamMin % 60) + 'min' : ''}`
+        document.getElementById('proxima-etiqueta').textContent = etiqueta
+        document.getElementById('proxima-nome').textContent = `${proxima.hora} · ${proxima.paciente}`
+        document.getElementById('proxima-alerta').hidden = !proxima.faltouAntes
+      }
+    }
+    window.addEventListener('DOMContentLoaded', pintarHoje)
+
+    document.getElementById('privacidade').addEventListener('click', (evento) => {
+      const ativo = document.getElementById('tela-hoje').classList.toggle('privado')
+      evento.currentTarget.classList.toggle('ativo', ativo)
+    })
+
+    // trava C1: o botao "Resolver" nao tinha handler — clicar nao fazia nada.
+    // fechamento em 1 clique, so no protototipo (front-end, sem persistencia).
+    // fix round 1: marca em vez de apagar — sumir sem confirmacao esconde se
+    // resolveu ou quebrou.
+    document.getElementById('pendencias').addEventListener('click', (evento) => {
+      const botao = evento.target.closest('.botao-resolver')
+      if (!botao) return
+      const linha = botao.closest('.linha-pendencia')
+      linha.classList.add('resolvida')
+      botao.outerHTML = '<span class="chip">Resolvido</span>'
+    })
+
+    // fix round 1: "Realizada"/"Faltou" nao ficam inertes — clicar marca a
+    // linha com o status escolhido, visivelmente, em vez de engolir o clique
+    // em silencio.
+    document.getElementById('lista-dia').addEventListener('click', (evento) => {
+      const botao = evento.target.closest('.botao-realizada, .botao-faltou')
+      if (!botao) return
+      const status = botao.classList.contains('botao-realizada') ? 'realizada' : 'faltou'
+      const rotulo = status === 'realizada' ? 'Realizada' : 'Faltou'
+      botao.closest('.acoes').innerHTML = `<span class="chip ${status}">${rotulo}</span>`
+    })
+
+    // --- Agenda ---
+    // Segunda-feira da semana de "hoje" (DADOS.hoje.data = terça, 1 de setembro de 2026).
+    // offset 0 = essa semana; +1/-1 navegam por semanas inteiras a partir dela.
+    let semanaOffset = 0
+    const MESES_AGENDA = ['janeiro','fevereiro','março','abril','maio','junho','julho',
+      'agosto','setembro','outubro','novembro','dezembro']
+
+    function segundaAgenda(offset) {
+      const d = new Date(2026, 7, 31)
+      d.setDate(d.getDate() + offset * 7)
+      return d
+    }
+
+    function periodoAgenda(offset) {
+      const segunda = segundaAgenda(offset)
+      const domingo = new Date(segunda)
+      domingo.setDate(segunda.getDate() + 6)
+      const de = `${segunda.getDate()} de ${MESES_AGENDA[segunda.getMonth()]}`
+      const ate = `${domingo.getDate()} de ${MESES_AGENDA[domingo.getMonth()]}`
+      return `Semana de ${de} a ${ate}`
+    }
+
+    function diasAgenda(offset) {
+      const segunda = segundaAgenda(offset)
+      return ['seg','ter','qua','qui','sex'].map((nome, i) => {
+        const d = new Date(segunda)
+        d.setDate(segunda.getDate() + i)
+        return `${nome} ${d.getDate()}`
+      })
+    }
+
+    /** ISO (yyyy-mm-dd) do slot clicado, a partir do rótulo "ter 1" que a
+        grade guarda em data-dia — ponte pro <input type="date"> do diálogo
+        de consulta (Task 5). Formata na mão (sem toISOString) pra nunca
+        depender do fuso do navegador. */
+    function dataDoSlotAgenda(offset, diaRotulo) {
+      const indice = diasAgenda(offset).indexOf(diaRotulo)
+      const d = segundaAgenda(offset)
+      d.setDate(d.getDate() + indice)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }
+
+    function pintarAgenda() {
+      const dias = diasAgenda(semanaOffset)
+      const horas = ['09:00','10:00','11:00','14:00','15:00','16:00']
+      // so a semana de "hoje" (offset 0) tem ocupacao conhecida — DADOS nao
+      // descreve outras semanas, entao elas nascem livres.
+      const ocupados = semanaOffset === 0 ? { [dias[1]]: DADOS.hoje.sessoes.map((s) => s.hora) } : {}
+
+      // cabecalho "SEG 31" — nome abreviado maiusculo pequeno + numero
+      // grande embaixo, como o Calendar; hoje (dias[1] quando offset 0)
+      // ganha o numero num circulo preenchido em --acento.
+      const cabecalho = `<div class="slot rotulo"></div>` +
+        dias.map((d, i) => {
+          const [nome, numero] = d.split(' ')
+          const hoje = semanaOffset === 0 && i === 1
+          return `<div class="slot rotulo dia-cabecalho">
+            <span class="dia-nome">${nome.toUpperCase()}</span>
+            <span class="dia-numero${hoje ? ' hoje' : ''}">${numero}</span>
+          </div>`
+        }).join('')
+
+      const corpo = horas.map((h) =>
+        `<div class="slot rotulo hora">${h}</div>` +
+        dias.map((d) => {
+          const ocupado = (ocupados[d] || []).includes(h)
+          if (ocupado) {
+            const quem = DADOS.hoje.sessoes.find((s) => s.hora === h).paciente
+            return `<div class="slot ocupado" data-dia="${d}" data-hora="${h}">${quem}</div>`
+          }
+          return `<div class="slot" data-dia="${d}" data-hora="${h}"></div>`
+        }).join('')
+      ).join('')
+
+      // linha do agora atravessando a coluna de hoje — so existe olhando a
+      // semana de "hoje" (offset 0). Hoje e sempre dias[1] (2a coluna de
+      // dia => 3a coluna do grid, ja que a 1a e a regua de horas).
+      // Decorativo (pointer-events:none em estilo.css): nao concorre com
+      // o handler de clique dos .slot, nem entra na contagem "6 por linha".
+      const linhaAgora = semanaOffset === 0
+        ? `<div class="linha-agora-agenda" style="grid-column:3;grid-row:2"></div>` : ''
+
+      document.getElementById('grade').innerHTML = cabecalho + corpo + linhaAgora
+      document.getElementById('periodo-agenda').textContent = periodoAgenda(semanaOffset)
+    }
+    window.addEventListener('DOMContentLoaded', pintarAgenda)
+
+    // constraint nova (Task 4): nenhum clique some em silencio. Slot ocupado
+    // nunca agenda — avisa quem esta la, o que e o "conflito avisado antes
+    // do envio" que a nota da tela promete. Slot livre agenda de verdade
+    // (Task 5): abre o mesmo diálogo de "+ Nova consulta", com data e hora
+    // já preenchidas — substitui o "Provisório" que só demonstrava o clique.
+    document.getElementById('grade').addEventListener('click', (evento) => {
+      const slot = evento.target.closest('.slot')
+      if (!slot || slot.classList.contains('rotulo')) return
+      const dia = slot.dataset.dia
+      const hora = slot.dataset.hora
+
+      if (slot.classList.contains('ocupado')) {
+        const status = document.getElementById('status-agenda')
+        status.className = 'status-agenda aviso'
+        status.textContent = `${dia}, ${hora} já está ocupado por ${slot.textContent.trim()} — escolha outro horário.`
+        return
+      }
+
+      abrirNovaConsulta(dataDoSlotAgenda(semanaOffset, dia), hora)
+    })
+
+    document.getElementById('semana-anterior').addEventListener('click', () => {
+      semanaOffset -= 1
+      pintarAgenda()
+    })
+    document.getElementById('semana-seguinte').addEventListener('click', () => {
+      semanaOffset += 1
+      pintarAgenda()
+    })
+
+    // "+ Nova consulta" era stub (Task 4: "fora do escopo, marque na grade").
+    // Task 5 entrega o formulário de verdade — abre em branco, paciente
+    // escolhível, sem data/hora sugeridas (quem clica aqui ainda não decidiu
+    // quando; quem clica num slot da grade já decidiu, por isso os dois
+    // caminhos levam ao mesmo diálogo com graus diferentes de preenchimento).
+    document.getElementById('nova-consulta').addEventListener('click', () => {
+      abrirNovaConsulta('', '')
+    })
+    // "Série semanal" continua fora do escopo deste protótipo (Task 5,
+    // brief) — recorrência de consulta é trabalho de outra fatia.
+    document.getElementById('serie-semanal').addEventListener('click', () => {
+      const status = document.getElementById('status-agenda')
+      status.className = 'status-agenda aviso'
+      status.textContent = 'Série semanal: fora do escopo deste protótipo.'
+    })
+
+    // --- Pacientes e Ficha (Task 5) ---
+    // A ficha vira pagina unica: consulta e anotacao na mesma linha da
+    // linha do tempo (spec §4 ③, §5.1), no lugar das antigas abas
+    // "Consultas" e "Anotacoes". Constraint desta fase, igual as telas
+    // anteriores: nenhum clique some em silencio — vale pra busca,
+    // "+ Novo paciente", "Editar", "Registrar sessao", "Agendar retorno"
+    // e os checkboxes de pendencia.
+
+    function dataResumida(str) {
+      // "terça, 1 de setembro" -> "1 set"
+      const m = str.match(/(\d+) de (\w+)/)
+      return m ? `${m[1]} ${m[2].slice(0, 3)}` : str
+    }
+
+    // Task 6: lista vazia por NAO TER paciente e lista vazia por A BUSCA NAO
+    // ACHAR NINGUEM sao coisas diferentes — "Nenhum paciente ainda" mentindo
+    // pra quem tem 3 pacientes e digitou "zzz" e pior que nao ter estado
+    // vazio. `buscando` distingue os dois: so mostra o estado vazio "de
+    // verdade" (com botao de cadastrar) quando ninguem digitou nada.
+    function pintarListaPacientes(lista, buscando) {
+      const alvo = document.getElementById('lista-pacientes')
+      if (!lista.length) {
+        alvo.innerHTML = buscando
+          ? `<p class="vazio">Nenhum paciente com esse nome.</p>`
+          : pintarVazio('lista-pacientes')
+        return
+      }
+      alvo.innerHTML = lista.map((p) => `
+        <a class="linha-paciente" href="#/ficha">
+          <span class="paciente">${p.nome}</span>
+          <span class="desde">desde ${p.desde}</span>
+          <span class="valor">R$ ${p.valor},00</span>
+        </a>`).join('')
+    }
+    function pintarPacientes() {
+      document.getElementById('pacientes-sub').textContent =
+        `${DADOS.pacientes.length} ${DADOS.pacientes.length === 1 ? 'cadastrado' : 'cadastrados'}`
+      pintarListaPacientes(DADOS.pacientes, false)
+    }
+    window.addEventListener('DOMContentLoaded', pintarPacientes)
+
+    // busca de verdade (filtra por nome), nao um campo mudo
+    document.getElementById('busca-pacientes').addEventListener('input', (evento) => {
+      const termo = evento.target.value.trim().toLowerCase()
+      pintarListaPacientes(DADOS.pacientes.filter((p) => p.nome.toLowerCase().includes(termo)), termo.length > 0)
+    })
+
+    // --- Diálogo de paciente (Task 4) ---
+    // Cadastro e edição usam o MESMO diálogo (#dialogo-paciente) — dois
+    // diálogos com caras diferentes para a mesma coisa e o tipo de
+    // incoerencia que esta tarefa cura. `pacienteEditandoId` distingue os
+    // dois modos: null = criando; id = editando aquele paciente.
+    //
+    // O caso de validacao mais importante do produto inteiro: o e-mail e
+    // opcional ATE o psicologo ligar o aviso por e-mail — ai vira
+    // obrigatorio (spec §5.4). Validacao condicional entre dois campos,
+    // exercitada pelo cenario C5 (Diego Fontes nao lembra o proprio e-mail).
+    const formPaciente = document.getElementById('form-paciente')
+    const chkConsentimento = document.getElementById('pac-consentimento')
+    const selCanal = document.getElementById('pac-canal')
+    let pacienteEditandoId = null
+    // fix round 2: guarda o controle devolvido por ligarFormulario, pra
+    // revalidar o e-mail quando a obrigatoriedade dele muda por causa de
+    // OUTRO controle (o checkbox de consentimento ou o select de canal) —
+    // sem isso, desmarcar o consentimento (ou trocar o canal pra "Nenhum")
+    // com o erro de e-mail na tela deixava o rotulo "opcional" voltar E a
+    // mensagem de erro continuar visivel ao mesmo tempo, contradizendo uma
+    // a outra.
+    let controlePaciente = null
+
+    /** E-mail e obrigatorio SE, e so se, o aviso esta ligado e o canal e e-mail. */
+    function emailObrigatorio() {
+      return chkConsentimento.checked && selCanal.value === 'EMAIL'
+    }
+
+    /** O rotulo "opcional" some quando o campo passa a ser obrigatorio — a
+        regra fica visivel ANTES do erro, que e o que a spec §6.2 exige: o
+        usuario nao pode descobrir a regra errando. */
+    function refletirCanal() {
+      document.getElementById('bloco-canal').hidden = !chkConsentimento.checked
+      document.getElementById('rotulo-email-opcional').hidden = emailObrigatorio()
+      // o e-mail pode ter ficado com erro na tela quando era obrigatorio;
+      // se a obrigatoriedade acabou de mudar (consentimento desmarcado, ou
+      // canal trocado pra "Nenhum"), revalida pra tirar o erro junto com o
+      // rotulo — revalidar so repinta se o campo ja estava em erro, entao
+      // marcar consentimento pela primeira vez nao faz erro brotar sozinho.
+      if (controlePaciente) controlePaciente.revalidar('pac-email')
+    }
+    chkConsentimento.addEventListener('change', refletirCanal)
+    selCanal.addEventListener('change', refletirCanal)
+
+    document.getElementById('pac-telefone').addEventListener('input', (e) => {
+      e.target.value = mascaraTelefone(e.target.value)
+    })
+
+    // o formulario e compartilhado entre criar e editar — um erro deixado
+    // pintado de uma abertura anterior nao pode vazar pra proxima.
+    function limparErrosPaciente() {
+      formPaciente.querySelectorAll('.campo-erro').forEach((el) => { el.textContent = '' })
+      formPaciente.querySelectorAll('[aria-invalid]').forEach((el) => {
+        el.removeAttribute('aria-invalid')
+        el.removeAttribute('aria-describedby')
+      })
+      formPaciente.querySelector('[data-anuncio]').textContent = ''
+    }
+
+    function abrirDialogoPaciente(paciente) {
+      formPaciente.reset()
+      limparErrosPaciente()
+      pacienteEditandoId = paciente ? paciente.id : null
+      document.getElementById('titulo-paciente').textContent =
+        paciente ? 'Editar paciente' : 'Novo paciente'
+      document.getElementById('pac-nome').value = paciente ? paciente.nome : ''
+      document.getElementById('pac-valor').value = paciente ? paciente.valor : ''
+      // fix round 1 (Task 4): telefone/dataNascimento/email agora vem de
+      // DADOS.pacientes (antes so nome/desde/valor/consentimento existiam
+      // ali, e Editar abria esses tres campos sempre em branco).
+      document.getElementById('pac-telefone').value = paciente ? (paciente.telefone || '') : ''
+      document.getElementById('pac-nascimento').value = paciente ? (paciente.dataNascimento || '') : ''
+      document.getElementById('pac-email').value = paciente ? (paciente.email || '') : ''
+      chkConsentimento.checked = !!(paciente && paciente.consentimento)
+      selCanal.value = 'EMAIL'
+      refletirCanal()
+      abrirDialogo('dialogo-paciente')
+    }
+
+    controlePaciente = ligarFormulario(formPaciente, [
+      { id: 'pac-nome',       regra: (v) => VALIDACAO.nome(v) },
+      { id: 'pac-nascimento', regra: (v) => VALIDACAO.nascimento(v) },
+      { id: 'pac-valor',      regra: (v) => VALIDACAO.valor(v) },
+      { id: 'pac-telefone',   regra: (v) => VALIDACAO.telefone(v) },
+      { id: 'pac-email',      regra: (v) => VALIDACAO.email(v, emailObrigatorio()) },
+    ], () => {
+      const nome = document.getElementById('pac-nome').value.trim()
+      const valor = Number(document.getElementById('pac-valor').value)
+      const consentimento = chkConsentimento.checked ? DADOS.hoje.data : null
+      const telefone = document.getElementById('pac-telefone').value.trim() || null
+      const dataNascimento = document.getElementById('pac-nascimento').value || null
+      const email = document.getElementById('pac-email').value.trim() || null
+
+      if (pacienteEditandoId) {
+        const p = DADOS.pacientes.find((item) => item.id === pacienteEditandoId)
+        p.nome = nome
+        p.valor = valor
+        p.consentimento = consentimento
+        p.telefone = telefone
+        p.dataNascimento = dataNascimento
+        p.email = email
+        pintarPacientes()
+        fecharDialogo('dialogo-paciente')
+        // ficha desta tela e sempre a da Helena Vaz (protótipo de tela
+        // unica) — refletir a edicao nela, senao "Editar > Salvar" pareceria
+        // nao ter feito nada.
+        document.getElementById('ficha-nome').textContent = nome
+        const subFicha = document.getElementById('ficha-sub')
+        subFicha.textContent = subFicha.textContent.replace(/R\$ [\d.,]+ por sessão/, `R$ ${valor},00 por sessão`)
+        const chip = document.getElementById('chip-aviso-email')
+        const autorizado = !!consentimento && selCanal.value === 'EMAIL'
+        chip.textContent = `Aviso por e-mail: ${autorizado ? 'autorizado' : 'não autorizado'}`
+        chip.classList.toggle('alerta', !autorizado)
+        chip.classList.toggle('pago', autorizado)
+        const statusFicha = document.getElementById('status-ficha')
+        statusFicha.className = 'status-ficha ok'
+        statusFicha.textContent = `${nome} atualizado.`
+      } else {
+        DADOS.pacientes.push({
+          id: DADOS.pacientes.length + 1, nome,
+          desde: DADOS.hoje.data, valor,
+          consentimento, telefone, dataNascimento, email,
+        })
+        pintarPacientes()
+        fecharDialogo('dialogo-paciente')
+        const status = document.getElementById('status-pacientes')
+        status.className = 'status-pacientes ok'
+        status.textContent = `${nome} cadastrado.`
+      }
+    })
+
+    document.getElementById('novo-paciente').addEventListener('click', () => {
+      abrirDialogoPaciente(null)
+    })
+
+    // --- Diálogo de consulta (Task 5) ---
+    // Fecha a lacuna que o dono do produto achou no protótipo aprovado
+    // (TRAVAS.md, linha "C2 | Ficha → Agendar retorno"): "Agendar retorno"
+    // confirmava um texto e nunca perguntava quando. Os três pontos de
+    // entrada de uma consulta — "+ Nova consulta" (Agenda), clique em slot
+    // livre da grade, e "Agendar retorno" (Ficha) — abrem o MESMO diálogo
+    // (#dialogo-consulta), nunca três formulários diferentes pra mesma coisa.
+    //
+    // Duas regras que nenhum formulário do produto tinha até aqui:
+    //  - conflito de horário é checado ao trocar data OU hora (refletirDataHora,
+    //    no `change`), e diz QUEM está no horário — não um erro genérico;
+    //  - data no passado avisa, não bloqueia (spec §6.3) — o psicólogo precisa
+    //    registrar sessão que já aconteceu.
+
+    // DADOS.hoje.data e humano ("terça, 1 de setembro"). O <input type="date">
+    // fala ISO. Esta constante e a ponte, usada por quemOcupa() abaixo.
+    const ISO_DE_HOJE = '2026-09-01'
+
+    const formConsulta = document.getElementById('form-consulta')
+    // decide ONDE a confirmação de sucesso aparece: quem abre pela Agenda
+    // já está olhando #status-agenda; quem abre o retorno pela Ficha nunca
+    // sai dela, então a confirmação tem que sair em #status-registro — do
+    // contrário o clique confirmaria em silêncio numa tela que a pessoa nem
+    // está vendo (mesma regra de "nenhum clique engolido em silêncio").
+    let origemConsulta = 'agenda'
+
+    // Task 6 (C7): com zero paciente o "+ Nova consulta" da Agenda abria um
+    // select com uma unica opcao muda ("Escolha o paciente") sem dizer por
+    // que nao dava pra escolher nada — parecia quebrado, nao vazio. Agora a
+    // propria opcao diz o que falta.
+    function pintarSelecaoPaciente() {
+      document.getElementById('con-paciente').innerHTML = DADOS.pacientes.length
+        ? '<option value="">Escolha o paciente</option>' +
+          DADOS.pacientes.map((p) => `<option value="${p.nome}">${p.nome}</option>`).join('')
+        : '<option value="">Nenhum paciente cadastrado ainda</option>'
+    }
+
+    /** Quem ja esta naquele horario, olhando o dado do prototipo. Devolve o
+        nome ou null. A API real tem GET /consultas/conflito (spec §5.6). */
+    function quemOcupa(data, hora) {
+      // no prototipo so o dia de hoje tem ocupacao conhecida
+      if (data !== ISO_DE_HOJE) return null
+      const s = DADOS.hoje.sessoes.find((x) => x.hora === hora)
+      return s ? s.paciente : null
+    }
+
+    function refletirDataHora() {
+      const data = document.getElementById('con-data').value
+      const hora = document.getElementById('con-hora').value
+      const aviso = document.getElementById('aviso-consulta')
+      const ocupado = quemOcupa(data, hora)
+      const r = VALIDACAO.dataHora(data, hora)
+      const salvar = document.getElementById('salvar-consulta')
+
+      salvar.disabled = false
+      if (ocupado) {
+        // conflito e ERRO (bloqueia); passado e AVISO (deixa seguir)
+        aviso.textContent = `Esse horário já está ocupado por ${ocupado}. Escolha outro.`
+        aviso.className = 'campo-erro'
+        salvar.disabled = true
+        return
+      }
+      aviso.className = 'campo-aviso'
+      aviso.textContent = r.aviso || ''
+    }
+    document.getElementById('con-data').addEventListener('change', refletirDataHora)
+    document.getElementById('con-hora').addEventListener('change', refletirDataHora)
+
+    // o formulario e compartilhado entre "+ Nova consulta"/slot livre e
+    // retorno — mesmo cuidado do dialogo de paciente (Task 4): erro deixado
+    // pintado de uma abertura anterior nao pode vazar pra proxima.
+    function limparErrosConsulta() {
+      formConsulta.querySelectorAll('.campo-erro').forEach((el) => { el.textContent = '' })
+      formConsulta.querySelectorAll('[aria-invalid]').forEach((el) => {
+        el.removeAttribute('aria-invalid')
+        el.removeAttribute('aria-describedby')
+      })
+      formConsulta.querySelector('[data-anuncio]').textContent = ''
+      const aviso = document.getElementById('aviso-consulta')
+      aviso.textContent = ''
+      aviso.className = 'campo-aviso'
+    }
+
+    /** "+ Nova consulta" (em branco) ou slot livre da grade (data/hora
+        pré-preenchidas) — paciente sempre escolhível, nunca travado. */
+    function abrirNovaConsulta(dataISO, hora) {
+      origemConsulta = 'agenda'
+      formConsulta.reset()
+      limparErrosConsulta()
+      document.getElementById('titulo-consulta').textContent = 'Nova consulta'
+      pintarSelecaoPaciente()
+      const sel = document.getElementById('con-paciente')
+      sel.value = ''
+      sel.disabled = false
+      document.getElementById('con-data').value = dataISO || ''
+      document.getElementById('con-hora').value = hora || ''
+      document.getElementById('salvar-consulta').disabled = false
+      abrirDialogo('dialogo-consulta')
+      if (dataISO && hora) refletirDataHora()
+    }
+
+    /** Retorno a partir da Ficha (spec §4②/③): paciente é implícito, data
+        vem sugerida em +7 dias no mesmo horário — e editável, porque quem
+        está na frente do psicólogo pode combinar outro dia. */
+    function abrirRetorno(nomePaciente, horaAtual) {
+      origemConsulta = 'retorno'
+      formConsulta.reset()
+      limparErrosConsulta()
+      const d = new Date(2026, 8, 1)                   // hoje: terca, 1 de setembro
+      d.setDate(d.getDate() + 7)                       // sugestao: mesma hora, +7 dias
+      document.getElementById('titulo-consulta').textContent = 'Agendar retorno'
+      pintarSelecaoPaciente()
+      document.getElementById('con-data').value = d.toISOString().slice(0, 10)
+      document.getElementById('con-hora').value = horaAtual
+      const sel = document.getElementById('con-paciente')
+      sel.value = nomePaciente
+      sel.disabled = true                              // paciente e implicito no retorno
+      document.getElementById('salvar-consulta').disabled = false
+      abrirDialogo('dialogo-consulta')
+      // abrirDialogo foca o primeiro input/select do diálogo — que aqui é o
+      // select de paciente, mas ele vem desabilitado no retorno (foco em
+      // elemento desabilitado é ignorado pelo navegador, ninguém recebe o
+      // foco). #con-data é o primeiro campo de fato editável.
+      document.getElementById('con-data').focus()
+      refletirDataHora()                               // ja mostra conflito, se houver
+    }
+
+    const controleConsulta = ligarFormulario(formConsulta, [
+      { id: 'con-paciente', regra: (v) => v ? null
+          : (DADOS.pacientes.length ? 'Escolha o paciente.' : 'Cadastre um paciente antes de agendar uma consulta.') },
+      // dataHora devolve objeto; aqui so o erro interessa, o aviso e do refletir
+      { id: 'con-data', regra: (v, f) => VALIDACAO.dataHora(v, f.querySelector('#con-hora').value).erro },
+      { id: 'con-hora', regra: (v, f) => VALIDACAO.dataHora(f.querySelector('#con-data').value, v).erro },
+    ], () => {
+      const nome = document.getElementById('con-paciente').value
+      const data = document.getElementById('con-data').value
+      const hora = document.getElementById('con-hora').value
+      fecharDialogo('dialogo-consulta')
+      const mensagem = `Consulta de ${nome} agendada para ${data} às ${hora}.`
+      if (origemConsulta === 'retorno') {
+        const status = document.getElementById('status-registro')
+        status.className = 'status-registro ok'
+        status.textContent = mensagem
+      } else {
+        const status = document.getElementById('status-agenda')
+        status.className = 'status-agenda ok'
+        status.textContent = mensagem
+      }
+    })
+
+    // campo de data e o de hora se leem um ao outro pela mesma regra
+    // (VALIDACAO.dataHora(data, hora)) — corrigir só um dos dois deixava o
+    // erro "Escolha data e horário." pintado no OUTRO até o próximo blur ou
+    // submit, contradizendo o próprio texto da mensagem (é erro do par, não
+    // de um campo só). Mesmo padrão do controle devolvido por
+    // ligarFormulario usado em pac-email (Task 4): revalidar só repinta se o
+    // campo já estava em erro, nunca cria erro em campo intocado.
+    document.getElementById('con-data').addEventListener('input', () => controleConsulta.revalidar('con-hora'))
+    document.getElementById('con-hora').addEventListener('input', () => controleConsulta.revalidar('con-data'))
+
+    // fusao consulta+anotacao: uma linha por encontro, com status, valor,
+    // pago e a anotacao daquela sessao juntos — o ponto inteiro da mudanca,
+    // testado contra o cenario C2.
+    // Task 7 (§5.3, decisão do dono de 4/9/2026): falta não é cobrada — o
+    // chip de dinheiro só faz sentido para sessão `realizada`. Sessão
+    // `faltou` mostra "não cobrada" em vez de "a receber", senão a ficha
+    // mentiria pro paciente que aquela hora está em aberto.
+    function pintarLinhaTempo() {
+      const rotulo = { realizada: 'Realizada', faltou: 'Faltou', cancelada: 'Cancelada' }
+      document.getElementById('linha-tempo').innerHTML = DADOS.linhaTempo.length
+        ? DADOS.linhaTempo.map((s) => `
+            <article class="cartao sessao-item">
+              <header>
+                <strong>${s.data}</strong>
+                <span class="chip ${s.status}">${rotulo[s.status]}</span>
+                <span class="chip ${s.status !== 'realizada' ? 'nao-cobrada' : (s.pago ? 'pago' : 'devendo')}">${s.status !== 'realizada' ? 'não cobrada' : (s.pago ? 'pago' : 'a receber')}</span>
+              </header>
+              <p class="${s.anotacao ? '' : 'sem-anotacao'}">${s.anotacao || 'Sem anotação registrada.'}</p>
+            </article>`).join('')
+        : pintarVazio('linha-tempo')
+    }
+
+    // achado desta tarefa, fora do VAZIOS (o aside ja tem o titulo "Pendências"
+    // acima, um segundo titulo aqui seria redundante): sem isso, o aside
+    // ficava com o cartao em branco mudo no conjunto vazio.
+    function pintarPendenciasPaciente() {
+      document.getElementById('pendencias-paciente').innerHTML = DADOS.pendenciasPaciente.length
+        ? DADOS.pendenciasPaciente.map((p, i) => `
+            <label class="linha-pendencia${p.concluida ? ' resolvida' : ''}">
+              <span><input type="checkbox" data-indice="${i}" ${p.concluida ? 'checked' : ''}> ${p.texto}</span>
+            </label>`).join('')
+        : `<p class="vazio">Nenhuma pendência registrada.</p>`
+    }
+
+    function pintarFicha() {
+      pintarLinhaTempo()
+      pintarPendenciasPaciente()
+    }
+    window.addEventListener('DOMContentLoaded', pintarFicha)
+
+    // checkbox de pendencia marca visivelmente (mesma convencao do fix
+    // round 1 em #pendencias na tela Hoje) — nunca so desaparece.
+    document.getElementById('pendencias-paciente').addEventListener('change', (evento) => {
+      const caixa = evento.target.closest('input[type="checkbox"]')
+      if (!caixa) return
+      const item = DADOS.pendenciasPaciente[Number(caixa.dataset.indice)]
+      item.concluida = caixa.checked
+      caixa.closest('.linha-pendencia').classList.toggle('resolvida', caixa.checked)
+    })
+
+    document.getElementById('editar-ficha').addEventListener('click', () => {
+      abrirDialogoPaciente(DADOS.pacientes.find((p) => p.id === 1)) // ficha desta tela e sempre a da Helena Vaz (id 1)
+    })
+
+    // "Registrar sessao" e o teste central do C2: uma acao so grava a
+    // anotacao da sessao de hoje E marca que ela aconteceu, na mesma linha
+    // da linha do tempo — antes eram dois registros em duas abas separadas.
+    document.getElementById('registrar-sessao').addEventListener('click', () => {
+      const campo = document.getElementById('anotacao-hoje')
+      const texto = campo.value.trim()
+      DADOS.linhaTempo.unshift({
+        data: dataResumida(DADOS.hoje.data), status: 'realizada',
+        valor: DADOS.usuario.valorPadrao, pago: false, anotacao: texto || null,
+      })
+      pintarLinhaTempo()
+      campo.value = ''
+      campo.disabled = true
+      const botao = document.getElementById('registrar-sessao')
+      botao.disabled = true
+      botao.textContent = 'Sessão registrada ✓'
+      const status = document.getElementById('status-registro')
+      status.className = 'status-registro ok'
+      status.textContent = `Sessão de hoje registrada como realizada · R$ ${DADOS.usuario.valorPadrao},00 a receber.`
+    })
+
+    // "Agendar retorno" era stub (Task 4: confirmava um texto e nunca
+    // perguntava quando — TRAVAS.md, linha "C2 | Ficha → Agendar retorno").
+    // Task 5 abre o diálogo de consulta de verdade, com paciente travado
+    // (implícito no retorno) e data sugerida — ver abrirRetorno() abaixo.
+    document.getElementById('agendar-retorno').addEventListener('click', () => {
+      const sessaoHoje = DADOS.hoje.sessoes.find((s) => s.paciente === 'Helena Vaz') // ficha desta tela e sempre a da Helena Vaz (id 1)
+      abrirRetorno('Helena Vaz', sessaoHoje ? sessaoHoje.hora : '09:00')
+    })
+
+    // --- Financeiro (Task 6) ---
+    // Fechamento do mês (C3): faturado/recebido/a receber vêm de
+    // DADOS.financeiro e são repintados a cada mudança, para nunca ficar
+    // estático enquanto a "Dar baixa" em lote muda o estado por baixo.
+    function formatarReais(v) { return 'R$ ' + v.toLocaleString('pt-BR') }
+
+    function pintarIndicadoresFinanceiro() {
+      document.getElementById('ind-faturado').textContent = formatarReais(DADOS.financeiro.faturado)
+      document.getElementById('ind-recebido').textContent = formatarReais(DADOS.financeiro.recebido)
+      document.getElementById('ind-a-receber').textContent = formatarReais(DADOS.financeiro.aReceber)
+    }
+
+    function pintarDevendo() {
+      document.getElementById('devendo').innerHTML = DADOS.financeiro.devendo.length
+        ? DADOS.financeiro.devendo.map((d) => `
+            <div class="linha-pendencia">
+              <span>${d.paciente} · ${d.sessoes} ${d.sessoes === 1 ? 'sessão' : 'sessões'}</span>
+              <span><strong>R$ ${d.valor},00</strong></span>
+            </div>`).join('')
+        : pintarVazio('devendo')
+    }
+
+    function pintarFinanceiro() {
+      document.getElementById('financeiro-sub').textContent = `${DADOS.financeiro.mes} de 2026`
+      pintarIndicadoresFinanceiro()
+      pintarDevendo()
+      // Task 6 (C7): #baixa-lote e markup estatico (Bruna/Ivan escritos na
+      // mao no HTML) — com o conjunto vazio ele continuaria na tela, num
+      // consultorio que nunca atendeu ninguem. Nao houve "semana passada":
+      // esconde a secao inteira (h2 + cartao) em vez de deixar mentir.
+      document.getElementById('titulo-baixa-lote').hidden = modoVazio
+      document.getElementById('baixa-lote').hidden = modoVazio
+    }
+    window.addEventListener('DOMContentLoaded', pintarFinanceiro)
+
+    // constraint desta fase: marcar/desmarcar recalcula o resumo na hora, e
+    // "Dar baixa" precisa aplicar visivelmente nas linhas selecionadas —
+    // nada de clique engolido em silencio, e nada de total estatico no
+    // botao enquanto os checkboxes mudam (trava C3, ver TRAVAS.md).
+    function linhasBaixaLote() {
+      return [...document.querySelectorAll('#baixa-lote .linha-pendencia[data-sessao]')]
+    }
+
+    function recalcularBaixaLote() {
+      const pendentes = linhasBaixaLote().filter((linha) => !linha.classList.contains('baixado'))
+      const resumo = document.getElementById('resumo-baixa')
+      const botao = document.getElementById('dar-baixa')
+      if (!pendentes.length) {
+        resumo.textContent = 'Todas as sessões da semana já têm baixa dada'
+        botao.disabled = true
+        return
+      }
+      const marcadas = pendentes.filter((linha) => linha.querySelector('input[type="checkbox"]').checked)
+      const total = marcadas.reduce((soma, linha) => soma + Number(linha.querySelector('input').dataset.valor), 0)
+      resumo.textContent = `${marcadas.length} selecionada${marcadas.length === 1 ? '' : 's'} · ${formatarReais(total)}`
+      botao.disabled = marcadas.length === 0
+    }
+    window.addEventListener('DOMContentLoaded', recalcularBaixaLote)
+
+    document.getElementById('baixa-lote').addEventListener('change', (evento) => {
+      if (evento.target.type !== 'checkbox') return
+      recalcularBaixaLote()
+    })
+
+    document.getElementById('dar-baixa').addEventListener('click', () => {
+      const status = document.getElementById('status-financeiro')
+      const pendentes = linhasBaixaLote().filter((linha) => !linha.classList.contains('baixado'))
+      const marcadas = pendentes.filter((linha) => linha.querySelector('input[type="checkbox"]').checked)
+      if (!marcadas.length) {
+        status.className = 'status-financeiro aviso'
+        status.textContent = 'Selecione ao menos uma sessão para dar baixa.'
+        return
+      }
+      let total = 0
+      marcadas.forEach((linha) => {
+        const caixa = linha.querySelector('input[type="checkbox"]')
+        const valor = Number(caixa.dataset.valor)
+        total += valor
+        linha.classList.add('baixado')
+        caixa.disabled = true
+        linha.lastElementChild.innerHTML = '<span class="chip pago">Baixa dada</span>'
+
+        // abate a sessão paga do registro de "quem está devendo" — sem isso
+        // o cartao de devedores ficaria com o valor antigo enquanto o
+        // indicador "a receber" já teria mudado, dois numeros que nao batem
+        // na mesma tela.
+        const registro = DADOS.financeiro.devendo.find((d) => d.paciente === linha.dataset.paciente)
+        if (registro) { registro.sessoes -= 1; registro.valor -= valor }
+      })
+      DADOS.financeiro.devendo = DADOS.financeiro.devendo.filter((d) => d.sessoes > 0)
+      DADOS.financeiro.recebido += total
+      DADOS.financeiro.aReceber -= total
+      pintarIndicadoresFinanceiro()
+      pintarDevendo()
+      recalcularBaixaLote()
+      status.className = 'status-financeiro ok'
+      status.textContent = `Baixa dada em ${marcadas.length} sessão${marcadas.length === 1 ? '' : 'ões'} · ${formatarReais(total)} recebido agora.`
+    })
+
+    // --- Ajustes (Task 7) ---
+    // A prévia do aviso é o entregável central desta tela: demonstra ao
+    // vivo a regra de assunto neutro do spec §7.1. O e-mail de lembrete
+    // aparece na tela de bloqueio do celular sem ninguém abrir nada, então
+    // com o título profissional desligado (padrão) nem o assunto nem o
+    // remetente podem conter "psicólogo", "consulta", "sessão", "terapia"
+    // ou nome de clínica — ver TRAVAS.md, cenário C4, teste do assunto.
+    const ROTULO_ANTECEDENCIA = {
+      '24h': 'Este lembrete chega 24 horas antes da consulta.',
+      '2h': 'Este lembrete chega 2 horas antes da consulta.',
+      vespera: 'Este lembrete chega na véspera, às 18h.',
+    }
+
+    // Task 7 (§4⑤, decisão do dono de 4/9/2026): o corpo do lembrete deixa de
+    // ser texto digitado e vira montagem de blocos fixos — duas frases
+    // obrigatórias (sempre presentes, sem checkbox) mais as opcionais que o
+    // psicólogo ligar. Os únicos pedaços variáveis são {paciente}/{data}/
+    // {hora} — "só data, hora, e quem" (§7.1) — e são substituídos aqui, nunca
+    // digitados. Toda saída possível já está pré-aprovada: não existe caminho
+    // para o psicólogo escrever o motivo da consulta no corpo do e-mail.
+    // Exemplo da prévia é o mesmo que já estava fixado aqui (TRAVAS.md, C4 —
+    // "terça, 8 de setembro" bate com o calendário da Agenda).
+    const FRASES_OBRIGATORIAS = [
+      'Olá, {paciente}.',
+      'Você tem um horário marcado para {data}, às {hora}.',
+    ]
+    const FRASES_OPCIONAIS = [
+      { id: 'aviso-frase-remarcar', texto: 'Se precisar remarcar, é só responder este e-mail.' },
+      { id: 'aviso-frase-chegada', texto: 'Chegue com alguns minutos de antecedência.' },
+      { id: 'aviso-frase-duracao', texto: 'Nosso encontro dura 50 minutos.' },
+    ]
+    const PREVIA_EXEMPLO = { paciente: 'Helena', data: 'terça, 8 de setembro', hora: '09:00' }
+
+    // constraint desta fase: marcar/desmarcar qualquer frase opcional e
+    // trocar o select mudam a prévia na hora — não é só texto explicando a
+    // regra, é a regra sendo demonstrada. O assunto nunca muda: neutralidade
+    // de assunto não é opção do psicólogo, só o remetente e as frases
+    // opcionais são. As duas obrigatórias entram sempre, em qualquer
+    // combinação — inclusive com as três opcionais desligadas.
+    function pintarPreviaEmail() {
+      const comTitulo = document.getElementById('incluir-titulo').checked
+      document.getElementById('previa-de').textContent = comTitulo
+        ? `${DADOS.usuario.nome}, psicóloga`
+        : DADOS.usuario.nome
+      const antecedencia = document.getElementById('antecedencia-aviso').value
+      document.getElementById('previa-antecedencia').textContent = ROTULO_ANTECEDENCIA[antecedencia]
+
+      const frasesLigadas = FRASES_OPCIONAIS
+        .filter((f) => document.getElementById(f.id).checked)
+        .map((f) => f.texto)
+      const corpo = [...FRASES_OBRIGATORIAS, ...frasesLigadas]
+        .map((linha) => linha
+          .replace(/\{paciente\}/g, PREVIA_EXEMPLO.paciente)
+          .replace(/\{data\}/g, PREVIA_EXEMPLO.data)
+          .replace(/\{hora\}/g, PREVIA_EXEMPLO.hora))
+      document.getElementById('previa-texto').innerHTML = corpo.map((linha) => `<p>${linha}</p>`).join('')
+    }
+
+    function pintarAjustes() {
+      document.getElementById('valor-padrao-sessao').value = DADOS.usuario.valorPadrao
+      document.getElementById('antecedencia-aviso').value = DADOS.usuario.antecedencia
+      pintarPreviaEmail()
+    }
+    window.addEventListener('DOMContentLoaded', pintarAjustes)
+
+    document.getElementById('incluir-titulo').addEventListener('change', pintarPreviaEmail)
+    document.getElementById('antecedencia-aviso').addEventListener('change', pintarPreviaEmail)
+    document.getElementById('aviso-frases-opcionais').addEventListener('change', pintarPreviaEmail)
+
+    // "Abrir trilha" apontava só para a própria tela (href="#/ajustes"),
+    // clique engolido em silêncio. Constraint desta fase exige ao menos
+    // dizer que está fora do protótipo (trilha real é spec §4 ⑤/§7.4).
+    document.getElementById('abrir-trilha').addEventListener('click', (evento) => {
+      evento.preventDefault()
+      const status = document.getElementById('status-ajustes')
+      status.className = 'status-ajustes aviso'
+      status.textContent = 'Abrir trilha: fora do escopo deste protótipo.'
+    })
+
+    // mesmo padrão de "Abrir trilha" acima: link irmão na mesma tela, mesmo
+    // comportamento — nunca um clique engolido em silêncio.
+    document.getElementById('descadastrar').addEventListener('click', (evento) => {
+      evento.preventDefault()
+      const status = document.getElementById('status-ajustes')
+      status.className = 'status-ajustes aviso'
+      status.textContent = 'Descadastrar: fora do escopo deste protótipo.'
+    })
+
+    // --- Alternador de estado vazio (Task 6, Step 3) ---
+    // Ferramenta do PROTOTIPO, nao do produto — andaime marcado como tal
+    // (.andaime, title) pra nunca ser confundido com feature real, mesmo
+    // tratamento que o "Provisorio" da Agenda recebeu antes da Task 5
+    // substituir por dialogo de verdade.
+    //
+    // Troca as chaves de DADOS pelas de DADOS.vazio e volta. DADOS_ORIGINAIS
+    // guarda o estado real antes de cada troca (nunca DADOS.vazio em si, que
+    // nunca e sobrescrito — senao o segundo clique nao teria pra onde
+    // voltar). Repinta TODAS as telas, nao so a Hoje: elas ficam no DOM so
+    // com "hidden" e nao recarregam ao trocar de rota — mesma causa do
+    // vazamento do modo privacidade (TRAVAS.md); repintar so a Hoje deixaria
+    // dado velho vazando pra Pacientes/Ficha/Financeiro/Agenda.
+    const DADOS_ORIGINAIS = {}
+
+    function repintarTudo() {
+      pintarHoje()
+      pintarAgenda()
+      pintarPacientes()
+      pintarFicha()
+      pintarFinanceiro()
+      pintarAjustes()
+      pintarSelecaoPaciente()
+    }
+
+    document.getElementById('alternar-vazio').addEventListener('click', (evento) => {
+      modoVazio = !modoVazio
+      if (modoVazio) {
+        Object.keys(DADOS.vazio).forEach((chave) => {
+          DADOS_ORIGINAIS[chave] = DADOS[chave]
+          DADOS[chave] = DADOS.vazio[chave]
+        })
+      } else {
+        Object.keys(DADOS_ORIGINAIS).forEach((chave) => { DADOS[chave] = DADOS_ORIGINAIS[chave] })
+      }
+      evento.currentTarget.textContent = modoVazio ? '🛠 Ver com dados' : '🛠 Ver como fica vazio'
+      repintarTudo()
+    })
+  </script>
+</body>
+</html>
