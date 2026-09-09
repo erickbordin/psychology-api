@@ -57,7 +57,16 @@ public class SecurityConfiguration {
             .csrf(csfr -> csfr.disable())
             .sessionManagement(session -> 
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**").permitAll().anyRequest().authenticated())
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/auth/**").permitAll()
+                    // contrato OpenAPI: o front gera os tipos a partir dele, e
+                    // tipo gerado e o que impede front e API divergirem em
+                    // silencio. Nao expoe dado — so caminhos e formatos.
+                    // DESLIGAR EM PRODUCAO pela propriedade abaixo: num produto
+                    // com prontuario, a superficie da API e informacao que
+                    // ajuda quem ataca (portao da Fatia 5, spec 9)
+                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                    .anyRequest().authenticated())
             .exceptionHandling(ex -> ex.authenticationEntryPoint(erroRespostaAuthenticationEntryPoint))
             .addFilterBefore(jwtCustomtAuthenticationFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
             .build();
