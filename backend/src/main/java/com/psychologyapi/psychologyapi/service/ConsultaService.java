@@ -22,6 +22,7 @@ import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
+import com.psychologyapi.psychologyapi.exceptions.TransicaoDeStatusInvalidaException;
 import com.psychologyapi.psychologyapi.mapper.ConsultaMapper;
 import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
@@ -208,6 +209,28 @@ public class ConsultaService {
 
         Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
+
+        // O @StatusDeFechamento no DTO so restringe o DESTINO (REALIZADA/
+        // FALTOU); ele e uma constraint de campo e estruturalmente nao ve o
+        // status ATUAL da entidade. A brecha de duplo agendamento nao esta no
+        // destino — os dois destinos sao != CANCELADA de qualquer forma —,
+        // esta em SAIR de CANCELADA sem checagem nenhuma: cancelar A libera o
+        // horario para B (todo caminho de escrita trata CANCELADA como vago),
+        // e reabrir A por aqui devolveria A e B ativas ao mesmo tempo.
+        //
+        // Por isso a guarda e aqui, sobre o estado atual, e nao mais uma copia
+        // da checagem de conflito. Recusar em vez de checar conflito de
+        // proposito: reabrir uma sessao cancelada e um REAGENDAMENTO, e
+        // PUT /consultas/{id} ja faz reagendamento com seguranca (roda a
+        // checagem de janela; responde 409 se o horario foi dado a outra
+        // pessoa). Marcar presenca e para uma sessao que aconteceu. Rodar a
+        // checagem de conflito aqui tambem criaria uma QUARTA copia da mesma
+        // regra de janela no codigo, e o laudo do conjunto ja aponta que duas
+        // copias sem nada as amarrando ja e defeito por si so.
+        if (consulta.getStatus() == Status.CANCELADA) {
+            throw new TransicaoDeStatusInvalidaException(
+                    "Esta sessão foi cancelada. Reagende-a para poder marcar presença.");
+        }
 
         consulta.setStatus(dto.status());
 

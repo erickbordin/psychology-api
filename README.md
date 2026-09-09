@@ -9,10 +9,10 @@ paciente. Isso definiu as decisões de projeto de cada lado: isolamento entre
 profissionais verificado por teste, exclusão reversível, registro de acesso, e
 access token que nunca é persistido no navegador.
 
-> **Status:** API no ar, frontend com as telas de pé — painel, agenda, pacientes,
-> cadastro, ficha e trilha — rodando ponta a ponta contra a API real, com o e2e
-> de fumaça passando contra ela. A configuração de host do frontend está no
-> repositório; falta criar o projeto na plataforma e apontar as variáveis
+> **Status:** as duas aplicações rodam local, ponta a ponta, com o e2e de fumaça
+> passando contra a API real — painel, agenda, pacientes, cadastro, ficha e
+> trilha. **Nada foi para produção ainda:** o deploy do backend e a configuração
+> de host do frontend estão prontos no repositório, não executados
 > ([passo a passo](frontend/README.md#hospedagem)).
 
 ## O que o produto faz

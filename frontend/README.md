@@ -57,12 +57,18 @@ banco → API → web. As duas aplicações vivem neste mesmo repositório; o
 
 ### 1. Banco
 
-PostgreSQL em `localhost:5432` com uma database chamada `psychology-api`. As
-migrations do Flyway rodam sozinhas no boot da API; não há passo manual de schema.
+PostgreSQL em `localhost:5432` com uma database chamada `psychology-api`. O
+`createdb` é um programa do PostgreSQL, não do projeto: roda em qualquer terminal,
+de qualquer diretório.
 
 ```bash
 createdb psychology-api
 ```
+
+O banco fica **vazio** — as migrations do Flyway rodam sozinhas no boot da API, e
+não há passo manual de schema. Numa máquina nova, o passo a passo completo (papel
+do Postgres, `JWT_SECRET`, Java 21) está em
+[`backend/README.md`](../backend/README.md#máquina-nova-do-zero).
 
 ### 2. API
 
@@ -92,7 +98,29 @@ npm run dev
 ```
 
 Abre em <http://localhost:5173>. Crie uma conta pela própria tela — o primeiro
-acesso é `Criar conta`, não existe usuário semeado.
+acesso é `Criar conta`, não existe usuário semeado, e cada conta enxerga só os
+próprios pacientes.
+
+**Requisitos:** Node 20 ou mais novo. Com Node antigo o `npm install` quebra com
+`Cannot find module 'node:path'` — é o Vite 8 pedindo runtime moderno. Confira com
+`node -v`.
+
+Se a API estiver em outra porta (a 8080 nem sempre está livre):
+
+```bash
+API_URL=http://localhost:8090 npm run dev
+```
+
+### O que dá errado quando se pula um passo
+
+O front não avisa "faltou subir a API" — ele mostra o sintoma de cada camada que
+faltou. Vale reconhecer os três:
+
+| O que você vê | O que faltou |
+|---|---|
+| Tela de login com "não foi possível conectar ao servidor" | a API não está no ar. O front distingue isso de credencial inválida de propósito |
+| Login aceita, mas toda tela fica vazia e o console mostra `401` | a API subiu, mas com outro `JWT_SECRET` do que o token que o navegador tinha. Recarregue |
+| A API não sobe, `database "psychology-api" does not exist` | faltou o `createdb`. Veja o passo 1 |
 
 ## Variáveis de ambiente
 
@@ -249,6 +277,45 @@ funciona, F5 desloga.
 | Em produção, recarregar em `/pacientes` dá 404 do host | falta a regra `/*` → `/index.html`. Veja [Hospedagem](#hospedagem) |
 | Em produção, toda chamada falha com erro de CORS | `APP_CORS_ORIGINS` não tem a origem exata do frontend (sem barra no fim) |
 
+## O caminho de um clique
+
+Três camadas com fronteira dura, e nenhuma pula a seguinte. Seguindo o botão
+"Registrar anotação":
+
+```
+AnotacoesTab.tsx                        features/ficha/
+  │  componente. Só estado de tela e chamada de hook —
+  │  não monta URL, não conhece `fetch`, não trata `Response`.
+  ▼
+useCriarAnotacao(pacienteId)            features/ficha/queries.ts
+  │  a mutation, e as invalidações declaradas AQUI:
+  │  onSuccess → invalida ['anotacoes', pacienteId] e ['auditoria'].
+  │  É o que faz a lista e a trilha se atualizarem sozinhas.
+  ▼
+criarAnotacao(pacienteId, texto)        api/recursos/anotacao.ts
+  │  só HTTP: monta o caminho, serializa o corpo, devolve tipo.
+  │  O corpo leva `anotacao`, a resposta traz `conteudo` — nomes
+  │  diferentes porque a API é assim, e é aqui que isso fica preso.
+  ▼
+pedir<T>(caminho, opcoes)               api/client.ts
+     Authorization com o token em memória, `credentials: 'include'`,
+     envelope de erro virando ErroApi, e o retry único de 401 que
+     compartilha uma só promise de refresh.
+```
+
+Duas regras que caem dessa fronteira:
+
+- **Componente não fala HTTP.** Se um `fetch` ou uma string de URL aparecer dentro
+  de `features/*/*.tsx`, a camada errada está fazendo o trabalho.
+- **Invalidação mora no `queries.ts`.** Toda escrita derruba as chaves que a
+  escrita afeta — inclusive `['auditoria']`, porque toda mutação vira log no
+  servidor e a trilha é justamente a tela em que estar desatualizada é pior.
+
+O erro também tem um caminho só: a API responde `{status, mensagem, erros[]}`, o
+`client.ts` transforma isso num `ErroApi`, e a tela pergunta
+`erro.mensagemDoCampo('dataNascimento')` para marcar o campo culpado. Nenhuma tela
+lê `response.status` na mão.
+
 ## Estrutura
 
 ```
@@ -270,10 +337,8 @@ src/
 └── teste/               setup · servidor MSW · helpers de render
 ```
 
-Três camadas com fronteira dura: `api/recursos/*` só falam HTTP e devolvem tipos;
-`features/*/queries.ts` embrulha cada função numa query ou mutation, com as
-invalidações declaradas ali; componentes consomem só hooks. Nenhum componente
-monta URL ou toca em `Response`.
+A fronteira entre `api/`, `features/*/queries.ts` e os componentes está descrita
+em [O caminho de um clique](#o-caminho-de-um-clique), acima.
 
 ## Documentação
 

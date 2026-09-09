@@ -384,10 +384,13 @@ de texto pedindo `1991-04-12` digitado à mão. Telefone com máscara brasileira
 | E-mail (usuário e paciente) | formato + máx. 100 | DTO **+** zod |
 | Nome | 2 a 100 | DTO + zod |
 | Telefone | máx. 20, formato BR, opcional | DTO + zod |
-| Nascimento | data real, no passado, idade < 120 | DTO + zod |
+| Nascimento | data real, no passado, idade ≤ 120 | DTO + zod |
 | Valor da sessão | > 0, 2 casas | DTO + zod |
 | Data/hora da consulta | conflito checado antes do envio; passado avisa, não bloqueia | zod + API |
 | Anotação | não vazia | DTO + zod |
+
+> **O que "formato BR" significa na prática**, decidido na Fatia 1 depois de a revisão medir o custo: valida-se a **contagem de dígitos** (10 ou 11, ou 12-13 com `+55`), não o desenho da máscara. A primeira versão era uma `@Pattern` que policiava a pontuação, e ela recusava `"(51) 99811-2345 "` — um espaço colado no fim, acidente de copiar/colar do WhatsApp — enquanto aceitava `"(5199811234"`, com parêntese desbalanceado. Policiar pontuação recusa número válido e aceita número torto: o oposto do que se queria. O campo existe para ser canal de contato, e o valor de um telefone são seus dígitos.
+
 
 Texto de erro num só registro: frase completa, com acento, dizendo o que fazer.
 `"Informe o nome do paciente."`, não `"campo obrigatorio"`. Nos dois lados.

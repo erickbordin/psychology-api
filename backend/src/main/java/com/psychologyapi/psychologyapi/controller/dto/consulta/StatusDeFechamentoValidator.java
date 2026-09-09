@@ -8,15 +8,21 @@ import com.psychologyapi.psychologyapi.model.Status;
 /**
  * So aceita REALIZADA e FALTOU — nunca AGENDADA nem CANCELADA.
  *
- * Existe por causa de uma sequencia real: cancelar a consulta A das 14h libera
- * o horario (todo caminho de escrita trata CANCELADA como vago); criar a
- * consulta B nas mesmas 14h entao funciona; e se este PATCH aceitasse
- * "AGENDADA", um terceiro passo "descancelaria" A sem rodar checagem de
- * conflito nenhuma — A e B ficariam as duas ativas no mesmo horario. Aceitar
- * so os dois status de fechamento (nada se move, entao nada pode conflitar)
- * elimina a brecha em vez de remendar com uma checagem de conflito numa rota
- * cujo proposito e nao mexer em nada. NAO alargar de volta para o enum
- * inteiro sem resolver esse cenario primeiro.
+ * O que isto faz: estreita a rota para os dois status de FECHAMENTO que a
+ * spec 4① pede (marcar presenca/falta em um clique), fora do enum inteiro.
+ *
+ * O que isto NAO faz — e uma versao anterior deste comentario afirmava o
+ * contrario, incorretamente: esta constraint NAO fecha a brecha de duplo
+ * agendamento. Ela e uma constraint de CAMPO do DTO — estruturalmente nao
+ * enxerga o status ATUAL da entidade — e REALIZADA/FALTOU sao, os dois,
+ * != CANCELADA, entao restringir o destino nao impede sair de CANCELADA.
+ * A brecha real (cancelar A libera o horario para B; reabrir A por este PATCH
+ * sem checagem alguma deixa A e B ativas ao mesmo tempo) e fechada pela
+ * guarda em ConsultaService.atualizarStatus, que olha o status ATUAL da
+ * consulta antes de trocar — nao aqui. Ver o comentario la para o raciocinio
+ * completo.
+ *
+ * NAO alargar de volta para o enum inteiro sem entender essa guarda primeiro.
  */
 public class StatusDeFechamentoValidator implements ConstraintValidator<StatusDeFechamento, Status> {
 

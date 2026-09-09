@@ -90,9 +90,9 @@ class StatusDeFechamentoValidatorTest {
     void anotacaoEstaLigadaNoDTO() {
         // AGENDADA e um Status real e nao nulo: a unica violacao possivel
         // aqui e a @StatusDeFechamento. Este teste e o que falha no dia em
-        // que alguem tirar a anotacao do DTO — sem ele, remover
-        // @StatusDeFechamento deixa a suite verde e reabre a brecha de
-        // duplo agendamento que esta anotacao existe para fechar
+        // que alguem tirar a anotacao do DTO. Ela apenas estreita a rota do
+        // PATCH aos dois status de fechamento da spec 4① (REALIZADA/FALTOU);
+        // quem fecha a brecha de duplo agendamento e a guarda em atualizarStatus.
         Set<ConstraintViolation<StatusConsultaDTO>> violacoes = validar(Status.AGENDADA);
 
         assertThat(violacoes).hasSize(1);

@@ -8,9 +8,10 @@ O domínio lida com dado sensível de saúde — anotação de sessão, históri
 paciente. Isso definiu as decisões de projeto descritas abaixo: isolamento
 verificado por teste, exclusão reversível e registro de acesso.
 
-> **Status:** MVP funcional, no ar. O frontend que consome esta API vive em
-> [`frontend/`](../frontend/README.md), no mesmo repositório — veja o
-> [README da raiz](../README.md) para subir o conjunto.
+> **Status:** MVP funcional, rodando local e coberto por testes. **Ainda não foi
+> para produção** — o deploy está configurado, não executado. O frontend que
+> consome esta API vive em [`frontend/`](../frontend/README.md), no mesmo
+> repositório; o [README da raiz](../README.md) tem a receita do conjunto.
 
 ## Stack
 
@@ -24,6 +25,48 @@ verificado por teste, exclusão reversível e registro de acesso.
 | Documentação | springdoc-openapi (Swagger UI) |
 | Testes | JUnit 5, Mockito, Testcontainers |
 | Build / Deploy | Maven, Docker multi-estágio, Render |
+
+## O caminho de uma requisição
+
+Vale ler uma vez antes de mexer em qualquer coisa: toda rota autenticada
+atravessa os mesmos pontos, na mesma ordem.
+
+```
+POST /pacientes/{id}/anotacoes
+  │
+  ├─ 1. JwtCustomtAuthenticationFilter          authsecurity/
+  │     valida o Bearer e popula o SecurityContextHolder.
+  │     Token ausente, expirado ou com assinatura errada: NÃO lança —
+  │     segue sem autenticar, e a cadeia responde 401 pelo entry point.
+  │
+  ├─ 2. AnotacaoController                      controller/
+  │     recebe o DTO de entrada, valida com @Valid, não decide nada.
+  │
+  ├─ 3. AnotacaoService                         service/
+  │     ├─ securityService.obterUsuarioLogado()   ← quem é, vem do token
+  │     ├─ pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(...)
+  │     │    não achou → 404, mesmo que exista para outro profissional
+  │     ├─ regra de negócio (conflito de horário, XOR da série, ...)
+  │     ├─ repository.save(...)                  ← sempre explícito
+  │     └─ auditoriaService.registrar(...)       ← chamada manual, visível
+  │
+  ├─ 4. AnotacaoMapper                          mapper/
+  │     entidade → DTO de resposta.
+  │
+  └─ 5. GlobalExceptionsHandler                 controller/
+        @RestControllerAdvice: exceção de domínio vira status + envelope.
+        Só alcança o que acontece do DispatcherServlet para dentro — por
+        isso o filtro trata o próprio erro, no ponto 1.
+```
+
+Três consequências práticas, que valem para qualquer código novo aqui:
+
+- **Nunca receba `usuarioId` do cliente.** Quem responde essa pergunta é o token,
+  pelo `SecurityService`. Um `usuarioId` no corpo é um furo de segurança à espera.
+- **Nunca use `findById` puro.** O par certo é sempre
+  `findByIdAndUsuario...AndDeletedAtIsNull`.
+- **Auditoria é linha de código, não mágica.** Se a mutação nova não chamar
+  `auditoriaService.registrar(...)`, ela não aparece na trilha.
 
 ## Decisões de arquitetura
 
@@ -246,22 +289,149 @@ o mesmo envelope da validação de bean, com o campo culpado nomeado.
 
 ## Rodando localmente
 
-**Requisitos:** Java 21, Docker (para os testes), PostgreSQL local.
+**Requisitos:** Java 21, PostgreSQL local. Docker só para os testes
+(Testcontainers) — para subir a aplicação, não.
+
+Com o ambiente já montado, é um comando:
 
 ```bash
-# banco: localhost:5432, database "psychology-api"
-# defina JWT_SECRET no arquivo de ambiente local (não versionado)
 ./debug.sh
 ```
 
-Sem `JWT_SECRET` a aplicação não sobe — o `TokenService` lança
-`PlaceholderResolutionException`. Isso é intencional: falhar no boot é melhor que
-subir com segredo default.
+O script carrega o arquivo de ambiente local, aponta o datasource para o Postgres
+da máquina (`localhost:5432`, database `psychology-api`, usuário e senha
+`postgres`) e sobe o Spring na 8080. O Flyway aplica a migration sozinho no boot.
+
+### Máquina nova, do zero
+
+Quatro coisas precisam existir antes do `./debug.sh`, e nenhuma delas vem no
+clone. Na ordem:
+
+**1. Java 21.** Não é "21 ou mais novo": o build fixa
+`<java.version>21</java.version>`.
+
+```bash
+java -version          # precisa dizer 21
+```
+
+Se a máquina tiver outra versão como padrão, aponte o `JAVA_HOME` só para este
+terminal — com SDKMAN, `sdk use java 21.0.10-tem`; com asdf,
+`asdf shell java temurin-21.0.10+7.0.LTS`.
+
+**2. PostgreSQL instalado e no ar.**
+
+```bash
+sudo apt install postgresql postgresql-client   # Debian/Ubuntu
+brew install postgresql@16                      # macOS
+pg_isready                                      # "accepting connections"
+```
+
+O `debug.sh` conecta como usuário `postgres` com senha `postgres`. Numa instalação
+nova essa senha não existe — defina uma vez:
+
+```bash
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+```
+
+**3. O banco.** `createdb` é um programa do PostgreSQL, não do projeto: roda em
+**qualquer terminal, de qualquer diretório**, e não é dentro do `psql`.
+
+```bash
+createdb psychology-api
+```
+
+Se der erro de permissão, `sudo -u postgres createdb psychology-api`. Se preferir
+SQL: `CREATE DATABASE "psychology-api";` — as aspas são obrigatórias, o nome tem
+hífen.
+
+Não crie tabela nenhuma na mão: o banco fica **vazio**, e quem cria o schema é o
+Flyway no boot.
+
+**4. O arquivo de ambiente**, com o `JWT_SECRET`. Ele **não é versionado** — cada
+máquina tem o seu, e é o passo que trava quem clona o projeto pela primeira vez.
+Na raiz de `backend/`, crie o arquivo de ambiente que o `debug.sh` procura (o
+`.gitignore` já o ignora) com uma linha:
+
+```
+JWT_SECRET=<segredo em Base64>
+```
+
+O valor precisa ser **Base64** e decodificar para pelo menos 32 bytes — o
+`TokenService` faz `Decoders.BASE64.decode(...)` e assina em HMAC-SHA256. Gere um:
+
+```bash
+openssl rand -base64 48
+```
+
+Segredo de desenvolvimento é descartável e não tem relação com o de produção, que
+vive no painel da plataforma. Nunca commite nenhum dos dois.
+
+### Conferindo que subiu
+
+```bash
+psql -d psychology-api -c "\dt"                # 7 tabelas + flyway_schema_history
+curl -i -X POST localhost:8080/auth/refresh    # 401 é o certo: ainda não há sessão
+```
+
+No log do boot, a linha que confirma o schema:
+
+```
+Successfully applied 1 migration to schema "public", now at version v1
+```
+
+Daí em diante a conta se cria pela tela do frontend (`Criar conta`), ou direto:
+
+```bash
+curl -X POST localhost:8080/auth/registrar -H 'Content-Type: application/json' \
+  -d '{"nome":"Ana","email":"ana@teste.local","senha":"senhaforte123"}'
+```
+
+### Porta ocupada
+
+```bash
+PORT=8090 ./debug.sh
+```
+
+E aponte o proxy do frontend para ela: `API_URL=http://localhost:8090 npm run dev`.
+
+## Variáveis de ambiente
+
+Todas lidas em `application.properties`. As três do datasource o `debug.sh` já
+define para o ambiente local; o `JWT_SECRET` vem do arquivo de ambiente.
+
+| Variável | Padrão | Para que serve |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | — | `jdbc:postgresql://localhost:5432/psychology-api` |
+| `SPRING_DATASOURCE_USERNAME` | — | usuário do Postgres |
+| `SPRING_DATASOURCE_PASSWORD` | — | senha do Postgres |
+| `JWT_SECRET` | — | **obrigatória.** Segredo do HMAC-SHA256, em Base64 |
+| `PORT` | `8080` | porta do Spring |
+| `APP_CORS_ORIGINS` | `http://localhost:5173` | origens liberadas com credenciais, separadas por vírgula. Nunca `*` |
+| `APP_REFRESH_EXPIRACAO_DIAS` | `14` | validade do refresh token |
+| `APP_REFRESH_COOKIE_SEGURO` | `true` | `Secure` no cookie de refresh |
+| `APP_REFRESH_COOKIE_SAMESITE` | `None` | `SameSite` do cookie de refresh |
+
+Não há default para o datasource nem para o segredo, de propósito: a aplicação não
+sobe apontando para lugar nenhum, e não sobe com segredo de exemplo.
+
+## Quando não sobe
+
+| Sintoma | Causa provável |
+|---|---|
+| `PlaceholderResolutionException: Could not resolve placeholder 'JWT_SECRET'` | falta o arquivo de ambiente, ou a variável dentro dele |
+| Erro ao decodificar a chave, ou `WeakKeyException` | o `JWT_SECRET` não é Base64, ou decodifica para menos de 32 bytes. Gere com `openssl rand -base64 48` |
+| `Connection refused` na 5432 | Postgres não está no ar. `pg_isready`, depois `sudo systemctl start postgresql` |
+| `FATAL: password authentication failed for user "postgres"` | a senha do papel `postgres` não é `postgres`. Veja o passo 2 acima |
+| `FATAL: database "psychology-api" does not exist` | falta o `createdb psychology-api` |
+| `Validate failed: Migrations have failed validation` | banco com o histórico antigo, de antes do squash. `dropdb psychology-api && createdb psychology-api` |
+| `Found more than one migration with version 1` | cópias velhas em `target/`. `sh ./mvnw clean` |
+| Porta 8080 em uso | outra aplicação na porta. Suba com `PORT=` |
+| Testes falham com `Could not find a valid Docker environment` | Docker parado. Ele é necessário só para os testes |
 
 ## Testes
 
 ```bash
-sh ./mvnw test
+sh ./mvnw test          # 169 testes: unitários, integração e HTTP
 ```
 
 Precisa de Docker rodando — a imagem `postgres:16-alpine` é baixada uma vez.

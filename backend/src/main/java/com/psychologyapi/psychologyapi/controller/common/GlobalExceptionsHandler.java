@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroCampoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroRespostaDTO;
@@ -23,6 +24,7 @@ import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoExcepti
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoInvalidaException;
+import com.psychologyapi.psychologyapi.exceptions.TransicaoDeStatusInvalidaException;
 
 /**
  * Todo erro da API sai no mesmo envelope, o {@link ErroRespostaDTO}: status,
@@ -103,6 +105,18 @@ public class GlobalExceptionsHandler {
         return semCampos(HttpStatus.CONFLICT, e.getMessage());
     }
 
+    /**
+     * A transicao pedida esbarra no estado ATUAL do recurso — nao no corpo da
+     * requisicao, entao nao e 400, e o recurso existe, entao nao e 404. 409 e
+     * o mesmo status que ConflitoDeHorarioException e RegistroDuplicadoException
+     * ja usam para "a requisicao conflita com o estado atual do recurso".
+     */
+    @ExceptionHandler(TransicaoDeStatusInvalidaException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErroRespostaDTO handleTransicaoDeStatusInvalida(TransicaoDeStatusInvalidaException e){
+        return semCampos(HttpStatus.CONFLICT, e.getMessage());
+    }
+
     @ExceptionHandler(PeriodoInvalidoException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErroRespostaDTO handlePeriodoInvalido(PeriodoInvalidoException e) {
@@ -163,6 +177,35 @@ public class GlobalExceptionsHandler {
     public ErroRespostaDTO handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
         return semCampos(HttpStatus.BAD_REQUEST,
                 "Não foi possível ler o corpo da requisição. Confira os campos enviados.");
+    }
+
+    /**
+     * Query param ou path variable que o Spring nao consegue converter para o
+     * tipo esperado — data mal formada, UUID invalido, enum inexistente — em
+     * qualquer endpoint da API. Sem este handler cai no resolver padrao do
+     * Spring: 400 com o corpo generico (timestamp/status/error/path), sem
+     * "mensagem" nem "erros", quebrando a garantia de envelope unico desta
+     * classe (mesmo defeito da HttpMessageNotReadableException acima, so que
+     * do lado da leitura por parametro em vez do corpo).
+     *
+     * Este e um erro de CAMPO — o parametro tem nome, ao contrario dos casos
+     * que usam semCampos — entao vai em "erros[]" com getName() como campo,
+     * no mesmo formato que a validacao de bean usa.
+     *
+     * Mensagem fixa, sem e.getMessage() nem o valor recusado: a excecao expoe
+     * o tipo Java de destino e o valor bruto enviado, forma interna que nao
+     * deve vazar para o chamador, e o valor bruto numa API com dado de
+     * paciente pode carregar qualquer coisa. Fixa tambem porque o handler
+     * cobre qualquer parametro de qualquer tipo — uma mensagem citando "data"
+     * seria errada para um UUID mal formado.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErroRespostaDTO handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        return new ErroRespostaDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "Erro de validação",
+                List.of(new ErroCampoDTO(e.getName(), "Confira o formato do parâmetro enviado.")));
     }
 
     /**

@@ -1,8 +1,11 @@
 package com.psychologyapi.psychologyapi.controller;
 
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,15 +45,17 @@ class ConsultaStatusHttpTest {
     @Autowired private ConsultaRepository consultaRepository;
 
     private String tokenDoDono;
+    private Usuario dono;
+    private Paciente helena;
     private UUID consultaId;
     private UUID consultaDeOutroId;
 
     @BeforeEach
     void preparar() {
-        Usuario dono = usuarioRepository.save(Fixtures.usuario("dona.status@example.com"));
+        dono = usuarioRepository.save(Fixtures.usuario("dona.status@example.com"));
         tokenDoDono = "Bearer " + tokenService.gerarToken(dono.getEmailUsuario());
 
-        Paciente helena = pacienteRepository.save(Fixtures.paciente(dono, "Helena Vaz"));
+        helena = pacienteRepository.save(Fixtures.paciente(dono, "Helena Vaz"));
         consultaId = consultaRepository.save(Fixtures.consulta(
                 dono, helena, LocalDateTime.parse("2026-12-02T14:00:00"), Status.AGENDADA)).getId();
 
@@ -85,9 +90,11 @@ class ConsultaStatusHttpTest {
     }
 
     @Test
-    @DisplayName("PATCH nao pode reabrir uma consulta cancelada como agendada: isso "
-            + "burlaria a checagem de conflito e permitiria duplo agendamento no mesmo horario")
-    void reabrirComoAgendadaPorAquiEBloqueadoParaEvitarDuploAgendamento() throws Exception {
+    @DisplayName("PATCH so aceita REALIZADA/FALTOU como destino (@StatusDeFechamento): AGENDADA e "
+            + "recusado com 400 de validacao de campo. Isto fecha o mesmo destino que o PUT ja "
+            + "protegia — NAO e o que evita duplo agendamento; essa guarda fica em atualizarStatus, "
+            + "sobre o status ATUAL da consulta (ver naoPodeSairDeCanceladaQuandoHorarioFoiRealocado)")
+    void destinoAgendadaERecusadoPeloStatusDeFechamento() throws Exception {
         mockMvc.perform(patch("/consultas/" + consultaId + "/status")
                 .header(HttpHeaders.AUTHORIZATION, tokenDoDono)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -122,5 +129,86 @@ class ConsultaStatusHttpTest {
                          {"status":"FALTOU"}
                          """))
                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("PATCH marca a sessao como faltou sem mexer na data, numa consulta que NAO esta cancelada "
+            + "— a guarda de CANCELADA nao pode quebrar o proposito normal da rota")
+    void marcarFaltouEmConsultaNaoCancelada() throws Exception {
+        mockMvc.perform(patch("/consultas/" + consultaId + "/status")
+                .header(HttpHeaders.AUTHORIZATION, tokenDoDono)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                         {"status":"FALTOU"}
+                         """))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.status").value("FALTOU"))
+               .andExpect(jsonPath("$.dtConsulta").value(startsWith("2026-12-02T14:00")));
+    }
+
+    /**
+     * Sequencia medida no laudo do conjunto (C1): cancelar A libera o horario
+     * (todo caminho de escrita trata CANCELADA como vago); criar B no mesmo
+     * horario entao funciona; e sem a guarda, PATCH A para FALTOU/REALIZADA
+     * reabriria A, deixando A e B ativas as duas no mesmo horario — duas
+     * sessoes na mesma linha da agenda, sem aviso nenhum.
+     */
+    @Test
+    @DisplayName("PATCH nao pode tirar uma consulta de CANCELADA para FALTOU quando o horario ja foi "
+            + "dado a outra pessoa: 409, com a mensagem que diz o que fazer, e a agenda do dia continua "
+            + "com exatamente uma sessao ativa naquele horario — nao duas")
+    void naoPodeSairDeCanceladaParaFaltouQuandoHorarioFoiRealocado() throws Exception {
+        LocalDateTime horario = LocalDateTime.parse("2026-12-15T14:00:00");
+
+        UUID consultaCanceladaId = consultaRepository.save(Fixtures.consulta(
+                dono, helena, horario, Status.CANCELADA)).getId();
+
+        Paciente outroPaciente = pacienteRepository.save(Fixtures.paciente(dono, "Otavio Lins"));
+
+        mockMvc.perform(post("/consultas")
+                .header(HttpHeaders.AUTHORIZATION, tokenDoDono)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                         {"pacienteId":"%s","dtConsulta":"2026-12-15T14:00:00"}
+                         """.formatted(outroPaciente.getId())))
+               .andExpect(status().isCreated());
+
+        mockMvc.perform(patch("/consultas/" + consultaCanceladaId + "/status")
+                .header(HttpHeaders.AUTHORIZATION, tokenDoDono)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                         {"status":"FALTOU"}
+                         """))
+               .andExpect(status().isConflict())
+               .andExpect(jsonPath("$.mensagem")
+                       .value("Esta sessão foi cancelada. Reagende-a para poder marcar presença."));
+
+        // a consequencia que importa: a agenda do dia continua com UMA so
+        // sessao ATIVA as 14h — a cancelada nao voltou a ocupar o horario
+        mockMvc.perform(get("/consultas")
+                .header(HttpHeaders.AUTHORIZATION, tokenDoDono)
+                .param("de", "2026-12-15")
+                .param("ate", "2026-12-15"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$[?(@.status != 'CANCELADA')]", hasSize(1)))
+               .andExpect(jsonPath("$[?(@.status == 'CANCELADA')]", hasSize(1)));
+    }
+
+    @Test
+    @DisplayName("PATCH nao pode tirar uma consulta de CANCELADA para REALIZADA tambem: os dois status "
+            + "de fechamento tem que ser recusados, nao so FALTOU")
+    void naoPodeSairDeCanceladaParaRealizada() throws Exception {
+        UUID consultaCanceladaId = consultaRepository.save(Fixtures.consulta(
+                dono, helena, LocalDateTime.parse("2026-12-16T10:00:00"), Status.CANCELADA)).getId();
+
+        mockMvc.perform(patch("/consultas/" + consultaCanceladaId + "/status")
+                .header(HttpHeaders.AUTHORIZATION, tokenDoDono)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                         {"status":"REALIZADA"}
+                         """))
+               .andExpect(status().isConflict())
+               .andExpect(jsonPath("$.mensagem")
+                       .value("Esta sessão foi cancelada. Reagende-a para poder marcar presença."));
     }
 }

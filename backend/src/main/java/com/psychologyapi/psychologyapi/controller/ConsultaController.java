@@ -9,9 +9,9 @@ import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamento
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.StatusConsultaDTO;
 import com.psychologyapi.psychologyapi.service.ConsultaService;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -49,10 +49,24 @@ public class ConsultaController {
      *  excluirConsultaId e opcional e existe para o dialogo de EDICAO: sem
      *  ele, revalidar o horario da propria consulta a encontraria como seu
      *  proprio conflito. O POST de criacao nao manda o parametro e continua
-     *  funcionando exatamente como antes. */
+     *  funcionando exatamente como antes.
+     *
+     *  SEM @DateTimeFormat de proposito: quem faz o parsing estrito de
+     *  dtConsulta e o Converter<String, LocalDateTime> de FormatoDeDataConfig,
+     *  registrado como bean e por isso tentado ANTES do parser que o
+     *  @DateTimeFormat ligaria (Spring Boot registra beans Converter depois
+     *  dos formatters padrao, e o registro mais recente ganha a conversao).
+     *  Deixar a anotacao aqui declarando o mesmo padrao seria enganoso — ela
+     *  nunca chegaria a rodar. Ver FormatoDeDataConfig para o mecanismo
+     *  completo (fix-c2-rodada-2-report.md). */
     @GetMapping("/conflito")
     public ResponseEntity<ConflitoResponseDTO> conflito(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dtConsulta,
+            @RequestParam
+            @Schema(type = "string", example = "2026-12-02T14:00:00",
+                    description = "Data e hora local do consultório, sem offset — o formato é "
+                            + "yyyy-MM-dd'T'HH:mm:ss e um valor com offset (ex.: 'Z' ou '-03:00') "
+                            + "é recusado, não convertido.")
+            LocalDateTime dtConsulta,
             @RequestParam(required = false) UUID excluirConsultaId) {
         return ResponseEntity.ok(consultaService.checarConflito(dtConsulta, excluirConsultaId));
     }
