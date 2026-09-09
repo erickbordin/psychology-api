@@ -1,19 +1,23 @@
 package com.psychologyapi.psychologyapi.controller;
 
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConflitoResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaRecorrenteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamentoResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.StatusConsultaDTO;
 import com.psychologyapi.psychologyapi.service.ConsultaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,6 +42,21 @@ public class ConsultaController {
         return ResponseEntity.status(HttpStatus.OK).body(consultas);
     }
 
+    /** Responde se o horario esta livre, SEM criar nada (spec 5.6). E o que
+     *  permite avisar do conflito ANTES do envio (6.3) — sem esta rota, o
+     *  front so descobre apanhando no POST.
+     *
+     *  excluirConsultaId e opcional e existe para o dialogo de EDICAO: sem
+     *  ele, revalidar o horario da propria consulta a encontraria como seu
+     *  proprio conflito. O POST de criacao nao manda o parametro e continua
+     *  funcionando exatamente como antes. */
+    @GetMapping("/conflito")
+    public ResponseEntity<ConflitoResponseDTO> conflito(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dtConsulta,
+            @RequestParam(required = false) UUID excluirConsultaId) {
+        return ResponseEntity.ok(consultaService.checarConflito(dtConsulta, excluirConsultaId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ConsultaResponseDTO> buscarPorId(@PathVariable UUID id){
         ConsultaResponseDTO consulta = consultaService.buscarPorId(id);
@@ -47,6 +66,15 @@ public class ConsultaController {
     @PutMapping("/{id}")
     public ResponseEntity<ConsultaResponseDTO> atualizarConsulta(@PathVariable UUID id, @RequestBody ConsultaAtualizacaoDTO dto){
         ConsultaResponseDTO consultaAtualizada = consultaService.atualizarConsulta(id, dto);
+        return ResponseEntity.status(HttpStatus.OK).body(consultaAtualizada);
+    }
+
+    /** Realizada/Faltou em um clique na propria linha (spec 4①), sem reenviar
+     *  dtConsulta — ver StatusConsultaDTO para o motivo de nao reaproveitar o PUT. */
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ConsultaResponseDTO> atualizarStatus(
+            @PathVariable UUID id, @Valid @RequestBody StatusConsultaDTO dto){
+        ConsultaResponseDTO consultaAtualizada = consultaService.atualizarStatus(id, dto);
         return ResponseEntity.status(HttpStatus.OK).body(consultaAtualizada);
     }
 

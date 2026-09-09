@@ -10,12 +10,14 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.psychologyapi.psychologyapi.controller.dto.consulta.ConflitoResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaRecorrenteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamentoResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.StatusConsultaDTO;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
@@ -77,6 +79,39 @@ public class ConsultaService {
         Consulta consultaSalva = consultaRepository.save(consulta);
         auditoriaService.registrar(usuarioLogado, AcaoAuditoria.CRIACAO, "Consulta", consultaSalva.getId());
         return consultaMapper.toResponseDTO(consultaSalva);
+    }
+
+    /** Responde se o horario esta livre na agenda DESTE psicologo, sem criar
+     *  nada (spec 5.6). Conflito e por psicologo: dois profissionais podem
+     *  ter paciente as 14h da mesma terca sem que um bloqueie o outro.
+     *
+     *  Usa a MESMA janela de DURACAO_CONSULTA_MINUTOS que os caminhos de
+     *  gravacao. Comparar inicio exato aqui faria este endpoint responder
+     *  "livre" para um horario que o POST recusaria — o front perguntaria,
+     *  receberia sim, enviaria e apanharia, que e a falha que esta rota
+     *  existe para eliminar.
+     *
+     *  excluirConsultaId (opcional, nulo no fluxo de criacao) tira a propria
+     *  consulta sendo editada da checagem — mesmo filtro que
+     *  atualizarConsulta ja aplica na escrita. Sem isso, revalidar o horario
+     *  de uma consulta existente a encontraria como seu proprio conflito. */
+    @Transactional(readOnly = true)
+    public ConflitoResponseDTO checarConflito(LocalDateTime dtConsulta, UUID excluirConsultaId) {
+        Usuario usuario = securityService.obterUsuarioLogado();
+
+        LocalDateTime inicioJanela = dtConsulta.minusMinutes(DURACAO_CONSULTA_MINUTOS);
+        LocalDateTime fimJanela = dtConsulta.plusMinutes(DURACAO_CONSULTA_MINUTOS);
+
+        return consultaRepository
+                .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(usuario, inicioJanela, fimJanela)
+                .stream()
+                .filter(c -> c.getStatus() != Status.CANCELADA)
+                .filter(c -> excluirConsultaId == null || !c.getId().equals(excluirConsultaId))
+                .filter(c -> dentroDaJanela(c.getDtConsulta(), dtConsulta))
+                .findFirst()
+                .map(c -> new ConflitoResponseDTO(
+                        false, c.getPaciente().getNomePaciente(), c.getId()))
+                .orElseGet(ConflitoResponseDTO::horarioLivre);
     }
 
     public ConsultaResponseDTO buscarPorId(UUID id) {
@@ -158,6 +193,27 @@ public class ConsultaService {
         Consulta consultaAtualizada = consultaRepository.save(consulta);
         auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "Consulta", consultaAtualizada.getId());
         return consultaMapper.toResponseDTO(consultaAtualizada);
+    }
+
+    /**
+     * PATCH /consultas/{id}/status (spec 4①) — so troca o status, nunca a
+     * data. Por isso NAO roda a checagem de conflito de atualizarConsulta:
+     * dtConsulta fica intocada, entao nao ha novo horario para conflitar, e
+     * rodar a checagem aqui poderia recusar marcar uma sessao passada como
+     * REALIZADA por causa de uma vizinha na mesma janela de 50 minutos.
+     */
+    @Transactional
+    public ConsultaResponseDTO atualizarStatus(UUID id, StatusConsultaDTO dto) {
+        Usuario usuarioLogado = securityService.obterUsuarioLogado();
+
+        Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
+                .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
+
+        consulta.setStatus(dto.status());
+
+        Consulta salva = consultaRepository.save(consulta);
+        auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "Consulta", salva.getId());
+        return consultaMapper.toResponseDTO(salva);
     }
 
     @Transactional

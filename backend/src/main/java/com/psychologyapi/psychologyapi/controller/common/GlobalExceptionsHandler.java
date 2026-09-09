@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -142,6 +143,26 @@ public class GlobalExceptionsHandler {
     public ErroRespostaDTO handleDataIntegrityViolationException(DataIntegrityViolationException e) {
         return semCampos(HttpStatus.BAD_REQUEST,
                 "Não foi possível salvar: um dos valores informados é inválido ou excede o limite permitido.");
+    }
+
+    /**
+     * Corpo que o Jackson nao consegue desserializar — JSON quebrado, ou um
+     * valor de enum que nao existe (ex.: {"status":"BANANA"}) — estoura ANTES
+     * da validacao de bean, e sem este handler cai no resolver padrao do
+     * Spring: 400 com o corpo generico do Spring (timestamp/status/error/path),
+     * sem "mensagem" nem "erros". Isso quebra a garantia de envelope unico
+     * desta classe, e o front gera os tipos de erro a partir dela.
+     *
+     * Nao repassa e.getMessage(): a mensagem do Jackson cita nomes de classe,
+     * de campo e os valores aceitos do enum — forma interna vazando para
+     * qualquer chamador. Mensagem fixa, "erros" vazio como os demais 400 sem
+     * campo culpado.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErroRespostaDTO handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        return semCampos(HttpStatus.BAD_REQUEST,
+                "Não foi possível ler o corpo da requisição. Confira os campos enviados.");
     }
 
     /**
