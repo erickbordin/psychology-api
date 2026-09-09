@@ -94,6 +94,20 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("POST /auth/registrar com senha comum responde 400 apontando o campo")
+    void registrarComSenhaComumResponde400() throws Exception {
+        mockMvc.perform(post("/auth/registrar")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                         {"nome":"Marina Aguiar","email":"marina.senhacomum@example.com","senha":"senha123456"}
+                         """))
+               .andExpect(status().isBadRequest())
+               .andExpect(jsonPath("$.erros[*].campo").value(org.hamcrest.Matchers.hasItem("senha")))
+               .andExpect(jsonPath("$.erros[*].erro")
+                       .value(org.hamcrest.Matchers.hasItem("Essa senha é fácil de adivinhar. Escolha outra.")));
+    }
+
+    @Test
     @DisplayName("POST /auth/login com senha errada responde 401 no envelope de erro")
     void loginComSenhaErradaResponde401() throws Exception {
         psicologoComSenha("ana@teste.com", "senhaforte123");

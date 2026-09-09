@@ -1,0 +1,25 @@
+# Lista de senhas comuns/vazadas (spec 6.3). Uma senha por linha, minusculas.
+# Versionada no projeto de proposito: a comparacao roda localmente, nunca
+# mandando a senha do usuario para um servico externo.
+123456
+1234567
+12345678
+123456789
+1234567890
+senha123
+senha1234
+senha12345
+senha123456
+password
+password1
+password123
+qwertyuiop
+1q2w3e4r
+102030405060
+abcd1234
+000000000
+111111111
+brasil123
+felipe123
+gabriel123
+mudar123456
