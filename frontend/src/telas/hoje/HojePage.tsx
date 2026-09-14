@@ -99,12 +99,26 @@ export function HojePage() {
 
       {data.pendencias.length > 0 && (
         <section aria-label="Pendencias">
+          {/*
+            A frase fixa "· sem status" saiu desta lista em 14/09/2026, quando
+            a Fatia 2 do backend passou a mandar uma SEGUNDA especie de
+            pendencia na mesma fila: `SEM_ANOTACAO`, a sessao ja realizada que
+            ninguem escreveu. Com a frase fixa, a tela rotulava aquela sessao
+            como "sem status" — falso, ela TEM status; o que falta e a anotacao.
+
+            Rotulo errado e pior do que rotulo nenhum: este e o painel que o
+            psicologo le entre um atendimento e outro para saber o que devolver.
+            A frase certa por especie depende do campo `tipo`, que so existe no
+            tipo depois de regerar o contrato do OpenAPI — e isso e do frontend
+            da Fatia 2, junto da ficha. Ate la, a linha diz a hora e quem, que
+            sao verdade nas duas especies.
+          */}
           <ul className="faixa-pendencias cartao">
             {data.pendencias.map((p) => (
               <li className="linha-pendencia" key={p.consultaId}>
                 <span>
                   <span className="hora">{hora(p.dtConsulta)}</span> ·{' '}
-                  <Nome privacidade={privacidade}>{p.pacienteNome}</Nome> · sem status
+                  <Nome privacidade={privacidade}>{p.pacienteNome}</Nome>
                 </span>
               </li>
             ))}

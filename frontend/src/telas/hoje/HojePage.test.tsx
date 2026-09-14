@@ -150,6 +150,33 @@ describe('tela Hoje', () => {
     expect(within(faixa).getByText(/helena vaz/i)).toBeInTheDocument()
   })
 
+  it('nao rotula a pendencia como "sem status" — ha duas especies na fila', async () => {
+    // A Fatia 2 do backend passou a mandar tambem `SEM_ANOTACAO`: sessao JA
+    // realizada, sem anotacao escrita. A tela escrevia "· sem status" fixo em
+    // toda linha, e rotulava aquela como se ninguem tivesse dito o que houve.
+    //
+    // O fixture abaixo e uma pendencia da especie nova, exatamente como o
+    // backend a devolve. Se alguem repuser a frase fixa, este teste fica
+    // vermelho — que e o unico jeito de a correcao se sustentar.
+    comPainel({
+      proxima: null,
+      sessoes: [],
+      pendencias: [
+        {
+          consultaId: '33333333-3333-3333-3333-333333333333',
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteNome: 'Teodoro Alencar',
+          tipo: 'SEM_ANOTACAO',
+        },
+      ],
+    })
+    renderizar(<HojePage />)
+
+    const faixa = await screen.findByRole('region', { name: /pendencia/i })
+    expect(within(faixa).getByText(/teodoro alencar/i)).toBeInTheDocument()
+    expect(within(faixa).queryByText(/sem status/i)).not.toBeInTheDocument()
+  })
+
   it('modo privacidade borra os nomes com um clique', async () => {
     comPainel()
     const usuario = userEvent.setup()
