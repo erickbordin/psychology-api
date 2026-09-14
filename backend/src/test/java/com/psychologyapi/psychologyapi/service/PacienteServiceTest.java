@@ -60,7 +60,7 @@ class PacienteServiceTest {
     @Test
     @DisplayName("cadastrar: usuario vem do contexto de seguranca, nunca do DTO")
     void cadastrarUsaUsuarioLogado() {
-        PacienteCadastroDTO dto = new PacienteCadastroDTO("Ana", null, null, LocalDate.of(1990, 1, 1));
+        PacienteCadastroDTO dto = new PacienteCadastroDTO("Ana", null, null, LocalDate.of(1990, 1, 1), null, null);
         Paciente novo = new Paciente();
 
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
@@ -78,7 +78,7 @@ class PacienteServiceTest {
     @DisplayName("cadastrar: registra auditoria de CRIACAO com o id do paciente salvo")
     void cadastrarRegistraAuditoria() {
         UUID id = UUID.randomUUID();
-        PacienteCadastroDTO dto = new PacienteCadastroDTO("Ana", null, null, LocalDate.of(1990, 1, 1));
+        PacienteCadastroDTO dto = new PacienteCadastroDTO("Ana", null, null, LocalDate.of(1990, 1, 1), null, null);
         Paciente novo = new Paciente();
         Paciente salvo = Fixtures.paciente(logado, "Ana");
         salvo.setId(id);
@@ -190,7 +190,7 @@ class PacienteServiceTest {
     @DisplayName("atualizarPaciente: paciente de outro usuario responde 404 e nao persiste nada")
     void atualizarDeOutroUsuarioLancaNaoEncontrado() {
         UUID id = UUID.randomUUID();
-        PacienteAtualizacaoDTO dto = new PacienteAtualizacaoDTO("Novo nome", null, null, null);
+        PacienteAtualizacaoDTO dto = new PacienteAtualizacaoDTO("Novo nome", null, null, null, null, null);
 
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, logado)).thenReturn(Optional.empty());
@@ -207,7 +207,7 @@ class PacienteServiceTest {
         UUID id = UUID.randomUUID();
         Paciente paciente = Fixtures.paciente(logado, "Ana");
         paciente.setId(id);
-        PacienteAtualizacaoDTO dto = new PacienteAtualizacaoDTO("Ana Maria", null, null, null);
+        PacienteAtualizacaoDTO dto = new PacienteAtualizacaoDTO("Ana Maria", null, null, null, null, null);
 
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, logado)).thenReturn(Optional.of(paciente));

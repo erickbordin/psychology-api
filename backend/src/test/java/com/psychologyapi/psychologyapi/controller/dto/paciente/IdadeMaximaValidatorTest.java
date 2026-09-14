@@ -39,7 +39,7 @@ class IdadeMaximaValidatorTest {
     }
 
     private Set<ConstraintViolation<PacienteCadastroDTO>> validar(LocalDate nascimento) {
-        return validator.validate(new PacienteCadastroDTO("Helena Vaz", null, null, nascimento));
+        return validator.validate(new PacienteCadastroDTO("Helena Vaz", null, null, nascimento, null, null));
     }
 
     @Test

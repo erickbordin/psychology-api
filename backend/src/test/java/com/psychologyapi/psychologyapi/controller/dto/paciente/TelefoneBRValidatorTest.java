@@ -38,7 +38,7 @@ class TelefoneBRValidatorTest {
     }
 
     private Set<ConstraintViolation<PacienteCadastroDTO>> validar(String telefone) {
-        return validator.validate(new PacienteCadastroDTO("Helena Vaz", telefone, null, null));
+        return validator.validate(new PacienteCadastroDTO("Helena Vaz", telefone, null, null, null, null));
     }
 
     @ParameterizedTest(name = "\"{0}\" e um telefone brasileiro valido, mascara torta ou nao")

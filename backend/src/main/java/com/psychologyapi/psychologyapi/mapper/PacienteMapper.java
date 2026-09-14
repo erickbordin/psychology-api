@@ -1,8 +1,10 @@
 package com.psychologyapi.psychologyapi.mapper;
 
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
 import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.paciente.PacienteCadastroDTO;
@@ -18,9 +20,7 @@ public interface PacienteMapper {
     @Mapping(target = "dataNascimentoPaciente", source = "dataNascimento")
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "usuario", ignore = true)
-    @Mapping(target = "valorSessao", ignore = true)
     @Mapping(target = "consentimentoAvisoEm", ignore = true)
-    @Mapping(target = "canalAviso", ignore = true)
     @Mapping(target = "tokenDescadastro", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "anotacoes", ignore = true)
@@ -43,6 +43,17 @@ public interface PacienteMapper {
     @Mapping(target = "dataNascimento", source = "dataNascimentoPaciente")
     PacienteResponseDTO toResponseDTO(Paciente paciente);
 
+    /**
+     * NullValuePropertyMappingStrategy.IGNORE: campo ausente no PUT nao mexe no
+     * que esta salvo. Sem isto — comportamento ate 14/09/2026, a divida I6 — a
+     * estrategia padrao SET_TO_NULL fazia um PUT que so mudava o telefone
+     * apagar nome, e-mail, nascimento e valor da sessao. Com `valorSessao` no
+     * corpo, aquilo deixava de ser contrato torto e virava perda de dado.
+     *
+     * Em troca, mandar null nao limpa mais campo nenhum: limpar passa a exigir
+     * mecanismo proprio, que nenhuma tela desta fatia pede.
+     */
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "nomePaciente", source = "dto.nome")
     @Mapping(target = "telefonePaciente", source = "dto.telefone")
     @Mapping(target = "emailPaciente", source = "dto.email")
