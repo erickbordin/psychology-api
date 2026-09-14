@@ -1,47 +1,36 @@
-import type { RouteObject } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 
-import { AgendaPage } from './features/agenda/AgendaPage'
-import { AuditoriaPage } from './features/auditoria/AuditoriaPage'
-import { LoginPage } from './features/auth/LoginPage'
-import { AnotacoesTab } from './features/ficha/AnotacoesTab'
-import { ConsultasTab } from './features/ficha/ConsultasTab'
-import { FichaPage } from './features/ficha/FichaPage'
-import { LembretesTab } from './features/ficha/LembretesTab'
-import { VisaoGeral } from './features/ficha/VisaoGeral'
-import { InicioPage } from './features/inicio/InicioPage'
-import { PacientesPage } from './features/pacientes/PacientesPage'
+import { RotaProtegida } from './sessao/RotaProtegida'
+import { AgendaPage } from './telas/agenda/AgendaPage'
+import { HojePage } from './telas/hoje/HojePage'
+import { LoginPage } from './telas/login/LoginPage'
 import { Layout } from './ui/Layout'
-import { RotaProtegida } from './ui/RotaProtegida'
 
-export const definicaoDeRotas: RouteObject[] = [
-  { path: '/login', element: <LoginPage /> },
-  {
-    path: '/',
-    element: <RotaProtegida />,
-    children: [
-      {
-        element: <Layout />,
-        children: [
-          { index: true, element: <InicioPage /> },
-          { path: 'agenda', element: <AgendaPage /> },
-          { path: 'pacientes', element: <PacientesPage /> },
-          {
-            path: 'pacientes/:pacienteId',
-            element: <FichaPage />,
-            children: [
-              { index: true, element: <VisaoGeral /> },
-              { path: 'anotacoes', element: <AnotacoesTab /> },
-              { path: 'lembretes', element: <LembretesTab /> },
-              { path: 'consultas', element: <ConsultasTab /> },
-            ],
-          },
-          { path: 'auditoria', element: <AuditoriaPage /> },
-        ],
-      },
-    ],
-  },
-  {
-    path: '*',
-    element: <p className="p-14 text-sm text-tinta-2">Página não encontrada.</p>,
-  },
-]
+function AindaNaoNestaFatia({ nome }: { nome: string }) {
+  return (
+    <p>
+      {nome} chega numa fatia proxima. Por enquanto, Hoje e Agenda ja funcionam.
+    </p>
+  )
+}
+
+export function Rotas() {
+  return (
+    <Routes>
+      <Route path="/entrar" element={<LoginPage />} />
+      <Route
+        element={
+          <RotaProtegida>
+            <Layout />
+          </RotaProtegida>
+        }
+      >
+        <Route path="/" element={<HojePage />} />
+        <Route path="/agenda" element={<AgendaPage />} />
+        <Route path="/pacientes" element={<AindaNaoNestaFatia nome="Pacientes" />} />
+        <Route path="/financeiro" element={<AindaNaoNestaFatia nome="Financeiro" />} />
+        <Route path="/ajustes" element={<AindaNaoNestaFatia nome="Ajustes" />} />
+      </Route>
+    </Routes>
+  )
+}

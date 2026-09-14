@@ -1,43 +1,15 @@
-import type { StatusConsulta } from '../api/tipos'
+import type { ReactNode } from 'react'
 
-/**
- * Segue o enum `Status` da API — os quatro valores existem no servidor e a tela
- * nao inventa um quinto. Pastilha, e nao texto solto: numa linha com avatar,
- * nome e hora, o estado precisa de uma forma propria para nao ser lido como
- * mais um pedaco do nome.
- */
-const COR: Record<StatusConsulta, string> = {
-  AGENDADA: 'bg-acento-suave text-acento-tinta',
-  REALIZADA: 'bg-sucesso-suave text-sucesso',
-  CANCELADA: 'bg-superficie-2 text-tinta-3',
-  FALTOU: 'bg-atencao-suave text-atencao',
-}
+type Variante = 'realizada' | 'faltou' | 'neutro'
 
-const ROTULO: Record<StatusConsulta, string> = {
-  AGENDADA: 'agendada',
-  REALIZADA: 'realizada',
-  CANCELADA: 'cancelada',
-  FALTOU: 'faltou',
-}
-
-export function Chip({ status }: { status: StatusConsulta }) {
+/** Status da sessao. NAO e pilula: pilula e acao (ver tokens.css). Chip e
+ *  rotulo de estado, e a forma tem que separar os dois. `variante` escolhe a
+ *  cor semantica (`.chip.realizada`/`.chip.faltou` de estilo/estilo.css);
+ *  sem ela o chip fica no tom neutro (ex.: AGENDADA). */
+export function Chip({ children, variante = 'neutro' }: { children: ReactNode; variante?: Variante }) {
+  const classes = variante === 'neutro' ? 'chip' : `chip ${variante}`
   return (
-    <span
-      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${COR[status]}`}
-    >
-      {ROTULO[status]}
-    </span>
-  )
-}
-
-/** Etiqueta neutra, sem enum atras: "série", "concluído". */
-export function Etiqueta({ children, tom = 'neutro' }: { children: string; tom?: 'neutro' | 'sucesso' }) {
-  return (
-    <span
-      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
-        tom === 'sucesso' ? 'bg-sucesso-suave text-sucesso' : 'bg-superficie-2 text-tinta-2'
-      }`}
-    >
+    <span data-chip="" className={classes}>
       {children}
     </span>
   )

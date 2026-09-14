@@ -1,0 +1,66 @@
+/*
+ * Dialogo modal na linguagem Calendar: cartao elevado, mascara por tras.
+ * Copiado de `prototipo/dialogo.css` e apontado para os componentes do
+ * Radix UI (`Dialog.Overlay` recebe `.mascara`, `Dialog.Content` recebe
+ * `.dialogo`) no lugar dos elementos brutos do prototipo — ver o detalhe em
+ * `.superpowers/sdd/2026-09-13-fatia-1-frontend/fix-design-report.md`.
+ * Acao e forma, nao cor — a pilula azul do rodape e a acao; o resto e campo.
+ */
+.mascara {
+  position: fixed; inset: 0; background: rgba(32, 33, 36, .6);
+  z-index: 10;
+}
+
+/* reescrito: no prototipo `.dialogo` era filho de `.mascara` e centralizava
+   por flexbox no pai. No Radix, Overlay e Content sao IRMAOS dentro do
+   Portal (ver DialogoDeConsulta.tsx) — centraliza sozinho por posicao fixa. */
+.dialogo {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 11;
+  background: var(--superficie); border-radius: var(--raio-g);
+  box-shadow: 0 1px 3px 0 var(--sombra-1), 0 4px 8px 3px var(--sombra-2);
+  width: min(480px, calc(100vw - 2 * var(--gap-4)));
+  max-height: 90vh; box-sizing: border-box;
+  display: flex; flex-direction: column;
+}
+.dialogo-cabecalho {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--gap-4) var(--gap-4) 0;
+}
+/* aplicado direto no `Dialog.Title` (em vez de um `h2` a parte) — o Radix
+   forwarda ref/props pro elemento que ele mesmo renderiza. */
+.dialogo-cabecalho-titulo { font-size: 18px; font-weight: 500; margin: 0; }
+.dialogo-corpo {
+  padding: var(--gap-4); overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--gap-4);
+}
+.dialogo-rodape {
+  display: flex; justify-content: flex-end; gap: var(--gap-3);
+  padding: 0 var(--gap-4) var(--gap-4);
+}
+
+/* campo */
+.campo { display: flex; flex-direction: column; gap: 6px; }
+.campo-rotulo { font-size: 13px; font-weight: 500; color: var(--tinta-2); }
+.campo-opcional { font-weight: 400; color: var(--tinta-3); }
+.campo input, .campo select, .campo textarea {
+  height: 40px; padding: 0 var(--gap-3); font-size: 14px;
+  border: 1px solid var(--linha); border-radius: var(--raio);
+  background: var(--superficie); color: var(--tinta);
+  box-sizing: border-box; width: 100%;
+}
+.campo textarea { height: auto; padding: var(--gap-3); resize: vertical; }
+.campo input:focus, .campo select:focus, .campo textarea:focus {
+  outline: none; border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento);
+}
+/* select tambem ganha o contorno de erro — nao so input/textarea (item extra
+   C da revisao Task 5 do prototipo). */
+.campo input[aria-invalid='true'], .campo select[aria-invalid='true'], .campo textarea[aria-invalid='true'] {
+  border-color: var(--perigo);
+}
+.campo input[aria-invalid='true']:focus, .campo select[aria-invalid='true']:focus { box-shadow: 0 0 0 1px var(--perigo); }
+.campo-erro { font-size: 12px; color: var(--perigo); min-height: 15px; margin: 0; }
+.campo-aviso {
+  font-size: 12px; color: var(--atencao); background: var(--atencao-suave);
+  border-radius: var(--raio); padding: 6px var(--gap-2); min-height: 15px; margin: 0;
+}

@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 
-/**
- * Tela vazia e convite, nao lapide: o texto diz o que fazer em seguida.
- */
-export function EstadoVazio({ children }: { children: ReactNode }) {
+/** Estado vazio diz o que fazer, nao so que esta vazio. "Nenhuma sessao hoje"
+ *  sozinho deixa o psicologo sem saida; com o atalho para a agenda, ele tem
+ *  uma. */
+export function EstadoVazio({ titulo, acao }: { titulo: string; acao?: ReactNode }) {
   return (
-    <p className="rounded-2xl border border-dashed border-linha bg-superficie px-6 py-14 text-center text-sm text-tinta-2">
-      {children}
-    </p>
+    <div className="estado-vazio">
+      <p className="titulo">{titulo}</p>
+      {acao}
+    </div>
   )
 }

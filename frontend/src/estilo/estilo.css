@@ -1,0 +1,193 @@
+/*
+ * Sistema de design tirado do protótipo (`prototipo/estilo.css`, linguagem
+ * Google Calendar — ver o comentário grande em `tokens.css`: AÇÃO É FORMA,
+ * NÃO COR). A maior parte das regras abaixo é copiada verbatim; onde o DOM
+ * real desta app difere do protótipo (ele usava HTML solto com IDs fixos,
+ * aqui os componentes são React com Testing Library guiando a marcação),
+ * a regra foi REESCRITA para o mesmo resultado visual — está marcado nos
+ * comentários. Detalhe completo em
+ * `.superpowers/sdd/2026-09-13-fatia-1-frontend/fix-design-report.md`.
+ */
+
+.moldura { display: flex; min-height: 100vh; }
+
+.lateral {
+  position: sticky; top: 0; height: 100vh;
+  width: 208px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: var(--gap-1);
+  padding: var(--gap-5) var(--gap-3);
+  background: var(--superficie);
+  border-right: 1px solid var(--linha);
+  box-sizing: border-box;
+}
+/* reescrito: o protótipo tinha `.lateral a[data-tela]` porque os links de
+   navegação e o de Ajustes eram irmãos diretos de `.lateral`. Aqui a
+   navegação vem dentro de `<nav><ul>` (Navegacao.tsx) e o botão Sair fica
+   num `.rodape` à parte — os seletores miram a estrutura real. */
+.lateral ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.lateral a {
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: 10px var(--gap-3); border-radius: var(--raio);
+  color: var(--tinta-2); text-decoration: none; font-size: 14px; font-weight: 500;
+}
+.lateral a:hover { background: var(--superficie-2); color: var(--tinta); }
+/* nova regra (ver tokens.css): acao e forma, nao cor — o item ativo da nav
+   vira pilula suave, como o item selecionado do rail do Calendar/Gmail. */
+.lateral a.ativo { background: var(--acento-suave); color: var(--acento-escuro); border-radius: 999px; }
+.lateral .rodape { margin-top: auto; }
+
+main { flex: 1; min-width: 0; }
+/* reescrito: o protótipo centralizava com `main > section` porque cada tela
+   era uma <section> filha direta de <main>. Aqui o Login é sua própria
+   <main> (fora do Layout) e as telas protegidas são um <div> dentro da
+   <main> do Layout — uma classe própria evita depender da profundidade do
+   DOM nos dois casos, e evita herdar padding em dobro de um <main> aninhado. */
+.tela { max-width: 960px; margin: 0 auto; padding: var(--gap-6); box-sizing: border-box; }
+
+/* bordas de cartao saem — a estrutura vem da grade em fio de cabelo e do
+   espaco (fundo da pagina em --superficie-2, cartao em --superficie),
+   nao de moldura em cada bloco. */
+.cartao {
+  background: var(--superficie);
+  border-radius: var(--raio-g); padding: var(--gap-4);
+}
+h1 { font-size: 26px; margin: 0 0 var(--gap-1); letter-spacing: -.02em; }
+.sub { color: var(--tinta-2); font-size: 14px; margin: 0 0 var(--gap-6); }
+
+/* reset generico de link — sem isto o navegador desenha azul-sublinhado
+   padrao em qualquer <a> sem classe (ex.: "Abrir a ficha" antes de virar
+   .botao). Nao e regra do prototipo (ele nao tem <a> nua fora de .botao/
+   .lateral/.linha-paciente/.voltar), mas segue os mesmos tokens. */
+a { color: var(--acento); }
+a:hover { color: var(--acento-escuro); }
+
+/* acao e forma, nao cor. A FORMA e o que separa: pilula = acao, bloco
+   chapado com barra a esquerda = evento. Por isso a pilula pode ser azul
+   sem reintroduzir a regra antiga — e o botao de acao padrao do Calendar
+   (o "Salvar" do dialogo) e exatamente isto: pilula azul preenchida. */
+.botao {
+  border: 0; border-radius: 999px; padding: 9px var(--gap-5);
+  background: var(--acento); color: var(--superficie); font-size: 14px; font-weight: 500; cursor: pointer;
+  box-shadow: 0 1px 2px 0 var(--sombra-1), 0 1px 3px 1px var(--sombra-2);
+  text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.botao:hover { background: var(--acento-escuro); box-shadow: 0 1px 3px 0 var(--sombra-1), 0 4px 8px 3px var(--sombra-2); }
+.botao:disabled { opacity: .6; cursor: default; box-shadow: none; }
+/* secundario continua pilula (ainda e acao) mas sem elevacao — a hierarquia
+   vem da sombra, nao da cor. */
+.botao.secundario { background: var(--superficie); color: var(--tinta-2); border: 1px solid var(--linha); box-shadow: none; }
+.botao.secundario:hover { background: var(--superficie-2); color: var(--tinta); }
+.botao.mini { padding: 5px 14px; font-size: 13px; font-weight: 500; }
+/* fix: botao "ligado" (aria-pressed) precisa parecer ligado — mesma regra do
+   #privacidade.ativo do prototipo, generalizada por atributo ARIA em vez de
+   um id fixo, porque qualquer Botao pode virar um toggle. */
+.botao[aria-pressed="true"] { background: var(--acento-suave); color: var(--acento-escuro); border-color: var(--acento-linha); }
+
+/* tela hoje */
+.cabecalho-dia { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--gap-4); flex-wrap: wrap; }
+.acoes-cabecalho-dia { display: flex; align-items: center; gap: var(--gap-2); }
+.destaque {
+  background: var(--acento-suave); border-left: 3px solid var(--acento); margin-bottom: var(--gap-6);
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--gap-1);
+}
+.etiqueta { font-size: 13px; color: var(--tinta-2); margin: 0; }
+.nome-grande { display: block; font-size: 24px; margin: var(--gap-1) 0 var(--gap-2); }
+.titulo-secao { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--tinta-3); margin: var(--gap-6) 0 var(--gap-3); }
+
+/* reescrito: o prototipo tinha `.faixa-dia` (timeline horizontal com blocos
+   posicionados por horario, `.trilho-dia`/`.sessao-bloco`) para "O dia" e
+   `.faixa-pendencias` (lista simples) so para "Ficou pendente". Esta fatia
+   usa uma <ul> semantica nas duas telas — implementar o trilho horizontal
+   seria reconstruir a tela, nao estilizar; as duas listas reusam o mesmo
+   estilo de linha em cartao (`.linha-pendencia`), so o nome da classe do
+   container e novo (`.lista-sessoes`) para nao confundir com o widget que
+   nao existe aqui. */
+.lista-sessoes, .faixa-pendencias { list-style: none; margin: 0 0 var(--gap-6); padding: 0; }
+.linha-pendencia {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--gap-3);
+  align-items: center; padding: var(--gap-2) var(--gap-4); border-bottom: 1px solid var(--linha);
+}
+.linha-pendencia:last-child { border-bottom: 0; }
+.hora { font-variant-numeric: tabular-nums; font-weight: 600; }
+.acoes-linha { display: flex; align-items: center; gap: var(--gap-2); }
+
+/* modo privacidade — spec 4①: painel fica aberto em tela cheia no
+   consultorio, com paciente entrando. Regra original do prototipo
+   (`#tela-hoje.privado .linha-pendencia span:first-child { filter:
+   blur(5px) }`, ver estilo.css:126) escopava por um id/classe no
+   CONTAINER. Aqui `HojePage.tsx` já marca cada nome individualmente com
+   `data-borrado="true"` (estado local, sem precisar de wrapper com
+   id/classe) — o seletor de atributo entrega o mesmo efeito sem reescrever
+   a árvore só para caber no seletor do protótipo. Critico 1 da revisao do
+   conjunto: esta regra nao existia em lugar nenhum do repositorio. */
+[data-borrado='true'] { filter: blur(5px); }
+
+/* fix round 1 (prototipo) — chips que substituem os botoes de acao depois
+   do clique */
+.chip {
+  display: inline-flex; align-items: center; padding: 5px 10px;
+  border-radius: var(--raio); font-size: 13px; font-weight: 500;
+  background: var(--superficie-2); color: var(--tinta-2);
+}
+.chip.realizada { background: var(--sucesso-suave); color: var(--sucesso); }
+.chip.faltou { background: var(--atencao-suave); color: var(--atencao); }
+
+/* estado vazio — Task 6 do prototipo, usado aqui em ui/EstadoVazio.tsx */
+.estado-vazio {
+  display: flex; flex-direction: column; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-7) var(--gap-4); text-align: center;
+}
+.estado-vazio .titulo { font-size: 16px; font-weight: 500; color: var(--tinta); margin: 0; }
+
+/* tela agenda — grade semanal, linguagem Google Calendar. reescrito: o
+   prototipo montava a grade com CSS Grid num <div> (`.grade-semana`/
+   `.slot`); esta app usa uma <table role="grid"> de verdade (acessivel,
+   ja testada por linha/coluna) — as bordas de tabela chegam no mesmo
+   resultado em fio de cabelo que o grid do prototipo. */
+.agenda-grade {
+  width: 100%; border-collapse: collapse;
+  border-top: 1px solid var(--linha); border-left: 1px solid var(--linha);
+  background: var(--superficie); border-radius: var(--raio-g); overflow: hidden;
+}
+.agenda-grade th,
+.agenda-grade td.slot {
+  border-right: 1px solid var(--linha); border-bottom: 1px solid var(--linha);
+  font-size: 13px; padding: var(--gap-2); text-align: left; font-weight: 400;
+}
+.slot.rotulo { background: var(--superficie-2); color: var(--tinta-2); font-weight: 600; text-align: center; }
+.slot.hora { font-variant-numeric: tabular-nums; vertical-align: top; padding-top: 6px; white-space: nowrap; }
+/* cabecalho do dia: "SEG" pequeno em maiuscula + numero grande embaixo,
+   como o Calendar — o dia de hoje ganha o numero num circulo preenchido. */
+.dia-cabecalho { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.dia-nome { font-size: 11px; letter-spacing: .04em; color: var(--tinta-2); font-weight: 600; text-transform: uppercase; }
+.dia-numero {
+  font-size: 16px; font-weight: 500; color: var(--tinta);
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; margin: 0 auto;
+}
+.dia-numero.hoje { background: var(--acento); color: var(--superficie); }
+/* sessao ocupada: bloco chapado azul, texto branco — mesma linguagem de
+   "evento" do tokens.css — com barra de 3px mais escura a esquerda. */
+.slot.ocupado {
+  background: var(--acento); color: var(--superficie); font-weight: 500; cursor: pointer;
+  border-left: 3px solid var(--acento-escuro);
+}
+.slot:not(.rotulo):not(.ocupado) { cursor: pointer; }
+.slot:not(.rotulo):not(.ocupado):hover { background: var(--superficie-2); }
+
+/* formularios fora do dialogo (Login) — o dialogo tem seu proprio anuncio/
+   campo em dialogo.css; login reusa as mesmas classes de campo (ver
+   ui/Campo.tsx) e so precisa do estilo do resumo de erros e do anuncio de
+   envio, que nao existiam nomeados no prototipo (ele nao tem tela de
+   login). Construido com os mesmos tokens de cor/perigo. */
+.resumo-erros p { margin: 0 0 4px; font-size: 13px; color: var(--perigo); font-weight: 500; }
+.resumo-erros ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--perigo); }
+.anuncio { font-size: 13px; color: var(--perigo); min-height: 18px; margin: 0 0 var(--gap-3); }
+
+/* moldura da tela de login (sem equivalente no prototipo: ele nao tem tela
+   de autenticacao). Construida com os mesmos tokens/classes do resto. */
+.tela-login { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: var(--gap-4); box-sizing: border-box; }
+.cartao-login { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: var(--gap-4); box-sizing: border-box; }
+.cartao-login form { display: flex; flex-direction: column; gap: var(--gap-4); }

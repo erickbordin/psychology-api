@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom/vitest'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 
-import { servidorDeTeste } from './servidor'
+import { servidor } from './servidor'
 
-beforeAll(() => servidorDeTeste.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => servidorDeTeste.resetHandlers())
-afterAll(() => servidorDeTeste.close())
+// `error` e de proposito: chamada que nenhum handler cobre vira FALHA, nao
+// silencio. Teste que bate num endpoint esquecido deve ficar vermelho.
+beforeAll(() => servidor.listen({ onUnhandledRequest: 'error' }))
+afterEach(() => servidor.resetHandlers())
+afterAll(() => servidor.close())
