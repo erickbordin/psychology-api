@@ -21,9 +21,11 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.repository.UsuarioRepository;
@@ -47,6 +49,7 @@ class PainelHojeHttpTest {
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PacienteRepository pacienteRepository;
     @Autowired private ConsultaRepository consultaRepository;
+    @Autowired private AnotacaoRepository anotacaoRepository;
 
     private String tokenDoDono;
     private String tokenDeQuemNaoTemNada;
@@ -69,6 +72,19 @@ class PainelHojeHttpTest {
         consultaRepository.save(Fixtures.consulta(
                 dono, clara, LocalDateTime.parse("2026-12-02T15:00:00"), Status.AGENDADA));
 
+        // 09:00 ja passou e foi marcada REALIZADA, mas ninguem escreveu nada:
+        // pendencia da Fatia 2 (spec 9)
+        Paciente teodoro = pacienteRepository.save(Fixtures.paciente(dono, "Teodoro Alencar"));
+        consultaRepository.save(Fixtures.consulta(
+                dono, teodoro, LocalDateTime.parse("2026-12-02T09:00:00"), Status.REALIZADA));
+
+        // 07:00 tambem foi REALIZADA, e esta anotada: NAO e pendencia
+        Paciente nadia = pacienteRepository.save(Fixtures.paciente(dono, "Nadia Furtado"));
+        Consulta anotada = consultaRepository.save(Fixtures.consulta(
+                dono, nadia, LocalDateTime.parse("2026-12-02T07:00:00"), Status.REALIZADA));
+        anotacaoRepository.save(Fixtures.anotacaoDaSessao(
+                dono, nadia, anotada, "Sessao registrada no mesmo dia."));
+
         Usuario outro = usuarioRepository.save(Fixtures.usuario("outro.painel@example.com"));
         Paciente doOutro = pacienteRepository.save(Fixtures.paciente(outro, "Paciente do outro psicologo"));
         consultaRepository.save(Fixtures.consulta(
@@ -83,9 +99,12 @@ class PainelHojeHttpTest {
     void sessoesDoDiaEmOrdem() throws Exception {
         mockMvc.perform(get("/painel/hoje").header(HttpHeaders.AUTHORIZATION, tokenDoDono))
                .andExpect(status().isOk())
-               .andExpect(jsonPath("$.sessoes.length()").value(3))
-               .andExpect(jsonPath("$.sessoes[0].pacienteNome").value("Helena Vaz"))
-               .andExpect(jsonPath("$.sessoes[2].pacienteNome").value("Clara Bueno"));
+               // cinco sessoes hoje: as duas REALIZADAS tambem sao do dia e
+               // continuam na linha do tempo — so CANCELADA fica de fora
+               .andExpect(jsonPath("$.sessoes.length()").value(5))
+               .andExpect(jsonPath("$.sessoes[0].pacienteNome").value("Nadia Furtado"))
+               .andExpect(jsonPath("$.sessoes[1].pacienteNome").value("Helena Vaz"))
+               .andExpect(jsonPath("$.sessoes[4].pacienteNome").value("Clara Bueno"));
     }
 
     @Test
@@ -96,11 +115,35 @@ class PainelHojeHttpTest {
     }
 
     @Test
-    @DisplayName("pendencia e sessao que passou da hora e continua agendada")
+    @DisplayName("a fila do dia tem as duas especies de pendencia, em ordem de horario")
     void pendenciaESessaoPassadaSemStatus() throws Exception {
         mockMvc.perform(get("/painel/hoje").header(HttpHeaders.AUTHORIZATION, tokenDoDono))
-               .andExpect(jsonPath("$.pendencias.length()").value(1))
+               .andExpect(jsonPath("$.pendencias.length()").value(2))
                .andExpect(jsonPath("$.pendencias[0].pacienteNome").value("Helena Vaz"));
+    }
+
+    @Test
+    @DisplayName("sessao realizada sem anotacao vira pendencia — a da Fatia 2")
+    void realizadaSemAnotacaoEPendencia() throws Exception {
+        mockMvc.perform(get("/painel/hoje").header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(jsonPath("$.pendencias[?(@.tipo == 'SEM_ANOTACAO')].pacienteNome")
+                       .value(hasItem("Teodoro Alencar")));
+    }
+
+    @Test
+    @DisplayName("sessao realizada JA anotada nao vira pendencia")
+    void realizadaAnotadaNaoEPendencia() throws Exception {
+        mockMvc.perform(get("/painel/hoje").header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(jsonPath("$.pendencias[*].pacienteNome")
+                       .value(not(hasItem("Nadia Furtado"))));
+    }
+
+    @Test
+    @DisplayName("a pendencia da Fatia 1 continua, agora marcada SEM_STATUS")
+    void pendenciaDeStatusContinuaEGanhaTipo() throws Exception {
+        mockMvc.perform(get("/painel/hoje").header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(jsonPath("$.pendencias[?(@.tipo == 'SEM_STATUS')].pacienteNome")
+                       .value(hasItem("Helena Vaz")));
     }
 
     @Test

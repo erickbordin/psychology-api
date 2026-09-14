@@ -3,7 +3,10 @@ package com.psychologyapi.psychologyapi.service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,8 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.psychologyapi.psychologyapi.controller.dto.painel.PainelHojeDTO;
 import com.psychologyapi.psychologyapi.controller.dto.painel.PendenciaDoPainelDTO;
 import com.psychologyapi.psychologyapi.controller.dto.painel.SessaoDoDiaDTO;
+import com.psychologyapi.psychologyapi.controller.dto.painel.TipoPendencia;
+import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
+import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
 
@@ -24,6 +30,7 @@ public class PainelService {
 
     private final SecurityService securityService;
     private final ConsultaRepository consultaRepository;
+    private final AnotacaoRepository anotacaoRepository;
     private final Clock clock;
 
     /** A tela (1) inteira numa chamada (spec 5.6).
@@ -61,12 +68,41 @@ public class PainelService {
                 .findFirst()
                 .orElse(null);
 
-        List<PendenciaDoPainelDTO> pendencias = consultaRepository
+        List<PendenciaDoPainelDTO> semStatus = consultaRepository
                 .findByUsuarioAndStatusAndDtConsultaBeforeAndDeletedAtIsNullOrderByDtConsultaAsc(
                         usuario, Status.AGENDADA, agora)
                 .stream()
                 .map(c -> new PendenciaDoPainelDTO(
-                        c.getId(), c.getDtConsulta(), c.getPaciente().getNomePaciente()))
+                        c.getId(), c.getDtConsulta(), c.getPaciente().getNomePaciente(),
+                        TipoPendencia.SEM_STATUS))
+                .toList();
+
+        // "realizada sem anotacao" (spec 9, Fatia 2). So as de HOJE: a fila do
+        // painel e do dia, e varrer o historico inteiro transformaria a tela
+        // numa lista de tudo que nunca foi escrito.
+        List<Consulta> realizadasHoje = consultaRepository
+                .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNullOrderByDtConsultaAsc(
+                        usuario, inicioDoDia, fimDoDia)
+                .stream()
+                .filter(c -> c.getStatus() == Status.REALIZADA)
+                .toList();
+
+        // a guarda nao e paranoia: `IN ()` com lista vazia e SQL invalido no
+        // Postgres, e o dia 1 do psicologo cai exatamente neste caminho
+        List<UUID> jaAnotadas = realizadasHoje.isEmpty()
+                ? List.of()
+                : anotacaoRepository.idsDeConsultasComAnotacao(
+                        usuario, realizadasHoje.stream().map(Consulta::getId).toList());
+
+        List<PendenciaDoPainelDTO> semAnotacao = realizadasHoje.stream()
+                .filter(c -> !jaAnotadas.contains(c.getId()))
+                .map(c -> new PendenciaDoPainelDTO(
+                        c.getId(), c.getDtConsulta(), c.getPaciente().getNomePaciente(),
+                        TipoPendencia.SEM_ANOTACAO))
+                .toList();
+
+        List<PendenciaDoPainelDTO> pendencias = Stream.concat(semStatus.stream(), semAnotacao.stream())
+                .sorted(Comparator.comparing(PendenciaDoPainelDTO::dtConsulta))
                 .toList();
 
         return new PainelHojeDTO(proxima, sessoes, pendencias);
