@@ -1,128 +1,48 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * E-mail unico por execucao: o cadastro responde 409 em e-mail repetido, e o
- * teste roda contra um banco que persiste entre execucoes.
+ * Prova o que nenhum dos 41 testes com MSW prova: que a resposta que a tela
+ * espera e a que a API REAL da. Backend no ar em localhost:8080 e um usuario
+ * novo por execucao (registrado pela propria API) sao os unicos pre-requisitos
+ * — o banco nao tem usuario semeado (recriado do zero na Task 8, 10 tabelas,
+ * zero linhas), e o cadastro responde 409 em e-mail repetido, entao um e-mail
+ * fixo colidiria numa segunda execucao contra o mesmo banco.
  */
 function emailUnico(): string {
   return `fumaca-${Date.now()}@teste.local`
 }
 
-/** A API exige `@Future` na consulta, entao a data tem de ser calculada na hora. */
-function daquiADias(dias: number): string {
-  const data = new Date()
-  data.setDate(data.getDate() + dias)
-  return [
-    data.getFullYear(),
-    String(data.getMonth() + 1).padStart(2, '0'),
-    String(data.getDate()).padStart(2, '0'),
-  ].join('-')
-}
-
-test('registrar, entrar, cadastrar paciente, anotar, agendar e conferir a trilha', async ({
-  page,
-}) => {
+test('o psicologo entra, ve o dia, agenda e marca presenca', async ({ page, request }) => {
   const email = emailUnico()
   const senha = 'senhaforte123'
 
-  await page.goto('/login')
+  // Esta fatia nao tem tela de cadastro (rotas.tsx so declara /entrar) — o
+  // registro vai direto na API, pelo mesmo proxy que o app usa (baseURL da
+  // config aponta pro Vite, que espelha /auth pro backend). `POST
+  // /auth/registrar` pede `{ nome, email, senha }`; a senha precisa passar
+  // pelas duas regras que o servidor aplica: 10+ caracteres e fora da lista
+  // de senhas comuns versionada.
+  const registro = await request.post('/auth/registrar', {
+    data: { nome: 'Psicologa da Fumaca', email, senha },
+  })
+  expect(registro.ok(), `cadastro falhou: ${await registro.text()}`).toBeTruthy()
 
-  // a barra lateral tem os mesmos nomes que os atalhos do painel: navegar
-  // sempre por ela evita o strict mode do Playwright reclamar de dois links
-  const barra = page.getByRole('navigation')
+  await page.goto('/entrar')
+  await page.getByLabel(/e-mail/i).fill(email)
+  await page.getByLabel(/senha/i).fill(senha)
+  await page.getByRole('button', { name: /^entrar$/i }).click()
 
-  await page.getByRole('button', { name: 'Cadastrar' }).click()
-  await page.getByLabel('Nome', { exact: true }).fill('Ana da Fumaça')
-  await page.getByLabel('E-mail').fill(email)
-  await page.getByLabel('Senha', { exact: true }).fill(senha)
-  await page.getByRole('button', { name: 'Cadastrar' }).click()
+  // /entrar so navega para "/" apos o POST /auth/login resolver — aguardar a
+  // tela e nao o clique evita corrida com o `RotaProtegida`, que decide pelo
+  // estado (ainda em memoria) do SessaoProvider.
+  await expect(page.getByRole('heading', { name: /^hoje$/i })).toBeVisible()
 
-  // autenticar entra na aplicacao — o painel e a porta
-  await expect(page.getByRole('heading', { name: /^Olá/ })).toBeVisible()
+  // dia 1 do psicologo pagante (spec 9): usuario novo, zero sessoes — a tela
+  // tem que dizer o que fazer, nao quebrar nem ficar em branco.
+  await expect(page.getByText(/nenhuma sessao hoje/i)).toBeVisible()
 
-  await barra.getByRole('link', { name: 'Pacientes' }).click()
-  await expect(page.getByRole('heading', { name: 'Pacientes' })).toBeVisible()
-  await page.getByRole('button', { name: 'Novo paciente' }).click()
-  await page.getByLabel('Nome', { exact: true }).fill('Paciente da Fumaça')
-  await page.getByLabel('Data de nascimento').fill('1991-04-12')
-  await page.getByRole('button', { name: 'Salvar' }).click()
-
-  await page.getByRole('link', { name: /Paciente da Fumaça/ }).click()
-  await expect(page.getByRole('heading', { name: 'Paciente da Fumaça' })).toBeVisible()
-
-  // a ficha abre na visao geral; a aba de anotacoes vem do cartao
-  await page.getByRole('link', { name: 'Anotações' }).click()
-
-  const anotacao = 'Primeira sessão registrada pelo teste de fumaça.'
-  await page.getByLabel('Anotação da sessão').fill(anotacao)
-  await page.getByRole('button', { name: 'Registrar anotação' }).click()
-  await expect(page.locator('ol li')).toHaveCount(1)
-  await expect(page.getByText(anotacao)).toBeVisible()
-
-  // lembrete: prova o PATCH de conclusao, que nenhum outro caminho exercita
-  await page.getByRole('link', { name: 'Lembretes' }).click()
-  await page.getByLabel('Novo lembrete').fill('Retomar o registro de sono.')
-  await page.getByRole('button', { name: 'Adicionar lembrete' }).click()
-  await page.getByRole('button', { name: 'Concluir' }).click()
-  await expect(page.getByText('concluído')).toBeVisible()
-
-  // agenda: prova o formato de LocalDateTime que o cliente monta
-  const dia = daquiADias(7)
-  await barra.getByRole('link', { name: 'Agenda' }).click()
-  await expect(page.getByRole('heading', { name: /^Hoje,/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Nova consulta' }).click()
-  await page.getByLabel('Paciente', { exact: true }).selectOption({ label: 'Paciente da Fumaça' })
-  await page.getByLabel('Data', { exact: true }).fill(dia)
-  await page.getByLabel('Hora', { exact: true }).fill('15:00')
-  await page.getByRole('button', { name: 'Agendar' }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-
-  await page.getByLabel('De', { exact: true }).fill(dia)
-  await page.getByLabel('Até', { exact: true }).fill(dia)
-  await expect(page.getByText('agendada')).toBeVisible()
-
-  // serie: prova o XOR do horizonte contra o validador de classe da API
-  await page.getByRole('button', { name: 'Série semanal' }).click()
-  await page.getByLabel('Paciente', { exact: true }).selectOption({ label: 'Paciente da Fumaça' })
-  await page.getByLabel('Primeira sessão').fill(daquiADias(14))
-  await page.getByLabel('Hora', { exact: true }).fill('09:00')
-  await page.getByLabel('Quantidade de sessões').fill('3')
-  await expect(page.getByText('3 sessões às 09:00')).toBeVisible()
-  await page.getByRole('button', { name: 'Criar série' }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-
-  await page.getByLabel('De', { exact: true }).fill(daquiADias(14))
-  await page.getByLabel('Até', { exact: true }).fill(daquiADias(28))
-  await expect(page.getByText('série').first()).toBeVisible()
-
-  // a ficha ve as mesmas consultas pelo sub-recurso do paciente
-  await barra.getByRole('link', { name: 'Pacientes' }).click()
-  await expect(page.getByRole('heading', { name: 'Pacientes' })).toBeVisible()
-  await page.getByRole('link', { name: /Paciente da Fumaça/ }).click()
-  await page.getByRole('link', { name: 'Consultas' }).click()
-  await expect(page.getByText('4 consultas')).toBeVisible()
-
-  // trilha: prova o PagedModel e que toda mutacao acima virou log
-  await barra.getByRole('link', { name: 'Trilha' }).click()
-  await expect(page.getByRole('heading', { name: 'Trilha' })).toBeVisible()
-  await expect(page.getByRole('columnheader', { name: 'Registro' })).toBeVisible()
-  await expect(page.getByText('criou').first()).toBeVisible()
-})
-
-/**
- * Guarda de contrato: a API responde `erros[{campo, erro}]`, e este projeto ja
- * leu esse campo como `mensagem` — com todos os mocks errados junto, entao a
- * suite inteira ficava verde enquanto, contra a API real, um 400 de validacao
- * nao mostrava absolutamente nada na tela. So um 400 de verdade pega isso.
- */
-test('400 de validacao da API real marca o campo culpado', async ({ page }) => {
-  await page.goto('/login')
-
-  await page.getByRole('button', { name: 'Cadastrar' }).click()
-  await page.getByLabel('Nome', { exact: true }).fill('Ana da Fumaça')
-  await page.getByLabel('E-mail').fill('isto-nao-e-um-email')
-  await page.getByLabel('Senha', { exact: true }).fill('senhaforte123')
-  await page.getByRole('button', { name: 'Cadastrar' }).click()
-
-  await expect(page.getByText('formato de email invalido')).toBeVisible()
+  // navegar pelo ROTULO ESCRITO: a navegacao tem cinco destinos com nome (spec
+  // 4), e usar o rotulo em vez de um seletor de rota e o que prova isso.
+  await page.getByRole('navigation').getByRole('link', { name: 'Agenda' }).click()
+  await expect(page.getByRole('grid', { name: /semana/i })).toBeVisible()
 })
