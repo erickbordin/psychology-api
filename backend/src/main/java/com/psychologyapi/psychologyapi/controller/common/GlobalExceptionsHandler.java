@@ -23,6 +23,7 @@ import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException
 import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
+import com.psychologyapi.psychologyapi.exceptions.SessaoDeOutroPacienteException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoInvalidaException;
 import com.psychologyapi.psychologyapi.exceptions.TransicaoDeStatusInvalidaException;
 
@@ -114,6 +115,19 @@ public class GlobalExceptionsHandler {
     @ExceptionHandler(TransicaoDeStatusInvalidaException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErroRespostaDTO handleTransicaoDeStatusInvalida(TransicaoDeStatusInvalidaException e){
+        return semCampos(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    /**
+     * A sessao apontada existe e e do psicologo logado, mas e de OUTRO
+     * paciente (spec 5.1). Nao e 400 — o UUID enviado e valido e existe — nem
+     * 404 — o recurso existe para este usuario. E o mesmo 409 de
+     * TransicaoDeStatusInvalidaException: a requisicao conflita com o estado
+     * atual do recurso.
+     */
+    @ExceptionHandler(SessaoDeOutroPacienteException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErroRespostaDTO sessaoDeOutroPaciente(SessaoDeOutroPacienteException e) {
         return semCampos(HttpStatus.CONFLICT, e.getMessage());
     }
 

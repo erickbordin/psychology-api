@@ -67,7 +67,7 @@ class AnotacaoServiceTest {
     @DisplayName("cadastrar: paciente de outro usuario responde 404 e nao grava anotacao")
     void cadastrarComPacienteDeOutroUsuario() {
         UUID pacienteId = UUID.randomUUID();
-        AnotacaoCadastroDTO dto = new AnotacaoCadastroDTO("sessao 1");
+        AnotacaoCadastroDTO dto = new AnotacaoCadastroDTO("sessao 1", null);
 
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(pacienteRepository.findByIdAndUsuarioAndDeletedAtIsNull(pacienteId, logado)).thenReturn(Optional.empty());
@@ -84,7 +84,7 @@ class AnotacaoServiceTest {
     void cadastrarRegistraAuditoria() {
         UUID pacienteId = UUID.randomUUID();
         UUID anotacaoId = UUID.randomUUID();
-        AnotacaoCadastroDTO dto = new AnotacaoCadastroDTO("sessao 1");
+        AnotacaoCadastroDTO dto = new AnotacaoCadastroDTO("sessao 1", null);
 
         Anotacao nova = Fixtures.anotacao(null, null, "sessao 1");
         Anotacao salva = Fixtures.anotacao(logado, pacienteDoLogado(pacienteId), "sessao 1");

@@ -3,13 +3,17 @@ package com.psychologyapi.psychologyapi.service;
 import com.psychologyapi.psychologyapi.controller.dto.anotacao.AnotacaoCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.anotacao.AnotacaoResponseDTO;
 import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
+import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
+import com.psychologyapi.psychologyapi.exceptions.SessaoDeOutroPacienteException;
 import com.psychologyapi.psychologyapi.mapper.AnotacaoMapper;
 import com.psychologyapi.psychologyapi.model.Anotacao;
+import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
+import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +34,7 @@ public class AnotacaoService {
         private final AnotacaoMapper anotacaoMapper;
         private final SecurityService securityService;
         private final PacienteRepository pacienteRepository;
+        private final ConsultaRepository consultaRepository;
         private final AuditoriaService auditoriaService;
 
         @Transactional
@@ -41,6 +46,20 @@ public class AnotacaoService {
                 Anotacao anotacao = anotacaoMapper.toEntity(dto);
                 anotacao.setPaciente(paciente);
                 anotacao.setUsuario(usuarioLogado);
+
+                if (dto.consultaId() != null) {
+                        // o filtro por usuario e o que faz a sessao de outro
+                        // psicologo responder 404: para este usuario ela nao existe
+                        Consulta consulta = consultaRepository
+                                        .findByIdAndUsuarioAndDeletedAtIsNull(dto.consultaId(), usuarioLogado)
+                                        .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
+                        if (!consulta.getPaciente().getId().equals(paciente.getId())) {
+                                throw new SessaoDeOutroPacienteException(
+                                                "Esta sessão é de outro paciente. A anotação não pode ser presa a ela.");
+                        }
+                        anotacao.setConsulta(consulta);
+                }
+
                 Anotacao anotacaoSalva = anotacaoRepository.save(anotacao);
                 auditoriaService.registrar(usuarioLogado, AcaoAuditoria.CRIACAO, "Anotacao", anotacaoSalva.getId());
                 return anotacaoMapper.toResponseDTO(anotacaoSalva);

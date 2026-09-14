@@ -8,6 +8,7 @@ public record AnotacaoResponseDTO(
         UUID id,
         String conteudo,
         LocalDate createdAt,
-        UUID pacienteId
+        UUID pacienteId,
+        UUID consultaId
 
 ) {}

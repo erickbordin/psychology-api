@@ -58,6 +58,14 @@ public final class Fixtures {
         return anotacao;
     }
 
+    /** Anotacao presa a uma sessao (spec 5.1) — a que entra na linha do tempo
+     *  da ficha, ao contrario da avulsa devolvida por {@link #anotacao}. */
+    public static Anotacao anotacaoDaSessao(Usuario dono, Paciente paciente, Consulta consulta, String conteudo) {
+        Anotacao anotacao = anotacao(dono, paciente, conteudo);
+        anotacao.setConsulta(consulta);
+        return anotacao;
+    }
+
     public static LogAuditoria logAuditoria(Usuario dono, AcaoAuditoria acao, String entidade, UUID entidadeId) {
         LogAuditoria log = new LogAuditoria();
         log.setUsuario(dono);
