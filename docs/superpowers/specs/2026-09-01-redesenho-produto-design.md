@@ -61,6 +61,8 @@ dentro do escopo, e não numa lista de "depois".
 | Fuso horário | **Um só: `America/Sao_Paulo`** (§5.9) | Multi-fuso com `TIMESTAMPTZ` |
 | Excluir paciente | Cancela as sessões futuras (§5.10) | Bloquear a exclusão; só esconder das telas |
 
+| Fatia 1 fecha sem caminho de paciente | 14/09/2026 | Agendar exige escolher paciente, e paciente é da Fatia 2. Puxar a lista para dentro da Fatia 1 arrastaria o cadastro junto |
+
 As duas últimas foram fechadas em **4 de setembro de 2026**, depois do protótipo:
 a primeira porque a revisão da Fase 0.5 achou que texto livre contradizia §7.1; a
 segunda porque a Fase 0 passou a afirmar em duas telas, sem ninguém decidir, que
@@ -551,7 +553,23 @@ Login, painel Hoje, Agenda. Junto: sistema de design tirado do protótipo,
 `react-hook-form` + `zod`, tipos gerados do OpenAPI, navegação com rótulo,
 tratamento de erro. **Senha com mínimo entra aqui** — é segurança, é barata, não
 espera fatia nenhuma.
-*No fim:* o psicólogo entra, vê o dia, agenda e marca presença.
+*No fim:* o psicólogo entra, vê o dia, e vê a agenda da semana.
+
+> **Corrigido em 14 de setembro de 2026, decisão do dono.** Esta linha dizia "o
+> psicólogo entra, vê o dia, **agenda e marca presença**", e isso não era
+> alcançável: agendar exige escolher um paciente, e a lista e o cadastro de
+> paciente são da Fatia 2. Sem nenhum paciente no banco, `POST /consultas`
+> responde 404 e não há sessão para marcar presença.
+>
+> A revisão do conjunto do frontend mediu isso contra a API real. O dono
+> decidiu **fechar a Fatia 1 sem caminho de paciente**, em vez de puxar parte
+> da Fatia 2 para dentro dela. Então a Fatia 1 entrega a fundação, o login, o
+> painel Hoje e a agenda da semana — e agendar de verdade passa a fechar na
+> Fatia 2, junto de quem cria o paciente.
+>
+> As telas ficam prontas para isso: o diálogo de nova consulta existe, checa
+> conflito antes do envio e mostra o erro do servidor. Falta só a lista do
+> `<select>`.
 
 **O painel Hoje cresce por fatia.** Na Fatia 1 ele traz sessão sem status; a
 pendência "realizada sem anotação" chega na Fatia 2 e "realizada sem baixa" na
