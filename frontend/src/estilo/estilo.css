@@ -198,3 +198,18 @@ a:hover { color: var(--acento-escuro); }
 .barra-agenda { display: flex; gap: var(--gap-3); margin-bottom: var(--gap-5); flex-wrap: wrap; }
 .busca { flex: 1; min-width: 200px; height: 38px; padding: 0 var(--gap-3);
   border: 1px solid var(--linha); border-radius: var(--raio); font-size: 14px; }
+
+/* ficha de pagina unica (Task 4 da Fatia 2) — copiado verbatim de
+   `prototipo/estilo.css` (linhas 207-214 e 230), nao reescrito. */
+.voltar { font-size: 13px; color: var(--tinta-2); text-decoration: none; }
+.cabecalho-ficha { display: flex; justify-content: space-between; align-items: flex-start;
+  margin: var(--gap-3) 0 var(--gap-4); }
+.acoes-ficha { display: flex; gap: var(--gap-3); align-items: center; }
+.colunas-ficha { display: grid; grid-template-columns: 1fr 260px; gap: var(--gap-6); align-items: start; }
+.linha-tempo { display: flex; flex-direction: column; gap: var(--gap-3); margin-top: var(--gap-4); }
+@media (max-width: 860px) { .colunas-ficha { grid-template-columns: 1fr; } }
+
+/* registro da anotacao dentro da linha da sessao (Task 5 da Fatia 2) —
+   copiado verbatim de `prototipo/estilo.css` (linha 212-213), nao reescrito. */
+.registro-novo textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--linha);
+  border-radius: var(--raio); padding: var(--gap-3); font-size: 14px; resize: vertical; margin-bottom: var(--gap-3); }
