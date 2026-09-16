@@ -5,6 +5,7 @@ import { api } from '../../api/cliente'
 import { ResumoDeErros } from '../../formulario/ResumoDeErros'
 import { useFormularioDoProduto } from '../../formulario/useFormularioDoProduto'
 import { Botao } from '../../ui/Botao'
+import { usePacientes } from '../pacientes/queries'
 import { esquemaDaConsulta } from './esquema'
 import { useConflito } from './queries'
 
@@ -31,6 +32,7 @@ export function DialogoDeConsulta({ aberto, dtInicial, aoFechar, consultaId }: P
 
   const dtConsulta = f.watch('dtConsulta')
   const conflito = useConflito(dtConsulta, consultaId)
+  const pacientes = usePacientes()
 
   return (
     <Dialog.Root open={aberto} onOpenChange={(a) => !a && aoFechar()}>
@@ -66,15 +68,31 @@ export function DialogoDeConsulta({ aberto, dtInicial, aoFechar, consultaId }: P
                 </label>
                 <select id="paciente" {...f.register('pacienteId')}>
                   <option value="">Escolha…</option>
-                  {/* A lista real de pacientes e da Fatia 2 (endpoint /pacientes
-                      fica de fora desta tela de proposito). Esta opcao unica e um
-                      espaco reservado para o teste conseguir selecionar um
-                      paciente e exercitar o fluxo de salvar — o valor e um UUID
-                      de teste, nunca um paciente real. */}
-                  <option value="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa">Paciente de teste</option>
+                  {pacientes.data?.map((p) => (
+                    <option key={p.idPaciente} value={p.idPaciente}>
+                      {p.nome}
+                    </option>
+                  ))}
                 </select>
                 {f.formState.errors.pacienteId && (
                   <p className="campo-erro">{f.formState.errors.pacienteId.message}</p>
+                )}
+                {pacientes.data?.length === 0 && (
+                  <p className="campo-aviso" role="status">
+                    Cadastre um paciente antes de agendar.
+                  </p>
+                )}
+                {/* Sem isto a lista falha calada: com a query em erro,
+                    `data` fica indefinido, entao nem as <option> aparecem nem
+                    o aviso acima dispara — o select mostra so "Escolha…" e o
+                    psicologo conclui que nao tem paciente nenhum cadastrado,
+                    quando o que houve foi a sessao expirar ou a rede cair.
+                    E a mesma 6.2 do envio ("nunca morre em silencio"), agora
+                    do lado da LEITURA. */}
+                {pacientes.isError && (
+                  <p className="campo-erro" role="alert">
+                    Nao foi possivel carregar os pacientes. Tente de novo.
+                  </p>
                 )}
               </div>
 

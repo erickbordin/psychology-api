@@ -50,6 +50,11 @@ describe('dialogo de consulta', () => {
   it('manda a data no formato que a API aceita, sem offset', async () => {
     servidor.use(
       http.get('/consultas/conflito', () => HttpResponse.json({ livre: true })),
+      http.get('/pacientes', () =>
+        HttpResponse.json([
+          { idPaciente: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', nome: 'Paciente de teste' },
+        ]),
+      ),
     )
     let corpo: { dtConsulta?: string } = {}
     servidor.use(
@@ -61,7 +66,10 @@ describe('dialogo de consulta', () => {
     const usuario = userEvent.setup()
     abrir()
 
-    await usuario.selectOptions(await screen.findByLabelText(/paciente/i), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
+    // o <select> ja existe no DOM antes da lista de pacientes chegar —
+    // esperar so pelo rotulo selecionaria uma option que ainda nao existe.
+    await screen.findByRole('option', { name: 'Paciente de teste' })
+    await usuario.selectOptions(screen.getByLabelText(/paciente/i), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
     await usuario.click(screen.getByRole('button', { name: /salvar/i }))
 
     expect(corpo.dtConsulta).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)
@@ -76,6 +84,11 @@ describe('dialogo de consulta', () => {
     // que o redesenho existia para matar.
     servidor.use(
       http.get('/consultas/conflito', () => HttpResponse.json({ livre: true })),
+      http.get('/pacientes', () =>
+        HttpResponse.json([
+          { idPaciente: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', nome: 'Paciente de teste' },
+        ]),
+      ),
     )
     servidor.use(
       http.post('/consultas', () =>
@@ -88,8 +101,11 @@ describe('dialogo de consulta', () => {
     const usuario = userEvent.setup()
     abrir()
 
+    // o <select> ja existe no DOM antes da lista de pacientes chegar —
+    // esperar so pelo rotulo selecionaria uma option que ainda nao existe.
+    await screen.findByRole('option', { name: 'Paciente de teste' })
     await usuario.selectOptions(
-      await screen.findByLabelText(/paciente/i),
+      screen.getByLabelText(/paciente/i),
       'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     )
     await usuario.click(screen.getByRole('button', { name: /salvar/i }))
@@ -102,5 +118,49 @@ describe('dialogo de consulta', () => {
     // coisas que importam — a mensagem esta na tela E e anunciada.
     const aviso = await screen.findByText(/paciente nao encontrado/i)
     expect(aviso).toHaveAttribute('role', 'alert')
+  })
+
+  it('o select traz os pacientes cadastrados, nao um id de teste', async () => {
+    servidor.use(
+      http.get('/consultas/conflito', () => HttpResponse.json({ livre: true })),
+      http.get('/pacientes', () =>
+        HttpResponse.json([
+          { idPaciente: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', nome: 'Helena Vaz' },
+          { idPaciente: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', nome: 'Rui Sampaio' },
+        ]),
+      ),
+    )
+    abrir()
+
+    expect(await screen.findByRole('option', { name: 'Helena Vaz' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Rui Sampaio' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /paciente de teste/i })).not.toBeInTheDocument()
+  })
+
+  it('lista de pacientes que falha avisa, em vez de parecer cadastro vazio', async () => {
+    // Um select vazio por ERRO de rede e um select vazio por cadastro vazio
+    // sao visualmente iguais e significam coisas opostas. Sem este aviso, o
+    // psicologo conclui que perdeu os pacientes.
+    servidor.use(
+      http.get('/consultas/conflito', () => HttpResponse.json({ livre: true })),
+      http.get('/pacientes', () =>
+        HttpResponse.json({ status: 401, mensagem: 'Sessao expirada.', erros: [] }, { status: 401 }),
+      ),
+    )
+    abrir()
+
+    const aviso = await screen.findByText(/nao foi possivel carregar os pacientes/i)
+    expect(aviso).toHaveAttribute('role', 'alert')
+    expect(screen.queryByText(/cadastre um paciente/i)).not.toBeInTheDocument()
+  })
+
+  it('sem paciente cadastrado, o dialogo diz o que fazer em vez de oferecer lista vazia', async () => {
+    servidor.use(
+      http.get('/consultas/conflito', () => HttpResponse.json({ livre: true })),
+      http.get('/pacientes', () => HttpResponse.json([])),
+    )
+    abrir()
+
+    expect(await screen.findByText(/cadastre um paciente/i)).toBeInTheDocument()
   })
 })
