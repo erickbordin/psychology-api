@@ -191,3 +191,10 @@ a:hover { color: var(--acento-escuro); }
 .tela-login { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: var(--gap-4); box-sizing: border-box; }
 .cartao-login { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: var(--gap-4); box-sizing: border-box; }
 .cartao-login form { display: flex; flex-direction: column; gap: var(--gap-4); }
+
+/* tela pacientes (Task 2 da Fatia 2) — copiado verbatim de
+   `prototipo/estilo.css` (linhas 147 e 198-199), nao reescrito: a barra de
+   busca e a mesma linguagem visual do resto do design system. */
+.barra-agenda { display: flex; gap: var(--gap-3); margin-bottom: var(--gap-5); flex-wrap: wrap; }
+.busca { flex: 1; min-width: 200px; height: 38px; padding: 0 var(--gap-3);
+  border: 1px solid var(--linha); border-radius: var(--raio); font-size: 14px; }
