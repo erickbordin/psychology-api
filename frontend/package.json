@@ -9,7 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "tipos": "npx -y -p openapi-typescript@7.13.0 -p typescript@5.9.2 openapi-typescript ../.superpowers/sdd/2026-09-13-fatia-1-frontend/contrato-openapi.json -o src/api/contrato.ts"
+    "tipos": "npx -y -p openapi-typescript@7.13.0 -p typescript@5.9.2 openapi-typescript contrato-openapi.json -o src/api/contrato.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

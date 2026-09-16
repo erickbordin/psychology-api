@@ -177,6 +177,32 @@ describe('tela Hoje', () => {
     expect(within(faixa).queryByText(/sem status/i)).not.toBeInTheDocument()
   })
 
+  it('escreve a frase certa para cada especie de pendencia', async () => {
+    comPainel({
+      proxima: null,
+      sessoes: [],
+      pendencias: [
+        {
+          consultaId: '22222222-2222-2222-2222-222222222222',
+          dtConsulta: '2026-12-02T08:00:00',
+          pacienteNome: 'Helena Vaz',
+          tipo: 'SEM_STATUS',
+        },
+        {
+          consultaId: '33333333-3333-3333-3333-333333333333',
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteNome: 'Teodoro Alencar',
+          tipo: 'SEM_ANOTACAO',
+        },
+      ],
+    })
+    renderizar(<HojePage />)
+
+    const faixa = await screen.findByRole('region', { name: /pendencia/i })
+    expect(within(faixa).getByText(/marque o que aconteceu/i)).toBeInTheDocument()
+    expect(within(faixa).getByText(/registre a anotacao/i)).toBeInTheDocument()
+  })
+
   it('modo privacidade borra os nomes com um clique', async () => {
     comPainel()
     const usuario = userEvent.setup()

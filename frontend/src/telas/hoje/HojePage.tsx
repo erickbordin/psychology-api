@@ -7,10 +7,27 @@ import { Botao } from '../../ui/Botao'
 import { Cartao } from '../../ui/Cartao'
 import { Chip } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
-import { useMarcarStatus, usePainelDeHoje, type SessaoDoDia } from './queries'
+import { useMarcarStatus, usePainelDeHoje, type PendenciaDoPainel, type SessaoDoDia } from './queries'
 
 const hora = (iso: string) =>
   deApi(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+/**
+ * A frase que cada especie de pendencia escreve. O painel cresce por fatia
+ * (spec 9): SEM_STATUS veio na Fatia 1, SEM_ANOTACAO na 2, e a de baixa chega
+ * na 3 — acrescentar sera acrescentar um caso aqui.
+ *
+ * A frase diz O QUE FAZER, nao o que falta: quem le esta entre dois
+ * atendimentos e precisa agir, nao diagnosticar.
+ */
+function frasePendente(tipo: PendenciaDoPainel['tipo']): string {
+  switch (tipo) {
+    case 'SEM_STATUS':
+      return 'marque o que aconteceu'
+    case 'SEM_ANOTACAO':
+      return 'registre a anotacao'
+  }
+}
 
 /**
  * Fora do corpo de `HojePage` de proposito: um componente definido DENTRO de
@@ -99,26 +116,13 @@ export function HojePage() {
 
       {data.pendencias.length > 0 && (
         <section aria-label="Pendencias">
-          {/*
-            A frase fixa "· sem status" saiu desta lista em 14/09/2026, quando
-            a Fatia 2 do backend passou a mandar uma SEGUNDA especie de
-            pendencia na mesma fila: `SEM_ANOTACAO`, a sessao ja realizada que
-            ninguem escreveu. Com a frase fixa, a tela rotulava aquela sessao
-            como "sem status" — falso, ela TEM status; o que falta e a anotacao.
-
-            Rotulo errado e pior do que rotulo nenhum: este e o painel que o
-            psicologo le entre um atendimento e outro para saber o que devolver.
-            A frase certa por especie depende do campo `tipo`, que so existe no
-            tipo depois de regerar o contrato do OpenAPI — e isso e do frontend
-            da Fatia 2, junto da ficha. Ate la, a linha diz a hora e quem, que
-            sao verdade nas duas especies.
-          */}
           <ul className="faixa-pendencias cartao">
             {data.pendencias.map((p) => (
               <li className="linha-pendencia" key={p.consultaId}>
                 <span>
                   <span className="hora">{hora(p.dtConsulta)}</span> ·{' '}
-                  <Nome privacidade={privacidade}>{p.pacienteNome}</Nome>
+                  <Nome privacidade={privacidade}>{p.pacienteNome}</Nome> ·{' '}
+                  {frasePendente(p.tipo)}
                 </span>
               </li>
             ))}

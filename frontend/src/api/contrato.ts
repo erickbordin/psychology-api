@@ -228,6 +228,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pacientes/{pacienteId}/ficha": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ficha"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pacientes/{pacienteId}/consultas": {
         parameters: {
             query?: never;
@@ -344,6 +360,9 @@ export interface components {
             email?: string;
             /** Format: date */
             dataNascimento?: string;
+            valorSessao?: number;
+            /** @enum {string} */
+            canalAviso?: "EMAIL" | "WHATSAPP" | "NENHUM";
         };
         PacienteResponseDTO: {
             /** Format: uuid */
@@ -355,6 +374,14 @@ export interface components {
             telefone?: string;
             /** Format: date */
             dataNascimento?: string;
+            valorSessao?: number;
+            /** @enum {string} */
+            canalAviso?: "EMAIL" | "WHATSAPP" | "NENHUM";
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            consentimentoAvisoEm?: string;
             /**
              * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
              * @example 2026-12-02T14:00:00
@@ -397,6 +424,9 @@ export interface components {
             email?: string;
             /** Format: date */
             dataNascimento?: string;
+            valorSessao?: number;
+            /** @enum {string} */
+            canalAviso?: "EMAIL" | "WHATSAPP" | "NENHUM";
         };
         PendenciaCadastroDTO: {
             descricao: string;
@@ -414,6 +444,8 @@ export interface components {
         };
         AnotacaoCadastroDTO: {
             anotacao: string;
+            /** Format: uuid */
+            consultaId?: string;
         };
         AnotacaoResponseDTO: {
             /** Format: uuid */
@@ -423,6 +455,8 @@ export interface components {
             createdAt?: string;
             /** Format: uuid */
             pacienteId?: string;
+            /** Format: uuid */
+            consultaId?: string;
         };
         ConsultaCadastroDTO: {
             /** Format: uuid */
@@ -494,6 +528,8 @@ export interface components {
              */
             dtConsulta?: string;
             pacienteNome?: string;
+            /** @enum {string} */
+            tipo?: "SEM_STATUS" | "SEM_ANOTACAO";
         };
         SessaoDoDiaDTO: {
             /** Format: uuid */
@@ -529,6 +565,33 @@ export interface components {
         PagedModelPendenciaResponseDTO: {
             content?: components["schemas"]["PendenciaResponseDTO"][];
             page?: components["schemas"]["PageMetadata"];
+        };
+        AnotacaoDaSessaoDTO: {
+            /** Format: uuid */
+            anotacaoId?: string;
+            conteudo?: string;
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            createdAt?: string;
+        };
+        FichaDoPacienteDTO: {
+            paciente?: components["schemas"]["PacienteResponseDTO"];
+            linhaDoTempo?: components["schemas"]["SessaoDaFichaDTO"][];
+            pendencias?: components["schemas"]["PendenciaResponseDTO"][];
+        };
+        SessaoDaFichaDTO: {
+            /** Format: uuid */
+            consultaId?: string;
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            dtConsulta?: string;
+            /** @enum {string} */
+            status?: "REALIZADA" | "AGENDADA" | "CANCELADA" | "FALTOU";
+            anotacoes?: components["schemas"]["AnotacaoDaSessaoDTO"][];
         };
         PagedModelConsultaResponseDTO: {
             content?: components["schemas"]["ConsultaResponseDTO"][];
@@ -1842,6 +1905,64 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PainelHojeDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    ficha: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pacienteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FichaDoPacienteDTO"];
                 };
             };
             /** @description Bad Request */
