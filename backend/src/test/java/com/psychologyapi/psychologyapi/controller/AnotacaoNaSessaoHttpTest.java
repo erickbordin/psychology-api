@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.controller;
 
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -123,5 +124,28 @@ class AnotacaoNaSessaoHttpTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo("Aponta pro nada.", UUID.randomUUID())))
                .andExpect(status().isNotFound());
+    }
+
+    /**
+     * F2 da revisao da Fatia 2: escrever a anotacao devolvia so a DATA
+     * ({@code "2026-09-17"}) porque {@code AnotacaoResponseDTO.createdAt} era
+     * {@code LocalDate} e o mapper gerado truncava com {@code .toLocalDate()};
+     * abrir a ficha devolvia data E hora para o mesmo registro. Num prontuario,
+     * a hora do lancamento faz parte do lancamento (spec 7.3) — e dois formatos
+     * para o mesmo campo sao dois dialetos no mesmo contrato.
+     *
+     * A assercao e sobre o formato emitido, nao sobre o instante: bater o
+     * relogio aqui deixaria o teste intermitente.
+     */
+    @Test
+    @DisplayName("createdAt da anotacao volta com data E hora, no formato sem offset")
+    void createdAtCarregaAHoraDoLancamento() throws Exception {
+        mockMvc.perform(post("/pacientes/" + helena.getId() + "/anotacoes")
+                        .header(HttpHeaders.AUTHORIZATION, tokenDoDono)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo("A hora do lancamento faz parte do lancamento.", sessaoDaHelena.getId())))
+               .andExpect(status().isCreated())
+               .andExpect(jsonPath("$.createdAt").value(
+                       matchesPattern("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?")));
     }
 }

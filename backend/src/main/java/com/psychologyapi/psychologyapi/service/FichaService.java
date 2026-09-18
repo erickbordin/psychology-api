@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,23 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class FichaService {
+
+    /**
+     * O rotulo de entidade que a abertura da ficha grava na trilha.
+     *
+     * Deliberadamente DIFERENTE de "Paciente", que e o que
+     * {@code PacienteService.buscarPorId} grava. Ate a revisao da Fatia 2 os
+     * dois gravavam a mesma tripla {@code (VISUALIZACAO, "Paciente", id)}, e
+     * numa trilha de acesso a prontuario isso apaga justamente a distincao que
+     * importa: "abriu o prontuario inteiro" e "leu o cabecalho numa listagem"
+     * viravam a mesma linha, sem como separar depois do fato (spec 7.4).
+     *
+     * Constante publica porque o teste de trilha afirma sobre ela — o rotulo e
+     * contrato da auditoria, nao literal solto. O filtro {@code ?entidade} de
+     * {@code GET /auditoria} e string livre vinda do cliente, entao nada no
+     * backend quebra com o rotulo novo; o que existe hoje continua valendo.
+     */
+    public static final String ENTIDADE_AUDITADA = "FichaDoPaciente";
 
     private final SecurityService securityService;
     private final PacienteRepository pacienteRepository;
@@ -85,15 +103,27 @@ public class FichaService {
                         anotacoesPorSessao.getOrDefault(c.getId(), List.of())))
                 .toList();
 
+        // Sim, isto duplica a consulta e o mapeamento que PendenciaService.
+        // listarPorPaciente ja faz — e a duplicacao e DELIBERADA, nao esquecimento.
+        // Delegar arrastaria junto o que aquele metodo faz de diferente: ele
+        // resolve o paciente de novo (segunda ida ao banco para algo que ja
+        // temos em maos) e e paginado por contrato. Abrir a ficha nao e "listar
+        // pendencias": e uma leitura so, ja autorizada, de tudo de uma vez.
+        // Antes de "consertar" unificando, pergunte-se o que acontece com a
+        // trilha e com o numero de consultas ao banco.
+        //
+        // Assim como GET /pacientes/{id}/pendencias, a ficha devolve tambem as
+        // pendencias CONCLUIDAS: a tela risca a concluida em vez de some-la, e
+        // esconder aqui divergiria das duas rotas.
         List<PendenciaResponseDTO> pendencias = pendenciaRepository
                 .findByPacienteAndPaciente_UsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(
-                        paciente, usuario, org.springframework.data.domain.Pageable.unpaged())
+                        paciente, usuario, Pageable.unpaged())
                 .stream()
                 .map(pendenciaMapper::toResponseDTO)
                 .toList();
 
         // abrir ficha e acesso a prontuario: registrar e exigencia, nao enfeite
-        auditoriaService.registrar(usuario, AcaoAuditoria.VISUALIZACAO, "Paciente", paciente.getId());
+        auditoriaService.registrar(usuario, AcaoAuditoria.VISUALIZACAO, ENTIDADE_AUDITADA, paciente.getId());
 
         return new FichaDoPacienteDTO(
                 pacienteMapper.toResponseDTO(paciente), linhaDoTempo, pendencias);

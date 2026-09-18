@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -47,9 +48,17 @@ public class PainelService {
         LocalDateTime inicioDoDia = agora.toLocalDate().atStartOfDay();
         LocalDateTime fimDoDia = agora.toLocalDate().atTime(LocalTime.MAX);
 
-        List<SessaoDoDiaDTO> sessoes = consultaRepository
+        // A agenda de hoje e lida UMA vez e as duas visoes saem dela (a linha do
+        // dia e a fila de "realizada sem anotacao"). Ate a revisao da Fatia 2
+        // eram duas chamadas identicas ao mesmo metodo, com os mesmos tres
+        // argumentos — dois roundtrips por abertura de uma tela que o psicologo
+        // deixa aberta o dia inteiro, e duas fotos do banco que podiam divergir
+        // entre si.
+        List<Consulta> agendaDeHoje = consultaRepository
                 .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNullOrderByDtConsultaAsc(
-                        usuario, inicioDoDia, fimDoDia)
+                        usuario, inicioDoDia, fimDoDia);
+
+        List<SessaoDoDiaDTO> sessoes = agendaDeHoje
                 .stream()
                 // cancelada nao e compromisso: nao ocupa a linha do dia
                 .filter(c -> c.getStatus() != Status.CANCELADA)
@@ -79,20 +88,24 @@ public class PainelService {
 
         // "realizada sem anotacao" (spec 9, Fatia 2). So as de HOJE: a fila do
         // painel e do dia, e varrer o historico inteiro transformaria a tela
-        // numa lista de tudo que nunca foi escrito.
-        List<Consulta> realizadasHoje = consultaRepository
-                .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNullOrderByDtConsultaAsc(
-                        usuario, inicioDoDia, fimDoDia)
+        // numa lista de tudo que nunca foi escrito. Deriva da MESMA leitura da
+        // agenda usada acima.
+        List<Consulta> realizadasHoje = agendaDeHoje
                 .stream()
                 .filter(c -> c.getStatus() == Status.REALIZADA)
                 .toList();
 
-        // a guarda nao e paranoia: `IN ()` com lista vazia e SQL invalido no
-        // Postgres, e o dia 1 do psicologo cai exatamente neste caminho
-        List<UUID> jaAnotadas = realizadasHoje.isEmpty()
-                ? List.of()
-                : anotacaoRepository.idsDeConsultasComAnotacao(
-                        usuario, realizadasHoje.stream().map(Consulta::getId).toList());
+        // Set, e nao List: o filtro abaixo pergunta "esta neste conjunto?" uma
+        // vez por sessao realizada, e `List.contains` varre a lista toda a cada
+        // pergunta (O(n*m)). A pergunta e de pertencimento, entao a estrutura e
+        // de pertencimento.
+        //
+        // A guarda de lista vazia nao e paranoia: `IN ()` e SQL invalido no
+        // Postgres, e o dia 1 do psicologo cai exatamente neste caminho.
+        Set<UUID> jaAnotadas = realizadasHoje.isEmpty()
+                ? Set.of()
+                : Set.copyOf(anotacaoRepository.idsDeConsultasComAnotacao(
+                        usuario, realizadasHoje.stream().map(Consulta::getId).toList()));
 
         List<PendenciaDoPainelDTO> semAnotacao = realizadasHoje.stream()
                 .filter(c -> !jaAnotadas.contains(c.getId()))

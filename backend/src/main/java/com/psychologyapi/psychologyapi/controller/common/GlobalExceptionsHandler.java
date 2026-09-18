@@ -18,11 +18,13 @@ import com.psychologyapi.psychologyapi.controller.dto.error.ErroRespostaDTO;
 import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
+import com.psychologyapi.psychologyapi.exceptions.EmailExigidoPeloCanalException;
 import com.psychologyapi.psychologyapi.exceptions.PendenciaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
+import com.psychologyapi.psychologyapi.exceptions.SessaoComAnotacaoException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoDeOutroPacienteException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoInvalidaException;
 import com.psychologyapi.psychologyapi.exceptions.TransicaoDeStatusInvalidaException;
@@ -129,6 +131,41 @@ public class GlobalExceptionsHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErroRespostaDTO sessaoDeOutroPaciente(SessaoDeOutroPacienteException e) {
         return semCampos(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    /**
+     * A sessao existe e e do psicologo logado, mas tem anotacao viva presa a
+     * ela (decisao do dono, revisao da Fatia 2). Mesmo 409 dos demais conflitos
+     * com o estado atual do recurso: nao e 400 (o id enviado e valido) nem 404
+     * (a sessao existe para este usuario). A mensagem carrega a saida — apagar
+     * a anotacao primeiro — porque recusar sem dizer o que fazer deixaria o
+     * psicologo preso.
+     */
+    @ExceptionHandler(SessaoComAnotacaoException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErroRespostaDTO sessaoComAnotacao(SessaoComAnotacaoException e) {
+        return semCampos(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    /**
+     * Spec 5.4: canal EMAIL exige e-mail. No CADASTRO a regra e de bean
+     * ({@code @EmailExigidoPeloCanal}), porque o payload e o estado inteiro. Na
+     * ATUALIZACAO ela nao pode ser de bean: o PUT e parcial, e um validador que
+     * so ve o corpo recusava {@code {"canalAviso":"EMAIL"}} sozinho mesmo com o
+     * e-mail ja salvo — 400 falso. A regra mudou para o service, sobre o estado
+     * EFETIVO (payload sobre entidade), e chega aqui como excecao.
+     *
+     * Sai no MESMO formato de 400 que a validacao de bean produzia — campo
+     * "email" em {@code erros[]}, mesma mensagem — para o cliente nao ter de
+     * distinguir de onde veio a recusa.
+     */
+    @ExceptionHandler(EmailExigidoPeloCanalException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErroRespostaDTO handleEmailExigidoPeloCanal(EmailExigidoPeloCanalException e) {
+        return new ErroRespostaDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "Erro de validação",
+                List.of(new ErroCampoDTO("email", e.getMessage())));
     }
 
     @ExceptionHandler(PeriodoInvalidoException.class)

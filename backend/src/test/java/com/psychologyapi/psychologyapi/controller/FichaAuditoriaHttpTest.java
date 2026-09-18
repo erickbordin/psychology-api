@@ -22,6 +22,7 @@ import com.psychologyapi.psychologyapi.model.entity.LogAuditoria;
 import com.psychologyapi.psychologyapi.repository.LogAuditoriaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.repository.UsuarioRepository;
+import com.psychologyapi.psychologyapi.service.FichaService;
 import com.psychologyapi.psychologyapi.service.TokenService;
 import com.psychologyapi.psychologyapi.support.Fixtures;
 import com.psychologyapi.psychologyapi.support.PostgresContainerConfig;
@@ -92,13 +93,67 @@ class FichaAuditoriaHttpTest {
 
         var logs = logAuditoriaRepository
                 .findByUsuarioAndEntidadeAndEntidadeIdOrderByCreatedAtDesc(
-                        dono, "Paciente", paciente.getId(), PageRequest.of(0, 10))
+                        dono, FichaService.ENTIDADE_AUDITADA, paciente.getId(), PageRequest.of(0, 10))
                 .getContent();
 
         assertThat(logs)
                 .as("a ficha foi aberta e nenhuma linha de trilha chegou ao banco — "
                         + "confira se FichaService.doPaciente voltou a ser readOnly")
                 .isNotEmpty();
-        assertThat(logs).extracting(LogAuditoria::getEntidade).contains("Paciente");
+        assertThat(logs).extracting(LogAuditoria::getEntidade).contains(FichaService.ENTIDADE_AUDITADA);
+    }
+
+    /**
+     * F6 da revisao da Fatia 2: a linha de trilha da ficha era identica a da
+     * leitura do cabecalho numa lista — as duas gravavam
+     * {@code (VISUALIZACAO, "Paciente", id)}.
+     *
+     * Numa trilha de acesso a prontuario isso apaga a distincao que mais
+     * importa: "abriu o prontuario inteiro" e "leu o nome numa listagem" nao
+     * podem ser a mesma linha. Quem audita um vazamento precisa separar os
+     * dois, e ninguem consegue separar depois do fato.
+     */
+    @Test
+    @DisplayName("a linha da ficha e distinguivel da leitura do cabecalho do paciente")
+    void trilhaDaFichaNaoSeConfundeComLeituraDoPaciente() throws Exception {
+        mockMvc.perform(get("/pacientes/" + paciente.getId() + "/ficha")
+                        .header(HttpHeaders.AUTHORIZATION, token))
+               .andExpect(status().isOk());
+
+        var comoPaciente = logAuditoriaRepository
+                .findByUsuarioAndEntidadeAndEntidadeIdOrderByCreatedAtDesc(
+                        dono, "Paciente", paciente.getId(), PageRequest.of(0, 10))
+                .getContent();
+
+        // a assercao e sobre o TAMANHO, e nao sobre a lista: renderizar um
+        // LogAuditoria fora da sessao do Hibernate toca o proxy LAZY de
+        // `usuario` e a falha chegaria como LazyInitializationException, que
+        // esconde o que o teste realmente provou
+        assertThat(comoPaciente.size())
+                .as("abrir a ficha gravou uma linha indistinguivel da leitura do "
+                        + "cabecalho do paciente — a trilha perde a diferenca entre "
+                        + "abrir o prontuario e ler a lista")
+                .isZero();
+
+        assertThat(FichaService.ENTIDADE_AUDITADA).isNotEqualTo("Paciente");
+    }
+
+    /**
+     * A contraprova: o rotulo novo nao pode ter roubado a trilha de quem ja
+     * usava o rotulo "Paciente". Ler o cabecalho continua gravando "Paciente".
+     */
+    @Test
+    @DisplayName("ler o cabecalho do paciente continua gravando a trilha como 'Paciente'")
+    void leituraDoPacienteContinuaComORotuloAntigo() throws Exception {
+        mockMvc.perform(get("/pacientes/" + paciente.getId())
+                        .header(HttpHeaders.AUTHORIZATION, token))
+               .andExpect(status().isOk());
+
+        var logs = logAuditoriaRepository
+                .findByUsuarioAndEntidadeAndEntidadeIdOrderByCreatedAtDesc(
+                        dono, "Paciente", paciente.getId(), PageRequest.of(0, 10))
+                .getContent();
+
+        assertThat(logs).isNotEmpty();
     }
 }

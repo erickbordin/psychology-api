@@ -45,6 +45,7 @@ import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
+import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
@@ -59,6 +60,10 @@ class ConsultaServiceTest {
     private ConsultaRepository consultaRepository;
     @Mock
     private PacienteRepository pacienteRepository;
+    /** Guarda de deletarConsulta: sem stub, o mock responde `false` — o caminho
+     *  "sessao sem anotacao", que e o destes testes. */
+    @Mock
+    private AnotacaoRepository anotacaoRepository;
     @Mock
     private SecurityService securityService;
     @Mock

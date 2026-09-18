@@ -22,6 +22,7 @@ import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
+import com.psychologyapi.psychologyapi.exceptions.SessaoComAnotacaoException;
 import com.psychologyapi.psychologyapi.exceptions.TransicaoDeStatusInvalidaException;
 import com.psychologyapi.psychologyapi.mapper.ConsultaMapper;
 import com.psychologyapi.psychologyapi.model.Consulta;
@@ -29,6 +30,7 @@ import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
+import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
@@ -48,6 +50,9 @@ public class ConsultaService {
     private final ConsultaMapper consultaMapper;
     private final ConsultaRepository consultaRepository;
     private final PacienteRepository pacienteRepository;
+    /** So para a guarda de deletarConsulta: sessao com anotacao viva nao e
+     *  excluida (decisao do dono, revisao da Fatia 2). */
+    private final AnotacaoRepository anotacaoRepository;
     private final SecurityService securityService;
     private final AuditoriaService auditoriaService;
 
@@ -239,11 +244,35 @@ public class ConsultaService {
         return consultaMapper.toResponseDTO(salva);
     }
 
+    /**
+     * DELETE /consultas/{id} — exclusao logica da sessao.
+     *
+     * RECUSA com 409 quando a sessao tem anotacao viva presa a ela (decisao do
+     * dono, revisao da Fatia 2). O soft delete da consulta nunca apagou a
+     * anotacao: ela sobrevivia apontando para uma consulta excluida e sumia da
+     * ficha, porque {@code FichaService} so lista consulta nao apagada. O
+     * resultado era conteudo clinico invisivel no prontuario, sem aviso nenhum
+     * — e prontuario tem prazo legal de guarda (spec 7.3).
+     *
+     * A guarda vem ANTES do {@code setDeletedAt}: nada e mutado num caminho que
+     * vai ser recusado. Sessao sem anotacao segue exatamente como antes, com
+     * 204.
+     *
+     * Nao vale para {@code cancelarSerie}, que tambem soft-deleta: aquele fluxo
+     * so alcanca ocorrencias FUTURAS, e sessao que ainda nao aconteceu nao tem
+     * anotacao de sessao para perder.
+     */
     @Transactional
     public void deletarConsulta(UUID id) {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
+
+        if (anotacaoRepository.existsByConsultaAndDeletedAtIsNull(consulta)) {
+            throw new SessaoComAnotacaoException(
+                    "Esta sessão tem anotação registrada. Exclua a anotação antes de excluir a sessão.");
+        }
+
         consulta.setDeletedAt(LocalDateTime.now());
         consultaRepository.save(consulta);
         auditoriaService.registrar(usuarioLogado, AcaoAuditoria.EXCLUSAO, "Consulta", consulta.getId());
