@@ -1,53 +1,243 @@
 # psychology-web — frontend
 
 Frontend do consultório — a interface do psicólogo autônomo para a
-[API](../backend/README.md), no mesmo repositório: painel do dia, agenda,
-cadastro de pacientes, anotação de sessão, série semanal e trilha de auditoria.
+[API](../backend/README.md), no mesmo repositório: painel do dia, agenda da
+semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão.
 
-> **Status:** as telas estão de pé e rodam ponta a ponta contra a API real, e o
-> e2e de fumaça passa contra ela. A configuração de host está pronta; falta
-> criar o projeto na plataforma.
+> **Status:** as telas estão de pé e rodam ponta a ponta contra a API real, e os
+> dois fluxos de e2e passam contra ela. A configuração de host está pronta;
+> falta criar o projeto na plataforma.
+
+> **Este arquivo descreve o código como ele está**, e não o plano que o gerou.
+> Onde o [design](../docs/superpowers/specs/2026-08-26-frontend-design.md)
+> divergir do que está escrito aqui, quem tem razão é o código — as divergências
+> conhecidas estão listadas em [O que a spec pede e ainda não
+> existe](#o-que-a-spec-pede-e-ainda-não-existe).
 
 ## Telas
 
 | Rota | O que faz |
 |---|---|
-| `/login` | entrar e criar conta |
-| `/` | painel: consultas de hoje, pacientes cadastrados e os dois atalhos |
-| `/agenda?de&ate` | agenda do intervalo; sem parâmetros, hoje. Agendar, remarcar, mudar status, excluir |
-| `/agenda` → *Série semanal* | série com preview das datas antes de criar, e cancelamento da série inteira |
-| `/pacientes?nome` | lista com busca, cadastro, edição e exclusão |
-| `/pacientes/:id` | ficha do paciente: consultas, última anotação, lembretes pendentes e histórico |
-| `/pacientes/:id/anotacoes` | registrar e ler as sessões |
-| `/pacientes/:id/lembretes` | pendências do paciente, com conclusão otimista |
-| `/pacientes/:id/consultas` | histórico de consultas, só leitura |
-| `/auditoria?entidade&entidadeId&page` | tudo que foi criado, alterado e excluído |
+| `/entrar` | entrar. **Não há tela de criar conta** — a conta nasce por `POST /auth/registrar`, que nenhuma tela chama ainda |
+| `/` | Hoje: próxima sessão em destaque, as sessões do dia com um clique para marcar *Realizada*/*Faltou*, as pendências do dia e o modo privacidade |
+| `/agenda` | grade da semana, 07h–19h, de segunda a domingo. Clicar numa célula abre o diálogo de nova consulta, com checagem prévia de conflito |
+| `/pacientes` | lista com busca por nome e o diálogo de cadastro |
+| `/pacientes/:pacienteId` | ficha de **página única**: cabeçalho com nome/idade/contato/valor, botão *Editar*, linha do tempo das sessões com a anotação dentro da linha de cada uma, e as pendências ao lado |
+| `/financeiro`, `/ajustes` | destinos da navegação que ainda não têm tela — respondem uma frase dizendo isso |
 
-Filtro e paginação vivem na URL, nunca em `useState`: recarregar preserva, o link
-é compartilhável e cada parâmetro casa um a um com o da API.
+**A ficha é uma página só, de propósito.** Ela substituiu as quatro abas
+(`/pacientes/:id/anotacoes`, `/lembretes`, `/consultas`) do desenho anterior:
+correlacionar "qual anotação é de qual sessão" no cliente era o defeito que a
+fusão existe para matar. Uma chamada — `GET /pacientes/{id}/ficha` — devolve a
+tela inteira já correlacionada.
+
+**Filtro e página vivem em `useState`, não na URL.** O desenho original pedia
+`useSearchParams`, e isso ainda é o alvo; hoje nenhuma tela usa. O preço está
+pago e é conhecido: recarregar perde a busca, e o link da busca não é
+compartilhável. Vale menos que parece porque recarregar hoje também desloga
+(ver [Sessão](#sessão)).
+
+## Estrutura
+
+```
+src/
+├── api/
+│   ├── cliente.ts       `api<T>(caminho, opcoes)` — o único lugar com `fetch`.
+│   │                    Guarda o access token em memória do módulo, manda
+│   │                    `Authorization` e `credentials: 'include'`, e
+│   │                    transforma o envelope de erro em `ErroDaApi`.
+│   ├── erro.ts          `ErroDaApi` + `erroDoCampo(erro, campo)`
+│   ├── data.ts          `paraApi(Date)` / `deApi(string)` — hora local, sem `Z`
+│   └── contrato.ts      GERADO do OpenAPI. Não edite à mão (ver abaixo)
+├── telas/
+│   ├── login/           LoginPage · esquema.ts
+│   ├── hoje/            HojePage · queries.ts
+│   ├── agenda/          AgendaPage · DialogoDeConsulta · esquema.ts · queries.ts
+│   ├── pacientes/       PacientesPage · DialogoDePaciente · esquema.ts · queries.ts
+│   └── ficha/           FichaPage · LinhaDoTempo · RegistroDaSessao · queries.ts
+├── formulario/          useFormularioDoProduto · ResumoDeErros
+├── navegacao/           guardaDeSaida.ts — a guarda de rascunho não enviado
+├── sessao/              SessaoProvider · useSessao · RotaProtegida
+├── ui/                  Layout · Navegacao · Botao · Campo · Chip · Cartao · EstadoVazio
+├── estilo/              tokens.css · base.css · estilo.css · dialogo.css
+└── teste/               setup · servidor MSW · renderizar()
+```
+
+Não existe `src/features/` nem `src/api/recursos/` — o diretório das telas
+chama-se `telas/`, e cada tela leva o próprio `queries.ts` ao lado.
+
+### Os tipos da API são gerados, não escritos
+
+`src/api/contrato.ts` sai do `contrato-openapi.json` (a cópia do
+`/v3/api-docs` da API) por `openapi-typescript`:
+
+```bash
+npm run tipos
+```
+
+Os `queries.ts` **não** exportam o tipo gerado direto: cada um escreve um
+container à mão e tira só o tipo de cada campo do contrato
+(`NonNullable<PacienteDTO['nome']>`). O springdoc só sabe dizer "opcional",
+nunca "nulável de verdade", e `Required<>` é raso — o container à mão é o que
+distingue "o backend pode mandar null aqui" de "o gerador não soube dizer". A
+amarra continua valendo: renomear um campo no backend quebra o build aqui.
+
+### O caminho de um clique
+
+Seguindo o botão "Registrar" da caixa de anotação:
+
+```
+RegistroDaSessao.tsx                    telas/ficha/
+  │  componente. Estado de tela e chamada de hook — não monta
+  │  URL, não conhece `fetch`, não trata `Response`.
+  ▼
+useRegistrarAnotacao(pacienteId)        telas/ficha/queries.ts
+  │  a mutation, e as invalidações declaradas AQUI:
+  │  onSuccess → invalida ['ficha', pacienteId] e ['painel','hoje'].
+  │  A segunda porque registrar a anotação resolve a pendência
+  │  SEM_ANOTACAO que a tela Hoje está mostrando.
+  ▼
+api<T>('/pacientes/{id}/anotacoes', {method:'POST', ...})   api/cliente.ts
+     Authorization com o token em memória, `credentials: 'include'`,
+     e o envelope `{status, mensagem, erros[]}` virando `ErroDaApi`.
+```
+
+**Invalidação mora no `queries.ts`.** Toda escrita derruba as chaves que
+afeta, declaradas no `onSuccess` — e não se conta com o conserto que acontece
+sozinho no `refetchOnMount`, porque o que se conserta sozinho hoje deixa de se
+consertar no dia em que alguém mexer no `staleTime`. As chaves são
+`['pacientes']`, `['ficha', pacienteId]`, `['painel','hoje']`, `['consultas',
+…]` e `['conflito', …]`.
+
+**Uma exceção conhecida:** `telas/agenda/DialogoDeConsulta.tsx` chama
+`api('/consultas', …)` e `invalidateQueries` direto no componente, em vez de
+passar por um hook do `queries.ts` como as outras três escritas. É o único
+lugar onde a fronteira está furada.
+
+**Não há tela de auditoria.** A API grava a trilha em toda mutação, mas nenhuma
+tela a lê — por isso `['auditoria']` não aparece em invalidação nenhuma.
+
+## Formulários
+
+Todos passam por `useFormularioDoProduto` — react-hook-form com `zodResolver`,
+mais três regras fixas:
+
+```
+mode: 'onTouched'            valida no blur, só depois do primeiro toque
+reValidateMode: 'onChange'   depois que errou, revalida a cada tecla
+shouldFocusError: true       submit inválido põe foco no primeiro campo inválido
+```
+
+O design original **rejeitava** validar no cliente, para não ter duas fontes de
+verdade. O que existe hoje é a versão conciliada: o zod recusa o que dá para
+recusar sem ir ao servidor, e **o texto do servidor vence o do zod** quando os
+dois falam do mesmo campo — o servidor conhece regras que o cliente não tem como
+checar (conflito de horário, canal de aviso sem e-mail). É `enviar()` que faz
+isso, transformando cada `erros[].campo` do envelope num erro daquele campo.
+
+Três convenções que valem em toda tela:
+
+- **Obrigatoriedade é visível antes do erro.** `ui/Campo.tsx` escreve `*` no
+  campo obrigatório e `(opcional)` no resto; o `<textarea>` da anotação, que é
+  escrito à mão porque `Campo` desenha `<input>`, repete a mesma marca.
+- **Mensagem de erro é frase inteira e acentuada** ("Informe o conteúdo da
+  anotação."), a mesma do servidor quando há uma.
+- **Envio é estado, não evento.** O botão trava enquanto a chamada está em voo.
+
+## Sessão
+
+O access token vive **apenas em memória do módulo** (`api/cliente.ts`) — nunca
+em `localStorage`. Num produto com prontuário, token em `localStorage`
+transforma qualquer XSS em vazamento de prontuário.
+
+**Não existe renovação de token neste código.** Não há `POST /auth/refresh` no
+boot, não há retry de `401`, não há promise de refresh compartilhada — o
+`api/cliente.ts` simplesmente propaga o erro. A consequência é direta e
+assumida: **recarregar a aba desloga**. O cookie `refresh_token` existe do lado
+da API, mas nada aqui o usa ainda. É a maior dívida conhecida deste frontend.
+
+O nome de quem está logado sai do claim `sub` do próprio JWT — a API não tem
+rota que devolva o usuário logado. Ler um claim de um token que já é nosso é
+legítimo; o que seria errado é *confiar* nele para autorizar.
+
+`Sair` chama `POST /auth/logout` e derruba a sessão local **mesmo se a chamada
+falhar**. Ficar preso logado por causa de um erro de rede, num consultório com
+terceiro na sala, é pior do que o servidor não saber que a sessão acabou.
+
+## Rascunho de anotação
+
+O texto da anotação vive **só em memória** — nem `sessionStorage` nem
+`localStorage`. Essa decisão só é honesta com a guarda junto, senão "em
+memória" vira "perde em silêncio": `src/navegacao/guardaDeSaida.ts` registra um
+`beforeunload` enquanto houver rascunho sujo, e os links internos perguntam
+antes de navegar.
+
+Não é `useBlocker` do React Router: ele exige um data router
+(`createBrowserRouter`), e este app monta `<BrowserRouter>` + `<Routes>`. Trocar
+a raiz do roteamento por causa de uma caixa de texto era caro demais.
 
 ## Sistema visual
 
-Papel branco sobre fundo azulado frio, uma família só (Inter), cartão de canto
-16px com filete de 1px, e a barra de ícones fixa à esquerda com os quatro
-destinos. Os tokens ficam em `src/estilo/tokens.css` e são a única fonte de cor
-do produto — nenhum componente escreve hex.
+Os tokens ficam em `src/estilo/tokens.css` e são a única fonte de cor do
+produto — nenhum componente escreve hex. A linguagem é a do Google Calendar, e a
+regra que a sustenta é **ação é forma, não cor**: pilula = ação (botão, item
+ativo da navegação), bloco chapado com barra à esquerda = evento. É o que
+permite botão e consulta serem os dois azuis sem confundir.
 
-O **azul é reservado para ação**: botão primário, item ativo da barra, link,
-ícone de seção. Nada mais no produto usa azul, e é isso que faz o olho achar o
-que se pode clicar sem procurar. Amarelo aparece uma vez só, no cartão de
-lembretes da ficha — se tudo fosse destaque, nada seria.
+`src/estilo/estilo.css` é em boa parte cópia verbatim de
+`../prototipo/estilo.css`; onde o DOM real difere do protótipo (que era HTML
+solto com ids fixos, e aqui são componentes React guiados pelos testes), a regra
+foi reescrita para o mesmo resultado visual, e isso está marcado nos
+comentários.
 
-Dois campos do desenho de referência **não** existem aqui, porque não existem na
+`Chip` (`src/ui/Chip.tsx`) é o rótulo de estado, e a variante é que dá a cor
+semântica: `realizada` verde, `faltou` e `alerta` âmbar, neutro cinza. Um status
+tem **uma** cor no produto inteiro — desenhar `<span className="chip">` cru na
+mão é o que fazia REALIZADA sair verde na tela Hoje e cinza na ficha.
+
+Duas coisas do desenho de referência **não** existem aqui porque não existem na
 API: "Esqueci minha senha" (não há endpoint de recuperação) e "Observações" no
-cadastro de paciente (o `PacienteDTO` tem nome, telefone, e-mail e data de
-nascimento). Desenhar o controle sem o que responde por ele seria prometer o que
-o produto não faz.
+cadastro de paciente.
 
-A saudação do painel vem do `sub` do access token, derivando um primeiro nome do
-trecho antes do arroba (`src/features/auth/perfil.ts`). É derivação, não verdade:
-a API não devolve o nome do profissional em lugar nenhum. Quando devolver — um
-`/auth/me`, por exemplo — esse arquivo sai.
+Divergência conhecida: `index.html` ainda carrega Inter do Google Fonts, mas
+`tokens.css` importa e usa **Roboto** (`--fonte`). O `<link>` do Inter é peso
+morto.
+
+## Endpoints que este cliente usa
+
+| Verbo | Caminho | Quem chama |
+|---|---|---|
+| `POST` | `/auth/login` | `sessao/SessaoProvider.tsx` |
+| `POST` | `/auth/logout` | `sessao/SessaoProvider.tsx` |
+| `GET` | `/painel/hoje` | `telas/hoje/queries.ts` |
+| `PATCH` | `/consultas/{id}/status` | `telas/hoje/queries.ts` |
+| `GET` | `/consultas?de&ate` | `telas/agenda/queries.ts` |
+| `GET` | `/consultas/conflito?dtConsulta&excluirConsultaId` | `telas/agenda/queries.ts` |
+| `POST` | `/consultas` | `telas/agenda/DialogoDeConsulta.tsx` |
+| `GET` | `/pacientes?nome` | `telas/pacientes/queries.ts` |
+| `POST` / `PUT` | `/pacientes`, `/pacientes/{id}` | `telas/pacientes/queries.ts` |
+| `GET` | `/pacientes/{id}/ficha` | `telas/ficha/queries.ts` |
+| `POST` | `/pacientes/{id}/anotacoes` | `telas/ficha/queries.ts` |
+
+Série recorrente, lembretes, exclusão de paciente e a trilha de auditoria
+existem na API e **não** têm cliente aqui.
+
+### Campo em branco no `PUT /pacientes/{id}`
+
+A regra é do servidor e o cliente a respeita literalmente: **campo enviado em
+branco (`""`) LIMPA; campo ausente do payload fica intocado.** Vale para `email`
+e `telefone`.
+
+Por isso o mapeamento de campo vazio é **diferente** nos dois métodos
+(`telas/pacientes/queries.ts`):
+
+- `POST` — vazio vira `null`. Não há o que limpar num cadastro novo.
+- `PUT` — `email` e `telefone` vão como estão, inclusive `""`. O diálogo sempre
+  abre com o valor atual preenchido, então o que sobrou na caixa é a intenção de
+  quem editou; mandar `null` ali faria o "Salvar" não fazer nada visível.
+
+Limpar o e-mail com `canalAviso = EMAIL` é recusado pelo servidor com `400` e
+mensagem acionável, que chega ao campo pelo envelope de sempre.
 
 ## Subindo o conjunto
 
@@ -97,9 +287,16 @@ npm install
 npm run dev
 ```
 
-Abre em <http://localhost:5173>. Crie uma conta pela própria tela — o primeiro
-acesso é `Criar conta`, não existe usuário semeado, e cada conta enxerga só os
-próprios pacientes.
+Abre em <http://localhost:5173>. A primeira conta precisa ser criada **pela
+API**, porque não há tela de cadastro:
+
+```bash
+curl -X POST http://localhost:8080/auth/registrar \
+  -H 'Content-Type: application/json' \
+  -d '{"nome":"Fulana","email":"fulana@exemplo.local","senha":"senhaforte123"}'
+```
+
+Cada conta enxerga só os próprios pacientes.
 
 **Requisitos:** Node 20 ou mais novo. Com Node antigo o `npm install` quebra com
 `Cannot find module 'node:path'` — é o Vite 8 pedindo runtime moderno. Confira com
@@ -119,7 +316,7 @@ faltou. Vale reconhecer os três:
 | O que você vê | O que faltou |
 |---|---|
 | Tela de login com "não foi possível conectar ao servidor" | a API não está no ar. O front distingue isso de credencial inválida de propósito |
-| Login aceita, mas toda tela fica vazia e o console mostra `401` | a API subiu, mas com outro `JWT_SECRET` do que o token que o navegador tinha. Recarregue |
+| Login aceita, mas toda tela fica vazia e o console mostra `401` | a API subiu, mas com outro `JWT_SECRET` do que o token que o navegador tinha. Entre de novo |
 | A API não sobe, `database "psychology-api" does not exist` | faltou o `createdb`. Veja o passo 1 |
 
 ## Variáveis de ambiente
@@ -138,7 +335,8 @@ faltou. Vale reconhecer os três:
 | `APP_REFRESH_COOKIE_SEGURO` | `true` | `Secure` no cookie de refresh |
 | `APP_REFRESH_COOKIE_SAMESITE` | `None` | `SameSite` do cookie de refresh |
 
-As três primeiras o `debug.sh` já define para o ambiente local.
+As três primeiras o `debug.sh` já define para o ambiente local. As três últimas
+só passam a importar quando o frontend usar o refresh — hoje ele não usa.
 
 **Do web:**
 
@@ -150,43 +348,25 @@ As três primeiras o `debug.sh` já define para o ambiente local.
 ## Por que o proxy espelha os caminhos
 
 Em desenvolvimento o Vite proxia `/auth`, `/pacientes`, `/consultas`,
-`/anotacoes`, `/lembretes` e `/auditoria` para `http://localhost:8080`. Isso
-torna tudo same-origin e tira CORS e `SameSite` do caminho.
+`/anotacoes`, `/pendencias`, `/painel` e `/auditoria` para
+`http://localhost:8080`. Isso torna tudo same-origin e tira CORS e `SameSite` do
+caminho.
 
 O proxy **espelha os caminhos**, sem prefixo `/api`: o cookie de refresh é
 marcado `Path=/auth`, e sob um prefixo o navegador veria `/api/auth/refresh` e
 simplesmente não o enviaria. A renovação quebraria só em desenvolvimento — o pior
 lugar para descobrir isso.
 
-O preço do espelho é que `/pacientes` e `/auditoria` são caminho de API **e**
-rota de tela. Recarregar a página em `/pacientes` entregava o JSON da API no
-lugar do app. Daí o `bypass` no `vite.config.ts`: navegação de documento pede
-`text/html` e volta para o `index.html`; chamada do cliente pede JSON e segue
-para a API.
-
-## Sessão
-
-O access token vive **apenas em memória**. Quem sustenta o recarregamento é o
-cookie `refresh_token`, que o JavaScript não alcança:
-
-```
-refresh_token  Path=/auth  HttpOnly  Secure  SameSite=None
-```
-
-No boot, antes de renderizar rota nenhuma, um `POST /auth/refresh` restaura a
-sessão. É assim que o F5 não desloga sem que exista token persistido em lugar
-nenhum.
-
-Chamadas que tomam `401` compartilham **uma** promise de renovação. A API
-rotaciona o refresh a cada uso e revoga a cadeia inteira ao ver um refresh
-reapresentado — renovações concorrentes seriam lidas como token roubado e
-derrubariam a sessão de um usuário legítimo.
+O preço do espelho é que `/pacientes` é caminho de API **e** rota de tela.
+Recarregar a página em `/pacientes` entregava o JSON da API no lugar do app. Daí
+o `bypass` no `vite.config.ts`: navegação de documento pede `text/html` e volta
+para o `index.html`; chamada do cliente pede JSON e segue para a API.
 
 ## Testes
 
 ```bash
-npm test          # 74 testes de unidade e de componente, com MSW
-npm run e2e       # 2 testes de fumaça — exigem a API no ar
+npm test          # 86 testes de unidade e de componente, com MSW
+npm run e2e       # 2 fluxos contra a API real — exigem a API no ar
 ```
 
 Na primeira vez, o Playwright precisa do navegador:
@@ -195,16 +375,41 @@ Na primeira vez, o Playwright precisa do navegador:
 npx playwright install chromium
 ```
 
-Os handlers do MSW respondem o contrato **real** da API — envelope de erro,
-`PagedModel`, `401`. O E2E percorre `registrar → entrar → cadastrar paciente →
-anotar → lembrar → agendar → série → trilha` contra a API de verdade, e é o único
-teste capaz de pegar contrato desalinhado entre as duas aplicações.
+Duas convenções valem em toda a suíte, e não são estilo:
 
-Ele já provou o valor duas vezes: pegou a tela morta em que o login caía depois
+- **Navegação e asserção por rótulo escrito, nunca por `className`.**
+  `getByRole('button', { name: 'Editar' })`, `getByRole('list', { name:
+  'Sessoes' })`. Um seletor de classe quebra numa renomeação puramente visual e
+  passa numa tela que perdeu o texto.
+- **Os handlers do MSW respondem o contrato real** — o mesmo corpo de sucesso, o
+  mesmo envelope `{status, mensagem, erros[]}` de erro e os mesmos códigos HTTP
+  que a API devolve — para o teste exercitar o `api/cliente.ts` de verdade, e
+  não um mock de módulo.
+
+`e2e/` fica fora do glob do Vitest (`vite.config.ts`), porque o `test()` do
+Playwright explode dentro do Vitest.
+
+### Os dois fluxos de e2e
+
+| Arquivo | O que percorre |
+|---|---|
+| `e2e/fluxo-de-fumaca.spec.ts` | registrar (pela API) → entrar → ver o dia → agendar → marcar presença |
+| `e2e/fluxo-da-sessao.spec.ts` | cadastrar paciente → agendar **duas** sessões no mesmo dia → marcar só a primeira como realizada → anotar → conferir que a anotação voltou na linha da sessão A **e não** na da sessão B |
+
+A segunda metade dessa última linha é o ponto. Enquanto o fluxo criava uma
+sessão só, "a anotação está na linha certa" era verdade por construção: com uma
+linha na ficha, qualquer vínculo que o backend fizesse passava. A asserção
+negativa sobre a sessão B é a que dá valor à positiva.
+
+O e2e já provou o valor duas vezes: pegou a tela morta em que o login caía depois
 de autenticar, e pegou que este projeto lia `erros[].mensagem` onde a API manda
 `erros[].erro` — com todos os mocks errados junto, então a suíte inteira ficava
 verde enquanto, contra a API real, um `400` de validação não mostrava nada na
-tela. Por isso existe um teste de fumaça que provoca um `400` de verdade.
+tela.
+
+Os dois criam um **usuário novo por execução** (`*-${Date.now()}@teste.local`,
+senha `senhaforte123`): o banco não tem usuário semeado e o cadastro responde
+`409` em e-mail repetido. Nenhum dado de pessoa real entra num teste.
 
 ## Build
 
@@ -212,6 +417,10 @@ tela. Por isso existe um teste de fumaça que provoca um `400` de verdade.
 npm run build     # tsc -b && vite build, saída em dist/
 npm run preview   # serve o dist/ para conferir o build
 ```
+
+`npm test` **não** checa tipos — o Vitest tira os tipos com esbuild. Rode
+`npx tsc --noEmit` (ou `npm run build`) antes de considerar uma mudança pronta;
+já houve defeito de tipo que ficou verde na suíte e quebrou o build.
 
 Em produção não há proxy: origem própria, `VITE_API_URL` apontando para a API, e
 `APP_CORS_ORIGINS` no backend liberando essa origem.
@@ -242,27 +451,15 @@ A configuração já está no repositório:
    repositório. Build `npm run build`, saída `dist/`.
 2. Definir `VITE_API_URL` com a origem da API (ex.: `https://psychology-api.onrender.com`).
    É lida no **build**: mudou a variável, refaça o deploy.
-3. No backend, no painel do Render:
-   - `APP_CORS_ORIGINS` = a origem do frontend, exata e sem barra no fim. Nunca `*` —
-     o próprio spec de CORS proíbe combinar `*` com credenciais.
-   - `APP_REFRESH_COOKIE_SEGURO=true` e `APP_REFRESH_COOKIE_SAMESITE=None` —
-     API e frontend em domínios distintos exigem os dois; `None` sem `Secure` o
-     navegador descarta.
+3. No backend, no painel do Render, `APP_CORS_ORIGINS` = a origem do frontend,
+   exata e sem barra no fim. Nunca `*` — o próprio spec de CORS proíbe combinar
+   `*` com credenciais.
 4. Conferir na origem publicada, nesta ordem: entrar → **F5 em `/pacientes`**
-   (prova a regra do host e o cookie de refresh) → cadastrar paciente → F5 em
-   `/agenda`.
+   (prova a regra de rewrite do host) → cadastrar paciente → F5 em `/agenda`.
 
-### O que já foi verificado localmente
-
-O bundle de produção rodou contra a API em **outra origem**, servido por um host
-estático com a regra de rewrite, e passou nos quatro passos do item 4 — sem erro
-de console e sem requisição falha.
-
-O que esse ensaio **não** cobre: o cookie de refresh entre domínios de verdade.
-Em `localhost:4173` → `localhost:8090` as portas mudam mas o site é o mesmo, e o
-cookie viaja sem precisar de `SameSite=None`. Em produção, com domínios
-distintos, é o passo 3 que decide — e o sintoma de erro é específico: login
-funciona, F5 desloga.
+No passo 4, o F5 leva de volta ao login: é a dívida do refresh, não falha do
+host. O que a recarga prova aqui é só que o host devolveu o `index.html` em vez
+de um 404.
 
 ## Quando não sobe
 
@@ -270,77 +467,33 @@ funciona, F5 desloga.
 |---|---|
 | `npm install` falha com `Cannot find module 'node:path'` | Node antigo no PATH. Este projeto pede Node 20 ou mais novo (Vite 8) |
 | A API não sobe, `PlaceholderResolutionException` | falta `JWT_SECRET` no ambiente |
-| A API não sobe, porta em uso | outra aplicação na 8080. Suba com `PORT=8081` e ajuste o alvo do proxy em `vite.config.ts` |
+| A API não sobe, porta em uso | outra aplicação na 8080. Suba com `PORT=8081` e rode o front com `API_URL=http://localhost:8081 npm run dev` |
 | A tela de login diz "Nao foi possivel conectar ao servidor" | a API não está no ar. O front distingue isso de credencial inválida de propósito |
 | `npm run e2e` falha logo no `/auth/registrar` | mesma coisa: o E2E **não** sobe a API, só o Vite |
-| Login funciona mas o F5 desloga | o cookie de refresh não está voltando. Em desenvolvimento, confira se o proxy espelha `/auth` sem prefixo; em produção, `APP_REFRESH_COOKIE_SEGURO=true` e `APP_REFRESH_COOKIE_SAMESITE=None` |
+| Recarregar a página desloga | esperado hoje — não há renovação de token. Ver [Sessão](#sessão) |
 | Em produção, recarregar em `/pacientes` dá 404 do host | falta a regra `/*` → `/index.html`. Veja [Hospedagem](#hospedagem) |
 | Em produção, toda chamada falha com erro de CORS | `APP_CORS_ORIGINS` não tem a origem exata do frontend (sem barra no fim) |
 
-## O caminho de um clique
+## O que a spec pede e ainda não existe
 
-Três camadas com fronteira dura, e nenhuma pula a seguinte. Seguindo o botão
-"Registrar anotação":
+Lista curta e honesta do que o
+[design](../docs/superpowers/specs/2026-08-26-frontend-design.md) descreve e o
+código não faz:
 
-```
-AnotacoesTab.tsx                        features/ficha/
-  │  componente. Só estado de tela e chamada de hook —
-  │  não monta URL, não conhece `fetch`, não trata `Response`.
-  ▼
-useCriarAnotacao(pacienteId)            features/ficha/queries.ts
-  │  a mutation, e as invalidações declaradas AQUI:
-  │  onSuccess → invalida ['anotacoes', pacienteId] e ['auditoria'].
-  │  É o que faz a lista e a trilha se atualizarem sozinhas.
-  ▼
-criarAnotacao(pacienteId, texto)        api/recursos/anotacao.ts
-  │  só HTTP: monta o caminho, serializa o corpo, devolve tipo.
-  │  O corpo leva `anotacao`, a resposta traz `conteudo` — nomes
-  │  diferentes porque a API é assim, e é aqui que isso fica preso.
-  ▼
-pedir<T>(caminho, opcoes)               api/client.ts
-     Authorization com o token em memória, `credentials: 'include'`,
-     envelope de erro virando ErroApi, e o retry único de 401 que
-     compartilha uma só promise de refresh.
-```
-
-Duas regras que caem dessa fronteira:
-
-- **Componente não fala HTTP.** Se um `fetch` ou uma string de URL aparecer dentro
-  de `features/*/*.tsx`, a camada errada está fazendo o trabalho.
-- **Invalidação mora no `queries.ts`.** Toda escrita derruba as chaves que a
-  escrita afeta — inclusive `['auditoria']`, porque toda mutação vira log no
-  servidor e a trilha é justamente a tela em que estar desatualizada é pior.
-
-O erro também tem um caminho só: a API responde `{status, mensagem, erros[]}`, o
-`client.ts` transforma isso num `ErroApi`, e a tela pergunta
-`erro.mensagemDoCampo('dataNascimento')` para marcar o campo culpado. Nenhuma tela
-lê `response.status` na mão.
-
-## Estrutura
-
-```
-src/
-├── api/
-│   ├── client.ts        fetch com base, Authorization, envelope de erro, retry de 401
-│   ├── erro.ts          ErroApi
-│   ├── tipos.ts         espelho dos DTOs
-│   └── recursos/        auth · paciente · consulta · anotacao · lembrete · auditoria
-├── features/
-│   ├── auth/            LoginPage · SessaoProvider · useSessao · perfil.ts
-│   ├── inicio/          painel do dia
-│   ├── pacientes/       lista · busca · cadastro · edição · queries.ts
-│   ├── ficha/           visão geral · abas de anotações, lembretes e consultas · queries.ts
-│   ├── agenda/          agenda · consulta · série · queries.ts
-│   └── auditoria/       trilha · queries.ts
-├── ui/                  Layout · Botao · Campo · Selecao · Chip · Cartao · Avatar · Dialogo · Tabela · Paginacao · EstadoVazio · icones
-├── estilo/              tokens
-└── teste/               setup · servidor MSW · helpers de render
-```
-
-A fronteira entre `api/`, `features/*/queries.ts` e os componentes está descrita
-em [O caminho de um clique](#o-caminho-de-um-clique), acima.
+- **Renovação de token** — `POST /auth/refresh` no boot, retry único de `401` e
+  promise de refresh compartilhada. Nada disso existe; recarregar desloga.
+- **Filtro e paginação na URL** (`useSearchParams`). Hoje é `useState`.
+- **Telas de auditoria, lembretes, série recorrente e exclusão de paciente.** Os
+  endpoints existem na API; o cliente não.
+- **Tela de criar conta.** Só o `/entrar`.
+- **`DialogoDeConsulta` fala HTTP direto**, furando a fronteira de camadas que
+  vale nas outras três escritas.
 
 ## Documentação
 
-- `../docs/superpowers/specs/2026-08-26-frontend-design.md` — design, alternativas rejeitadas e as correções vindas da execução
-- `../docs/superpowers/plans/2026-08-26-esqueleto-vertical.md` — plano do esqueleto vertical e os defeitos que ele teve
+- `../ai/Claude.md` — contexto do backend e as convenções da API
+- `../docs/superpowers/specs/2026-08-26-frontend-design.md` — design do frontend, alternativas rejeitadas e as correções vindas da execução
+- `../docs/superpowers/specs/2026-09-01-redesenho-produto-design.md` — o redesenho que trouxe a tela Hoje e a ficha de página única
+- `../prototipo/` — o protótipo aprovado que `src/estilo/` reproduz
+</content>
+</invoke>

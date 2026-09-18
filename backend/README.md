@@ -244,16 +244,20 @@ Documentação interativa em `/swagger-ui.html`.
 | `POST` | `/auth/logout` | Revoga o refresh corrente e limpa o cookie |
 | `POST` `GET` | `/pacientes` | Cadastra / lista pacientes (`?nome` opcional filtra) |
 | `GET` `PUT` `DELETE` | `/pacientes/{id}` | Detalha / atualiza / remove (soft) |
+| `GET` | `/pacientes/{pacienteId}/ficha` | A ficha inteira numa chamada: cabeçalho, linha do tempo e pendências |
 | `GET` | `/pacientes/{pacienteId}/consultas` | Histórico de consultas do paciente (paginado) |
 | `POST` `GET` | `/consultas` | Agenda consulta / lista a agenda (`?de`+`?ate` opcionais; sem eles, hoje) |
 | `GET` `PUT` `DELETE` | `/consultas/{id}` | Detalha / atualiza / remove (soft) |
+| `PATCH` | `/consultas/{id}/status` | Marca realizada ou faltou, num clique |
+| `GET` | `/consultas/conflito` | Checa choque de horário antes do envio |
 | `POST` | `/consultas/recorrentes` | Agenda uma série semanal (2 a 52 sessões) |
 | `DELETE` | `/consultas/series/{serieId}` | Cancela as ocorrências futuras da série |
+| `GET` | `/painel/hoje` | O painel Hoje: as sessões do dia e a fila de pendências |
 | `POST` `GET` | `/pacientes/{pacienteId}/anotacoes` | Cria / lista anotações (paginado) |
 | `DELETE` | `/anotacoes/{anotacaoId}` | Remove anotação (soft) |
-| `POST` `GET` | `/pacientes/{pacienteId}/lembretes` | Cria / lista lembretes (paginado) |
-| `PATCH` | `/lembretes/{lembreteId}/concluir` | Conclui lembrete |
-| `DELETE` | `/lembretes/{lembreteId}` | Remove lembrete (soft) |
+| `POST` `GET` | `/pacientes/{pacienteId}/pendencias` | Cria / lista pendências (paginado) |
+| `PATCH` | `/pendencias/{pendenciaId}/concluir` | Conclui pendência |
+| `DELETE` | `/pendencias/{pendenciaId}` | Remove pendência (soft) |
 | `GET` | `/auditoria` | Trilha de auditoria do profissional (paginado; `?entidade`+`?entidadeId` opcionais) |
 
 Toda resposta de consulta carrega o `serieId` da sua série (`null` quando a consulta
@@ -264,6 +268,20 @@ ocorrência por vez, que é o problema que a série existe para resolver.
 Sub-recurso fica sob o paciente (a URL é a fonte da verdade do `pacienteId`);
 ação sobre o recurso individual fica em rota própria, porque só precisa do
 próprio id.
+
+**O `PUT /pacientes/{id}` é parcial, e distingue ausente de vazio.** Campo que
+não vem no corpo não é tocado — é o que impede um cliente que mande meia ficha
+de apagar a outra metade em silêncio. Campo de contato que vem **em branco**
+(`""`) limpa o valor salvo: vale para `email` e `telefone`, que são os dados que
+o paciente tem direito de pedir para remover. `valorSessao`, `dataNascimento` e
+`canalAviso` ficam de fora — nenhuma tela pede a limpeza deles, e `""` nem valor
+válido para eles seria. Limpar o e-mail de um paciente cujo canal de aviso é
+`EMAIL` é recusado com `400`, porque o canal deixaria de ter para onde avisar.
+
+A regra do canal é avaliada sobre o **estado efetivo** (o que o paciente terá
+depois do PUT), não sobre o corpo isolado: mandar só `{"canalAviso":"EMAIL"}`
+num paciente que já tem e-mail salvo passa, e antes da revisão da Fatia 2 não
+passava.
 
 Erros seguem semântica HTTP explícita, centralizados num `@RestControllerAdvice`:
 `401` credencial inválida, `404` não encontrado (inclui registro de outro
