@@ -9,7 +9,7 @@ import { usePacientes } from './queries'
 export function PacientesPage() {
   const [busca, setBusca] = useState('')
   const [dialogo, setDialogo] = useState(false)
-  const { data, isPending, isError } = usePacientes(busca)
+  const { data, isPending, isError, isPlaceholderData } = usePacientes(busca)
   const buscando = busca.trim().length > 0
 
   return (
@@ -28,7 +28,18 @@ export function PacientesPage() {
         <Botao onClick={() => setDialogo(true)}>+ Novo paciente</Botao>
       </div>
 
-      <DialogoDePaciente aberto={dialogo} aoFechar={() => setDialogo(false)} />
+      {/* MONTAGEM CONDICIONAL, o mesmo que `AgendaPage.tsx` faz com o dialogo
+          de consulta — e nao e estilo, e correcao de defeito. O Radix desmonta
+          so o CONTEUDO quando fecha; o componente (e com ele o `useForm` de
+          `useFormularioDoProduto`) seguia montado, e o RHF guarda
+          `_formValues` (`shouldUnregister: false` e o padrao). Reabrir trazia
+          nome, telefone, e-mail, valor e canal do paciente ANTERIOR, mais os
+          erros em vermelho do envio passado. Num cadastro clinico isso escreve
+          o telefone de uma pessoa na ficha de outra, em silencio. Montar so
+          quando aberto faz cada abertura ser uma montagem limpa. */}
+      {dialogo && (
+        <DialogoDePaciente aberto aoFechar={() => setDialogo(false)} />
+      )}
 
       {/* A regiao viva existe SEMPRE, ainda que vazia: leitor de tela so
           anuncia conteudo que entra numa regiao que ja estava no DOM. A mesma
@@ -43,7 +54,15 @@ export function PacientesPage() {
         </p>
       )}
 
-      {data && data.length === 0 && (
+      {/* `!isPlaceholderData` guarda os DOIS estados vazios (M2 da revisao):
+          `buscando` fala da caixa de busca, mas `data` pode ser o
+          `placeholderData` do termo ANTERIOR — e ao LIMPAR a busca os dois
+          discordam por um quadro. Quem tem pacientes lia, nesse quadro,
+          "Nenhum paciente cadastrado ainda." com o botao "Cadastrar o
+          primeiro": exatamente a mentira que ter dois estados vazios existe
+          para evitar. Enquanto o dado exibido nao pertence ao termo atual,
+          nenhum dos dois e afirmavel. */}
+      {data && data.length === 0 && !isPlaceholderData && (
         <EstadoVazio
           titulo={
             buscando

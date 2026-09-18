@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../../api/cliente'
 import type { components } from '../../api/contrato'
+import { CHAVE_DO_PAINEL } from '../hoje/queries'
 import type { Paciente } from '../pacientes/queries'
 
 type SessaoDTO = components['schemas']['SessaoDaFichaDTO']
@@ -53,6 +54,16 @@ export function useRegistrarAnotacao(pacienteId: string) {
         method: 'POST',
         body: JSON.stringify(dados),
       }),
-    onSuccess: () => cliente.invalidateQueries({ queryKey: CHAVE_DA_FICHA(pacienteId) }),
+    // A ficha, porque a anotacao nasce nela. E o PAINEL, porque registrar a
+    // anotacao resolve a pendencia `SEM_ANOTACAO` de `/painel/hoje`: sem esta
+    // linha a tela Hoje segue cobrando uma anotacao que ja existe ate o
+    // proximo `refetchOnMount`. A convencao da casa (frontend-design.md) e
+    // declarar toda chave afetada aqui, e nao depender do conserto que
+    // acontece sozinho — o que se conserta sozinho hoje deixa de se consertar
+    // no dia em que alguem ajustar `staleTime`.
+    onSuccess: async () => {
+      await cliente.invalidateQueries({ queryKey: CHAVE_DA_FICHA(pacienteId) })
+      await cliente.invalidateQueries({ queryKey: CHAVE_DO_PAINEL })
+    },
   })
 }

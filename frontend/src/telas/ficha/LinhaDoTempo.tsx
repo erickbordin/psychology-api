@@ -1,4 +1,5 @@
 import { deApi } from '../../api/data'
+import { Chip } from '../../ui/Chip'
 import { RegistroDaSessao } from './RegistroDaSessao'
 import type { SessaoDaFicha } from './queries'
 
@@ -11,6 +12,13 @@ const dataEHora = (iso: string) => {
   return `${d.toLocaleDateString('pt-BR')} · ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
 }
 
+/** A MESMA correspondencia usada em `telas/hoje/HojePage.tsx` (LinhaDaSessao):
+ *  o status de uma sessao tem que ter uma cor so no produto inteiro. Quando
+ *  esta tela desenhava `<span className="chip">` cru, REALIZADA saia verde na
+ *  Hoje e cinza aqui — duas linguagens visuais para o mesmo dado. */
+const varianteDoStatus = (status: SessaoDaFicha['status']) =>
+  status === 'REALIZADA' ? 'realizada' : status === 'FALTOU' ? 'faltou' : undefined
+
 type Props = {
   sessoes: SessaoDaFicha[]
   pacienteId: string
@@ -18,12 +26,16 @@ type Props = {
 
 export function LinhaDoTempo({ sessoes, pacienteId }: Props) {
   return (
-    <ul className="linha-tempo cartao">
+    // `aria-label` casando com o <h2> "Sessoes" que FichaPage poe acima: e o
+    // que deixa o teste (e o leitor de tela) separar esta lista da lista de
+    // pendencias do aside, POR ROTULO ESCRITO — a convencao da casa proibe
+    // navegar por `className`.
+    <ul className="linha-tempo cartao" aria-label="Sessoes">
       {sessoes.map((s) => (
         <li key={s.consultaId}>
           <div className="acoes-linha">
             <span className="hora">{dataEHora(s.dtConsulta)}</span>
-            <span className="chip">{s.status}</span>
+            <Chip variante={varianteDoStatus(s.status)}>{s.status}</Chip>
           </div>
           {/* A anotacao vive DENTRO da linha da sessao — e a fusao das abas
               Consultas e Anotacoes que 4(3) pede. Sessao sem anotacao nao

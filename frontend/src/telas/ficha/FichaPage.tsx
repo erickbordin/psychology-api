@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import { Botao } from '../../ui/Botao'
+import { Chip } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
+import { DialogoDePaciente } from '../pacientes/DialogoDePaciente'
 import type { Paciente } from '../pacientes/queries'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { useFicha } from './queries'
@@ -43,6 +47,7 @@ export function FichaPage() {
   // ajustou foi o teste, que agora monta o `<Routes>` que a producao tem.
   const { pacienteId = '' } = useParams()
   const { data, isPending, isError } = useFicha(pacienteId)
+  const [editando, setEditando] = useState(false)
 
   return (
     <div className="tela">
@@ -71,11 +76,37 @@ export function FichaPage() {
               <p className="sub">{linhaDoSub(data.paciente)}</p>
             </div>
             <div className="acoes-ficha">
-              <span className="chip">
+              {/* `alerta` so no estado NAO autorizado (prototipo/index.html:94
+                  usa `chip alerta` exatamente ali): e o estado que pede uma
+                  acao do psicologo. Autorizado e fato consumado — tom neutro.
+                  Com os dois no mesmo cinza, a distincao existia so no texto. */}
+              <Chip variante={data.paciente.consentimentoAvisoEm ? 'neutro' : 'alerta'}>
                 {data.paciente.consentimentoAvisoEm ? 'Aviso autorizado' : 'Aviso nao autorizado'}
-              </span>
+              </Chip>
+              {/* A porta da edicao (prototipo/index.html:95, mesmo bloco
+                  `.acoes-ficha`). Sem ela, `DialogoDePaciente` recebia a prop
+                  `paciente` e desenhava o titulo "Editar paciente" que nenhuma
+                  tela conseguia abrir — metade da feature ficava inalcancavel
+                  em producao. */}
+              <Botao variante="secundario" className="mini" onClick={() => setEditando(true)}>
+                Editar
+              </Botao>
             </div>
           </div>
+
+          {/* Montagem condicional, o mesmo que `PacientesPage.tsx` e
+              `AgendaPage.tsx` fazem: o Radix desmonta so o CONTEUDO ao fechar,
+              e o `useForm` sobrevivente traria de volta os valores e os erros
+              da abertura anterior. Aqui ela faz uma segunda coisa: os
+              `defaultValues` do dialogo sao lidos UMA vez, na montagem — sem
+              isto, reabrir depois de salvar mostraria o paciente velho. */}
+          {editando && (
+            <DialogoDePaciente
+              aberto
+              paciente={data.paciente}
+              aoFechar={() => setEditando(false)}
+            />
+          )}
 
           <div className="colunas-ficha">
             <div>

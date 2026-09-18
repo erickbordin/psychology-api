@@ -133,6 +133,13 @@ a:hover { color: var(--acento-escuro); }
 }
 .chip.realizada { background: var(--sucesso-suave); color: var(--sucesso); }
 .chip.faltou { background: var(--atencao-suave); color: var(--atencao); }
+/* copiado de `prototipo/estilo.css:220`, que declara `.chip.devendo,
+   .chip.alerta, .chip.cancelada` na mesma regra. So `.alerta` vem junto: as
+   outras duas nao tem consumidor nesta fatia, e a convencao da casa
+   (frontend-design.md, "Placeholder tem dono e data de morte") e a regra
+   entrar com o codigo que a usa. Consumidor: o chip de consentimento de
+   `telas/ficha/FichaPage.tsx` quando `consentimentoAvisoEm` e null. */
+.chip.alerta { background: var(--atencao-suave); color: var(--atencao); }
 
 /* estado vazio — Task 6 do prototipo, usado aqui em ui/EstadoVazio.tsx */
 .estado-vazio {
@@ -206,7 +213,16 @@ a:hover { color: var(--acento-escuro); }
   margin: var(--gap-3) 0 var(--gap-4); }
 .acoes-ficha { display: flex; gap: var(--gap-3); align-items: center; }
 .colunas-ficha { display: grid; grid-template-columns: 1fr 260px; gap: var(--gap-6); align-items: start; }
-.linha-tempo { display: flex; flex-direction: column; gap: var(--gap-3); margin-top: var(--gap-4); }
+/* No prototipo `.linha-tempo` e uma <div> de <article>s; aqui e uma <ul>
+   semantica (a linha do tempo E uma lista, e os testes navegam por `listitem`).
+   O reset de lista entra explicito pelo mesmo motivo que `.lista-sessoes` ja
+   declara o dele na linha 107: o zeramento que hoje vem do preflight do
+   Tailwind (`*{margin:0;padding:0}` + `ul{list-style:none}`, via
+   `estilo/base.css`) e uma dependencia de terceiro que esta folha nao controla
+   — se o preflight sair, a <ul> volta a herdar `padding-inline-start: 40px` do
+   navegador e a linha do tempo fica indentada dentro do proprio cartao,
+   desalinhada da `.lista-sessoes` irma. */
+.linha-tempo { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--gap-3); margin: var(--gap-4) 0 0; }
 @media (max-width: 860px) { .colunas-ficha { grid-template-columns: 1fr; } }
 
 /* registro da anotacao dentro da linha da sessao (Task 5 da Fatia 2) —

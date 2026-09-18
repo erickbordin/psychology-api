@@ -1,7 +1,8 @@
-import { useId } from 'react'
+import { useEffect, useId } from 'react'
 import { z } from 'zod'
 
 import { ResumoDeErros } from '../../formulario/ResumoDeErros'
+import { registrarRascunho } from '../../navegacao/guardaDeSaida'
 import { useFormularioDoProduto } from '../../formulario/useFormularioDoProduto'
 import { Botao } from '../../ui/Botao'
 import type { SessaoDaFicha } from './queries'
@@ -45,6 +46,19 @@ export function RegistroDaSessao({ pacienteId, sessao }: Props) {
 
   const erroDoCampo = f.formState.errors.anotacao?.message
 
+  // O texto vive SO em memoria (design system, "Rascunho de anotacao"): nem
+  // `sessionStorage` nem `localStorage`, porque anotacao clinica e o dado mais
+  // sensivel do produto. Essa decisao so e honesta com a guarda junto — sem
+  // ela, "em memoria" vira "perde em silencio". O aviso vale enquanto houver
+  // texto NAO enviado, e some sozinho quando a caixa esvazia ou o componente
+  // desmonta (depois de registrar, `LinhaDoTempo` deixa de renderizar a caixa).
+  const rascunho = f.watch('anotacao')
+  const temRascunho = rascunho.trim().length > 0
+  useEffect(() => {
+    if (!temRascunho) return
+    return registrarRascunho()
+  }, [temRascunho])
+
   return (
     <div className="registro-novo cartao">
       <form onSubmit={f.handleSubmit(f.enviar)} noValidate>
@@ -60,8 +74,14 @@ export function RegistroDaSessao({ pacienteId, sessao }: Props) {
         )}
 
         <div className="campo">
+          {/* O `*` e a MESMA marca que `ui/Campo.tsx` poe: a 6.2 pede que a
+              obrigatoriedade seja visivel ANTES do erro, e este rotulo e
+              escrito a mao so porque `Campo` desenha `<input>` e aqui o
+              controle e `<textarea>`. `aria-hidden` mantem o nome acessivel em
+              "Anotação", sem o asterisco lido em voz alta — igual ao Campo. */}
           <label className="campo-rotulo" htmlFor={idDoCampo}>
             Anotação
+            <span aria-hidden="true"> *</span>
           </label>
           <textarea
             id={idDoCampo}

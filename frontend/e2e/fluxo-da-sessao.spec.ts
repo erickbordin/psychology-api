@@ -2,9 +2,23 @@ import { expect, test } from '@playwright/test'
 
 /**
  * O segundo dos quatro fluxos de 8.5: "a sessao" — abre ficha, registra
- * anotacao, agenda retorno. Ele prova o que nenhum dos 73 testes com MSW
- * prova: que `consultaId` viaja do agendamento ate a anotacao, e volta da API
- * REAL ligado a sessao certa (spec 5.1, ficha de pagina unica).
+ * anotacao, agenda retorno. Ele prova o que nenhum dos testes com MSW prova:
+ * que `consultaId` viaja do agendamento ate a anotacao, e volta da API REAL
+ * ligado a sessao certa (spec 5.1, ficha de pagina unica).
+ *
+ * **Por que DUAS sessoes.** Ate a revisao, o fluxo criava UMA sessao e depois
+ * afirmava que a anotacao voltou "dentro da linha certa" — o que era verdade
+ * por construcao: com uma linha so na ficha, qualquer vinculo que o backend
+ * fizesse (ou nao fizesse) deixava o teste verde. Se o servidor prendesse a
+ * anotacao a outra consulta do MESMO paciente, ninguem ficaria sabendo. Agora
+ * sao duas sessoes no mesmo dia, so a primeira e marcada REALIZADA e anotada, e
+ * o teste cobra os DOIS lados: o texto esta na linha da sessao A **e nao esta**
+ * na linha da sessao B. A asserção negativa e a que da valor a positiva.
+ *
+ * Os horarios sao 07h e 08h de propósito: a janela de conflito do backend e de
+ * +/-50 minutos ao redor de `dtConsulta` (`ConsultaService`), entao 60 minutos
+ * de distancia e o menor passo que cabe na grade (de hora em hora) sem a
+ * segunda consulta ser recusada com 409.
  *
  * Mesmos pre-requisitos do `fluxo-de-fumaca.spec.ts`: backend no ar em
  * localhost:8080 e um usuario novo por execucao — o banco nao tem usuario
@@ -20,6 +34,9 @@ function emailUnico(): string {
 
 const NOME_DO_PACIENTE = 'Paciente Um'
 const TEXTO_DA_ANOTACAO = 'Nota de teste gerada pelo fluxo automatizado, sem conteudo clinico real.'
+/** A sessao que recebe a anotacao, e a que NAO pode recebe-la. */
+const HORA_DA_SESSAO_A = '07:00'
+const HORA_DA_SESSAO_B = '08:00'
 
 test('abre a ficha, agenda, marca presenca e a anotacao volta na sessao certa', async ({
   page,
@@ -70,46 +87,75 @@ test('abre a ficha, agenda, marca presenca e a anotacao volta na sessao certa', 
   await expect(page.getByRole('heading', { name: NOME_DO_PACIENTE })).toBeVisible()
   await expect(page.getByText('Nenhuma sessao registrada ainda.')).toBeVisible()
 
-  // 4. agenda uma sessao — o select do dialogo agora traz o paciente de
-  // verdade (Tarefa 6). A Agenda so mostra 07h-19h de segunda a domingo; a
-  // celula de HOJE as 07h e a mais previsivel (nunca ocupada por outro
-  // paciente, porque cada execucao usa um usuario novo).
+  // 4. agenda DUAS sessoes no mesmo dia — o select do dialogo traz o paciente
+  // de verdade (Tarefa 6). A Agenda so mostra 07h-19h de segunda a domingo; as
+  // celulas de HOJE as 07h e as 08h sao as mais previsiveis (nunca ocupadas por
+  // outro paciente, porque cada execucao usa um usuario novo).
   await page.getByRole('navigation').getByRole('link', { name: 'Agenda' }).click()
   await expect(page.getByRole('grid', { name: /semana/i })).toBeVisible()
 
   const hoje = new Date()
   // mesma formula de `diasDaSemana` em AgendaPage.tsx: 0=segunda...6=domingo
   const colunaDeHoje = (hoje.getDay() + 6) % 7
-  const linhaDas7h = page.locator('table.agenda-grade tbody tr').filter({ hasText: '07:00' })
-  await linhaDas7h.locator('td[role="gridcell"]').nth(colunaDeHoje).click()
 
-  await expect(page.getByRole('heading', { name: 'Nova consulta' })).toBeVisible()
-  // o <select> ja existe no DOM antes da lista de pacientes chegar — esperar
-  // a option evita selecionar antes dela existir (mesma cautela do teste de
-  // componente de DialogoDeConsulta.test.tsx).
-  await expect(page.getByRole('option', { name: NOME_DO_PACIENTE })).toBeAttached()
-  await page.getByLabel('Paciente').selectOption({ label: NOME_DO_PACIENTE })
-  await page.getByRole('button', { name: 'Salvar' }).click()
+  async function agendar(horario: string) {
+    const linha = page.locator('table.agenda-grade tbody tr').filter({ hasText: horario })
+    await linha.locator('td[role="gridcell"]').nth(colunaDeHoje).click()
 
-  // esperar a celula ocupada, nao o fechamento do dialogo: prova que o POST
-  // /consultas resolveu e a grade foi invalidada.
-  await expect(page.getByRole('gridcell').filter({ hasText: NOME_DO_PACIENTE })).toBeVisible()
+    const dialogo = page.getByRole('dialog')
+    await expect(dialogo.getByRole('heading', { name: 'Nova consulta' })).toBeVisible()
+    // o <select> ja existe no DOM antes da lista de pacientes chegar — esperar
+    // a option evita selecionar antes dela existir (mesma cautela do teste de
+    // componente de DialogoDeConsulta.test.tsx).
+    await expect(dialogo.getByRole('option', { name: NOME_DO_PACIENTE })).toBeAttached()
+    // ESCOPADO NO DIALOGO, e nao `page.getByLabel('Paciente')`: achado ao
+    // agendar a SEGUNDA sessao. Depois da primeira, a grade tem uma celula
+    // ocupada com `aria-label="Consulta de Paciente Um as ..."`, e "Paciente"
+    // e substring dela — o seletor de pagina inteira passou a resolver dois
+    // elementos e o Playwright recusou por strict mode. O dialogo e o escopo
+    // certo: e dentro dele que o rotulo "Paciente" identifica um controle.
+    await dialogo.getByLabel('Paciente').selectOption({ label: NOME_DO_PACIENTE })
+    await dialogo.getByRole('button', { name: 'Salvar' }).click()
 
-  // 5. marca a sessao como realizada — SO a tela Hoje tem esse botao (spec
+    // esperar a celula ocupada, nao o fechamento do dialogo: prova que o POST
+    // /consultas resolveu e a grade foi invalidada. `filter` pela LINHA do
+    // horario, senao a segunda espera casaria com a celula da primeira e
+    // passaria antes de a segunda existir.
+    await expect(
+      linha.locator('td[role="gridcell"]').nth(colunaDeHoje).filter({ hasText: NOME_DO_PACIENTE }),
+    ).toBeVisible()
+  }
+
+  await agendar(HORA_DA_SESSAO_A)
+  await agendar(HORA_DA_SESSAO_B)
+
+  // 5. marca SO a sessao A como realizada — SO a tela Hoje tem esse botao (spec
   // 4-1), e SO para sessao de hoje (`/painel/hoje` filtra pelo dia). E por
   // isso que o passo 4 agendou para hoje, e nao para qualquer dia da semana.
+  // As duas linhas tem o MESMO nome acessivel ("Sessao de <paciente>"), entao o
+  // horario e o que as separa — e e o mesmo criterio usado no passo 7.
   await page.getByRole('navigation').getByRole('link', { name: 'Hoje' }).click()
-  const linhaDaSessaoHoje = page.getByRole('listitem', { name: `Sessao de ${NOME_DO_PACIENTE}` })
-  await expect(linhaDaSessaoHoje).toBeVisible()
+  const linhaDeHoje = (horario: string) =>
+    page
+      .getByRole('listitem', { name: `Sessao de ${NOME_DO_PACIENTE}` })
+      .filter({ hasText: horario })
 
-  await linhaDaSessaoHoje.getByRole('button', { name: 'Realizada' }).click()
+  await expect(linhaDeHoje(HORA_DA_SESSAO_A)).toBeVisible()
+  await expect(linhaDeHoje(HORA_DA_SESSAO_B)).toBeVisible()
+
+  await linhaDeHoje(HORA_DA_SESSAO_A).getByRole('button', { name: 'Realizada' }).click()
   // esperar o chip mudar, nao o clique: prova que o PATCH /consultas/{id}/status
   // resolveu e o painel foi invalidado.
-  await expect(linhaDaSessaoHoje.getByText('REALIZADA')).toBeVisible()
+  await expect(linhaDeHoje(HORA_DA_SESSAO_A).getByText('REALIZADA')).toBeVisible()
+  // a sessao B continua AGENDADA: sem isto, um PATCH que marcasse a consulta
+  // errada (ou as duas) passaria despercebido ja aqui.
+  await expect(linhaDeHoje(HORA_DA_SESSAO_B).getByText('AGENDADA')).toBeVisible()
 
   // 6. escreve a anotacao NA LINHA daquela sessao. A caixa de registro so
   // aparece (LinhaDoTempo.tsx) para sessao REALIZADA e ainda sem anotacao —
-  // se ela nao aparecer aqui, o passo 5 nao funcionou de verdade.
+  // por isso ha exatamente UMA caixa na ficha, a da sessao A, mesmo com duas
+  // sessoes na linha do tempo. Se ela nao aparecer aqui (ou se aparecerem
+  // duas), o passo 5 nao funcionou de verdade.
   await page.getByRole('navigation').getByRole('link', { name: 'Pacientes' }).click()
   await page.getByRole('link', { name: NOME_DO_PACIENTE }).click()
   await expect(page.getByRole('heading', { name: NOME_DO_PACIENTE })).toBeVisible()
@@ -134,9 +180,20 @@ test('abre a ficha, agenda, marca presenca e a anotacao volta na sessao certa', 
   await page.getByRole('link', { name: NOME_DO_PACIENTE }).click()
   await expect(page.getByRole('heading', { name: NOME_DO_PACIENTE })).toBeVisible()
 
-  const linhaDaSessaoNaFicha = page.locator('.linha-tempo li').filter({ hasText: TEXTO_DA_ANOTACAO })
-  await expect(linhaDaSessaoNaFicha).toBeVisible()
-  // a prova final: a anotacao voltou dentro da MESMA sessao (REALIZADA), nao
-  // solta na ficha nem presa a outra linha da linha do tempo.
-  await expect(linhaDaSessaoNaFicha).toContainText('REALIZADA')
+  // a lista pelo ROTULO ESCRITO ("Sessoes", o mesmo do <h2> acima dela), nao
+  // por `.linha-tempo`: a convencao da casa proibe navegar por `className`, e
+  // o seletor antigo quebraria numa renomeacao de classe puramente visual.
+  const sessoesDaFicha = page.getByRole('list', { name: 'Sessoes' }).getByRole('listitem')
+  const sessaoA = sessoesDaFicha.filter({ hasText: HORA_DA_SESSAO_A })
+  const sessaoB = sessoesDaFicha.filter({ hasText: HORA_DA_SESSAO_B })
+
+  await expect(sessoesDaFicha).toHaveCount(2)
+
+  // a prova final, e o par de asserções que a versao de uma sessao so nao
+  // conseguia fazer: a anotacao voltou dentro da sessao A (a REALIZADA, a que
+  // foi anotada) e NAO vazou para a sessao B, que segue AGENDADA e sem nota.
+  await expect(sessaoA).toContainText(TEXTO_DA_ANOTACAO)
+  await expect(sessaoA).toContainText('REALIZADA')
+  await expect(sessaoB).not.toContainText(TEXTO_DA_ANOTACAO)
+  await expect(sessaoB).toContainText('AGENDADA')
 })
