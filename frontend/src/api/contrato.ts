@@ -356,10 +356,16 @@ export interface components {
         };
         PacienteAtualizacaoDTO: {
             nome?: string;
+            /** @description Telefone do paciente. Ausente do corpo: não é alterado. Enviado em branco (""): limpa o telefone salvo. */
             telefone?: string;
+            /** @description E-mail do paciente. Ausente do corpo: não é alterado. Enviado em branco (""): limpa o e-mail salvo — recusado com 400 quando o canal de aviso do paciente é EMAIL. */
             email?: string;
             /** Format: date */
             dataNascimento?: string;
+            /**
+             * @description Valor padrão da sessão. Maior que zero, no máximo 8 dígitos inteiros e 2 casas decimais.
+             * @example 180
+             */
             valorSessao?: number;
             /** @enum {string} */
             canalAviso?: "EMAIL" | "WHATSAPP" | "NENHUM";
@@ -424,6 +430,10 @@ export interface components {
             email?: string;
             /** Format: date */
             dataNascimento?: string;
+            /**
+             * @description Valor padrão da sessão. Maior que zero, no máximo 8 dígitos inteiros e 2 casas decimais.
+             * @example 180
+             */
             valorSessao?: number;
             /** @enum {string} */
             canalAviso?: "EMAIL" | "WHATSAPP" | "NENHUM";
@@ -451,7 +461,10 @@ export interface components {
             /** Format: uuid */
             id?: string;
             conteudo?: string;
-            /** Format: date */
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
             createdAt?: string;
             /** Format: uuid */
             pacienteId?: string;
