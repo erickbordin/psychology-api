@@ -1598,4 +1598,44 @@ git commit -m "feat(painel): realizada sem anotacao entra na fila de pendencias 
 - **`valor` e `pago` na linha do tempo** — Fatia 3 (§9). Os campos existem em `Consulta` desde a fase do schema.
 - **Consentimento como ação** (`POST /pacientes/{id}/consentimento`) — Fatia 4. Aqui ele é só de leitura.
 - **As 18 rotas de escrita que declaram `200` no contrato OpenAPI** enquanto a API responde 201/204 — dívida registrada no laudo da Fatia 1, decisão do dono. Nenhum endpoint novo desta fatia acrescenta um caso: `GET /pacientes/{id}/ficha` responde 200 e o springdoc infere 200.
-- **Limpar campo via PUT** — consequência declarada da correção do I6 na Tarefa 2. Nenhuma tela desta fatia pede.
+- ~~**Limpar campo via PUT** — consequência declarada da correção do I6 na Tarefa 2. Nenhuma tela desta fatia pede.~~ **Revertido em 18/09/2026 — ver abaixo.**
+
+---
+
+## O que a revisão do conjunto mudou (18 de setembro de 2026)
+
+Esta fatia foi revisada por inteiro depois de entregue, no mesmo rito da Fatia 1.
+A suíte saiu de 296 para 316 testes. Três decisões do dono mudaram o que este
+plano tinha escrito — quem for planejar a Fatia 3 deve ler **daqui**, não das
+seções acima, nos pontos abaixo.
+
+**A premissa da linha riscada caiu dentro da própria fatia.** "Nenhuma tela desta
+fatia pede" era verdade quando o plano foi escrito e deixou de ser quando o
+formulário de paciente ficou pronto: ele manda o campo vazio no PUT, e o
+servidor respondia 200 sem limpar nada. A regra agora é **branco limpa, ausente
+não toca**, valendo para `email` e `telefone`. O `NullValuePropertyMappingStrategy.IGNORE`
+da Tarefa 2 **continua valendo e é o que protege o resto** — o que mudou é que
+existe uma forma explícita de pedir a limpeza, e ela não é o nulo. Detalhe do
+raciocínio de produto em §5.4 do spec.
+
+**A validação condicional do canal saiu do bean para o serviço.** Enquanto morou
+no `EmailExigidoPeloCanalValidator`, ela só via o corpo: `{"canalAviso":"EMAIL"}`
+sozinho levava 400 mesmo com e-mail salvo. Agora é avaliada sobre o estado
+efetivo (corpo ∪ entidade) no caminho da atualização. O validador de bean fica
+**só no cadastro**, onde ver apenas o corpo é o certo.
+
+**`DELETE /consultas/{id}` passou a ser recusado quando a sessão tem anotação
+viva** (409). Excluir a sessão não apagava a anotação, mas a tirava da ficha —
+prontuário invisível, em silêncio. Raciocínio completo em §7.3 do spec.
+
+**Uma armadilha técnica que vale para toda anotação de contrato daqui para
+frente.** O F1 da revisão (o contrato publicava `minimum: 0` num campo que a API
+recusa em zero) não fecha do jeito óbvio: `@Schema(exclusiveMinimum = true)` é a
+forma do **OpenAPI 3.0** e o serializador 3.1 a descarta sem erro;
+`exclusiveMinimumValue` não serve porque seu default é `0`, o que torna zero
+indistinguível de "não informado"; e `@Schema(minimum = ...)` explícito é
+**sobreposto** pelo valor que o springdoc deriva do `@DecimalMin`. O que funciona
+é fazer a própria constraint Jakarta dizer a regra na forma inclusiva —
+`@DecimalMin("0.01")`, que com `@Digits(fraction = 2)` recusa exatamente o mesmo
+conjunto que `> 0`. Contrato e validação passam a concordar por construção, sem
+anotação paralela para alguém dessincronizar depois.

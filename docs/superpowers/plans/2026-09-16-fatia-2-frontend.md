@@ -1605,3 +1605,61 @@ produz.
 - **Fluxo de refresh do token** — recarregar a aba ainda leva ao login. Dívida herdada da Fatia 1.
 - **Paginação da ficha e da lista** — a ficha não pagina, e isso está no laudo do backend como item em aberto.
 - **`valor` e `pago` na linha do tempo** — Fatia 3, o dinheiro.
+
+---
+
+## O que a revisão do conjunto mudou (18 de setembro de 2026)
+
+Esta fatia foi revisada por inteiro depois de entregue. A suíte saiu de 73 para
+86 testes, e o e2e passou a discriminar o que antes afirmava por construção.
+Quem planejar a Fatia 3 deve ler **daqui** nos pontos abaixo.
+
+**Um crítico, e ele não era invisível por acaso.** `PacientesPage` montava o
+`DialogoDePaciente` **incondicionalmente**: o Radix desmonta o conteúdo, mas o
+`useForm` continua vivo, então o segundo paciente nascia com nome, telefone,
+e-mail e valor do primeiro — e com os erros da tentativa anterior em vermelho.
+Os 73 testes não pegavam porque **todos abriam o diálogo uma vez só**. A casa já
+fazia certo três arquivos ao lado (`AgendaPage` monta com `{quando && …}`).
+**Regra para as próximas telas: diálogo de formulário se monta condicionalmente,
+e todo diálogo ganha um teste que abre, salva e reabre.**
+
+**A guarda do rascunho entrou (decisão do dono).** O design system já dizia que
+"só em memória" obriga `beforeunload` + aviso ao sair, e que isso "faz parte do
+escopo, não é polimento" — mas este plano não pediu a guarda **nem a listou
+fora de escopo**, então ela simplesmente não existia. Anotação clínica perdida
+num clique errado é a pior categoria de falha do produto. Ficou em
+`src/navegacao/guardaDeSaida.ts`.
+
+**A edição de paciente ganhou porta.** A Tarefa 3 se chama "Cadastro **e**
+edição" e entregou o `PUT`, o título "Editar paciente" e um teste verde — sobre
+um caminho que nenhum botão alcançava. O botão do protótipo
+(`prototipo/index.html:95`) entrou no `.acoes-ficha`.
+
+**Um achado que corrige o próprio laudo, e vale como método.** A revisão apontou
+que a linha do tempo estaria indentada por falta de reset de lista. **Não
+estava:** o preflight do Tailwind v4 (`ol,ul,menu{list-style:none}`) já zera
+isso globalmente, confirmado no bundle de produção. O reset foi aplicado assim
+mesmo, mas como robustez declarada — não depender do preflight de terceiro para
+o layout de um componente — e não como conserto de defeito. As outras duas
+alíneas eram reais: o chip da ficha ignorava o componente `Chip` e saía cinza
+enquanto o mesmo status saía colorido na Hoje, e `.chip.alerta` nunca tinha sido
+copiada do protótipo.
+
+**O e2e afirmava menos do que este plano pediu.** Com **uma** sessão só, "a
+anotação voltou na sessão certa" é verdadeiro por construção: se o servidor
+prendesse a nota a qualquer outra sessão do paciente, o teste seguiria verde.
+Agora agenda duas, anota na primeira e cobra que a segunda **não** contenha o
+texto. **Antes de escrever asserção de "foi para o lugar certo", garanta que
+existe um lugar errado para onde ir.**
+
+**Ajuste no método de pré-voo.** A lista das "8 classes que o protótipo tem e o
+`src/` não" omitiu `.sessao-item` e `.chip.alerta`, que o protótipo usa na mesma
+tela — e o rascunho de `LinhaDoTempo` neste plano já trazia o `<ul>` sem o
+`Chip`. A implementação seguiu o plano fielmente; o plano é que mediu o
+protótipo por baixo. Na Fatia 3, listar as classes que o **markup alvo** precisa,
+não as que faltam por nome.
+
+**Duas mudanças de contrato já refletidas:** `AnotacaoResponseDTO.createdAt`
+virou data-hora (era data, e o mesmo registro viajava em dois formatos), e o
+`PUT /pacientes/{id}` passou a tratar **branco como limpeza** em `email` e
+`telefone` — ausente segue intocado. Detalhe em §5.4 do spec.

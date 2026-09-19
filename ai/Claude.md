@@ -6,8 +6,10 @@ Contexto do projeto para qualquer sessão de IA trabalhando neste repositório.
 
 Sistema de gestão para psicólogos autônomos (MVP). Monorepo com duas aplicações:
 backend Java/Spring Boot em `backend/` e frontend React/TypeScript em
-`frontend/`. Este arquivo cobre o backend; o contexto do frontend está no
-`frontend/README.md`.
+`frontend/`. As **regras de código** deste arquivo cobrem o backend; o contexto
+de código do frontend está no `frontend/README.md`. A seção "Skills de
+frontend" logo abaixo é a exceção: vale para as duas pontas porque é
+ferramental de sessão, não regra de implementação.
 
 ```
 psychology-api/
@@ -22,6 +24,66 @@ psychology-api/
 **Filosofia do projeto:** MVP enxuto e deliberado. Antes de sugerir uma
 feature nova, verifique se ela está fora do escopo combinado — ver seção
 "Fora de escopo" no fim deste arquivo.
+
+## Skills de frontend — qual usar, e quando
+
+Seis skills de design engineering (de `emilkowalski/skills`) estão disponíveis
+para trabalho no `frontend/`. Elas **não vivem neste repositório** — ficam em
+`~/.claude/skills/`, apontando para um clone local. Numa máquina que não as
+tenha, instalar com `npx skills@latest add emilkowalski/skills`; sem isso, as
+regras abaixo descrevem ferramenta ausente.
+
+| Skill | Use quando | Não use para |
+|---|---|---|
+| `emil-design-eng` | Qualquer polimento de UI, desenho de componente, decisão de detalhe visual. É a skill-base do front | Decidir escopo de produto |
+| `find-animation-opportunities` | **Antes** de animar qualquer coisa. Somente leitura: propõe e, principalmente, rejeita | Revisar animação existente |
+| `animate` | Implementar um movimento **já decidido** — escolhe curva, duração, propriedade, interrupção | Decidir *se* deve animar — isso é a skill acima |
+| `apple-design` | Fundamentos: feedback, consistência espacial, contenção, tipografia (optical sizing, tracking, leading) | **Trocar a linguagem visual** — ver a trava abaixo |
+| `pick-ui-library` | Antes de instalar **qualquer** biblioteca de UI. Só roda quando invocada explicitamente | Substituir uma escolha já feita (Radix, react-query, RHF+zod) |
+| `prototype` | Explorar várias versões de uma tela antes de escolher uma | Construir a versão final |
+
+### Travas que valem para todas elas
+
+**A linguagem visual já está decidida e é Google Calendar**, por decisão
+registrada do dono (`frontend/src/estilo/tokens.css:12-30` e
+`prototipo/TRAVAS.md`), com o princípio **ação é forma, não cor**. Nenhuma
+skill autoriza trocar isso. O `apple-design` entra pelos fundamentos e pela
+tipografia, não pela aparência — sugestão dele que empurre para outra
+linguagem visual é para recusar, ou para levar ao dono como decisão explícita,
+nunca para aplicar direto. O `prototipo/` é a referência contra a qual as
+revisões medem; trocar a linguagem sem substituir a referência deixa a próxima
+revisão sem régua.
+
+**Não existem tokens de movimento.** `tokens.css` tem cor, espaço, raio,
+sombra e fonte — nenhuma curva, nenhuma duração. Qualquer animação começa
+criando os tokens lá, junto dos de cor; não escrever curva ou duração à mão no
+componente.
+
+**`prefers-reduced-motion` já está coberto** por um kill-switch global em
+`tokens.css:60`. Toda animação nova herda a proteção sem código adicional — mas
+ele zera o movimento (`.01ms`), enquanto a recomendação das skills é reduzir,
+não anular. Mexer nisso é decisão consciente, não efeito colateral.
+
+**Saída de diálogo precisa de `@keyframes`, não de `transition`.** O `Presence`
+do Radix só mantém o `Dialog.Content` montado enquanto uma *animation* CSS roda;
+com `transition` puro o elemento desmonta no mesmo frame e a saída não aparece.
+
+**Animação não pode virar dependência de teste.** A convenção da casa proíbe
+consultar por `className` — os testes navegam por rótulo escrito. Movimento é
+camada visual: se um teste precisar esperar animação para passar, o problema é
+o teste.
+
+**"Fora de escopo" continua valendo.** Skill sugerir algo não torna esse algo
+combinado — ver a seção no fim deste arquivo.
+
+### O que já foi levantado
+
+A `find-animation-opportunities` rodou sobre o `frontend/` em 18/09/2026, com o
+app em zero animação. Passaram quatro sugestões e seis foram rejeitadas no
+portão. A de maior alavancagem é a única que tapa uma **ausência** e não um
+refinamento: `.botao` (`estilo.css:68-85`) tem `:hover` e `:disabled` e **não
+tem `:active`** — marcar presença, que é a interação central do produto, não dá
+sinal nenhum de que o clique foi ouvido até a rede responder.
 
 ## Stack
 

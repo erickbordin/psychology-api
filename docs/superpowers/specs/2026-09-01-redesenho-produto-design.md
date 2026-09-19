@@ -227,6 +227,28 @@ remendo nesta regra.
 `canalAviso`. E-mail continua opcional — **exceto** quando o canal é EMAIL, aí é
 obrigatório. Validação condicional, não `@NotNull` cego.
 
+> **Acrescentado em 18 de setembro de 2026, decisão do dono, na revisão do
+> conjunto da Fatia 2.** Duas regras que faltavam a esta linha, e que a revisão
+> descobriu porque a tela já dependia das duas:
+>
+> **A validação condicional vale sobre o estado efetivo**, não sobre o corpo da
+> requisição. Enquanto ela morou num validador de bean, mandar só
+> `{"canalAviso":"EMAIL"}` num paciente que **já tinha** e-mail salvo levava 400
+> — o validador não enxergava o banco. Passou para o serviço, que avalia o que o
+> paciente terá depois do PUT.
+>
+> **Campo de contato enviado em branco limpa o valor salvo**; campo ausente do
+> corpo continua intocado. Vale para `email` e `telefone` — são os dados que o
+> paciente tem direito de pedir para remover. Antes da revisão, apagar o
+> telefone no formulário respondia 200 e não apagava nada: o `PUT` parcial
+> ignorava nulo, e a tela não tinha como dizer "limpe isto". Um formulário que
+> mostra o campo vazio, diz "salvo" e não salva é pior do que um que não deixa
+> limpar. `valorSessao`, `dataNascimento` e `canalAviso` ficam de fora: nenhuma
+> tela pede a limpeza deles, e `""` nem valor válido para eles seria.
+>
+> Limpar o e-mail de um paciente cujo canal é EMAIL é recusado — é a mesma regra
+> condicional acima, vista pelo outro lado.
+
 ### 5.5 `Usuario` ganha preferências
 
 Hoje só nome, e-mail, senha, `createdAt`. Entra: valor padrão de sessão,
@@ -455,6 +477,28 @@ Desenho que aguenta os dois lados:
 - Purga real agendada no vencimento, não `deletedAt` eterno
 - Exclusão pedida durante o prazo: anonimiza o cadastral, retém o prontuário,
   **registra o pedido** — a recusa parcial precisa ser justificável
+
+> **Acrescentado em 18 de setembro de 2026, decisão do dono, na revisão do
+> conjunto da Fatia 2.** Há uma terceira porta para sumir com prontuário, e ela
+> não estava nesta seção: **excluir a consulta**.
+>
+> A revisão mediu o efeito. Excluir uma sessão já realizada **não apagava** a
+> anotação — ela seguia viva no banco, apontando para uma consulta deletada —
+> mas desaparecia por inteiro da ficha, porque a linha do tempo só lista
+> consulta não deletada. Conteúdo clínico invisível no prontuário, sem aviso
+> nenhum ao psicólogo. É o modo de falhar que esta seção existe para evitar,
+> entrando por uma porta que ela não vigiava.
+>
+> **Decisão: `DELETE /consultas/{id}` é recusado quando a sessão tem anotação
+> viva**, com 409 e a saída escrita na mensagem (apagar a anotação primeiro).
+> O raciocínio é de produto, não de banco: "excluir" na agenda significa "isso
+> não vai acontecer" e serve para erro de agendamento; uma sessão realizada
+> **com anotação escrita** não é agendamento, é prontuário. A recusa mantém a
+> remoção de conteúdo clínico como ato deliberado, nunca como efeito colateral
+> de outra ação. Excluir sessão sem anotação segue como era.
+>
+> Isto é trava de porta, não a purga desenhada acima — o prazo de guarda do CFP
+> continua **[verificar]** e continua bloqueando a Fatia 5.
 
 ### 7.4 O resto que produto pago com dado de saúde exige
 
