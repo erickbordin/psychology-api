@@ -17,8 +17,8 @@
 .dialogo {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
   z-index: 11;
-  background: var(--superficie); border-radius: var(--raio-g);
-  box-shadow: 0 1px 3px 0 var(--sombra-1), 0 4px 8px 3px var(--sombra-2);
+  background: var(--superficie-1); border-radius: var(--raio-md);
+  box-shadow: var(--sombra-dialogo);
   width: min(480px, calc(100vw - 2 * var(--gap-4)));
   max-height: 90vh; box-sizing: border-box;
   display: flex; flex-direction: column;
@@ -44,23 +44,42 @@
 .campo-rotulo { font-size: 13px; font-weight: 500; color: var(--tinta-2); }
 .campo-opcional { font-weight: 400; color: var(--tinta-3); }
 .campo input, .campo select, .campo textarea {
-  height: 40px; padding: 0 var(--gap-3); font-size: 14px;
-  border: 1px solid var(--linha); border-radius: var(--raio);
-  background: var(--superficie); color: var(--tinta);
-  box-sizing: border-box; width: 100%;
+  width: 100%; box-sizing: border-box;
+  height: var(--altura-controle);
+  padding: 0 var(--gap-3);
+  border: 0;
+  border-radius: var(--raio-sm);
+  background: var(--superficie-2);
+  box-shadow: inset 0 0 0 1px var(--separador);
+  color: var(--tinta);
+  font-size: var(--t-corpo-tam);
+  line-height: var(--t-corpo-alt);
+  transition: background-color var(--dur-rapido) var(--curva-cor),
+              box-shadow var(--dur-rapido) var(--curva-cor);
 }
-.campo textarea { height: auto; padding: var(--gap-3); resize: vertical; }
+.campo textarea {
+  height: auto; min-height: 96px; padding: var(--gap-3);
+  resize: vertical; line-height: var(--t-corpo-alt);
+}
+@media (hover: hover) and (pointer: fine) {
+  .campo input:hover { background: var(--superficie-3); }
+}
 .campo input:focus, .campo select:focus, .campo textarea:focus {
-  outline: none; border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento);
+  outline: none;
+  background: var(--superficie-1);
+  box-shadow: inset 0 0 0 1px var(--acento), 0 0 0 3px var(--foco-anel);
 }
 /* select tambem ganha o contorno de erro — nao so input/textarea (item extra
    C da revisao Task 5 do prototipo). */
 .campo input[aria-invalid='true'], .campo select[aria-invalid='true'], .campo textarea[aria-invalid='true'] {
-  border-color: var(--perigo);
+  box-shadow: inset 0 0 0 1px var(--perigo-contorno);
 }
-.campo input[aria-invalid='true']:focus, .campo select[aria-invalid='true']:focus { box-shadow: 0 0 0 1px var(--perigo); }
+.campo input[aria-invalid='true']:focus, .campo select[aria-invalid='true']:focus, .campo textarea[aria-invalid='true']:focus {
+  box-shadow: inset 0 0 0 1px var(--perigo), 0 0 0 3px var(--perigo-suave);
+}
+.campo input::placeholder, .campo textarea::placeholder { color: var(--tinta-3); }
 .campo-erro { font-size: 12px; color: var(--perigo); min-height: 15px; margin: 0; }
 .campo-aviso {
-  font-size: 12px; color: var(--atencao); background: var(--atencao-suave);
-  border-radius: var(--raio); padding: 6px var(--gap-2); min-height: 15px; margin: 0;
+  font-size: 12px; color: var(--faltou-tinta); background: var(--faltou-fundo);
+  border-radius: var(--raio-sm); padding: 6px var(--gap-2); min-height: 15px; margin: 0;
 }

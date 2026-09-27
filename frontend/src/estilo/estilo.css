@@ -9,47 +9,70 @@
  * `.superpowers/sdd/2026-09-13-fatia-1-frontend/fix-design-report.md`.
  */
 
-.moldura { display: flex; min-height: 100vh; }
+.moldura { display: flex; min-height: 100vh; background: var(--fundo-base); }
 
 .lateral {
   position: sticky; top: 0; height: 100vh;
-  width: 208px; flex-shrink: 0;
+  width: var(--largura-lateral); flex-shrink: 0;
   display: flex; flex-direction: column; gap: var(--gap-1);
   padding: var(--gap-5) var(--gap-3);
-  background: var(--superficie);
-  border-right: 1px solid var(--linha);
+  background: var(--superficie-vidro);
+  -webkit-backdrop-filter: var(--vidro);
+  backdrop-filter: var(--vidro);
+  box-shadow: inset -1px 0 0 var(--superficie-vidro-topo);
   box-sizing: border-box;
 }
 /* reescrito: o protótipo tinha `.lateral a[data-tela]` porque os links de
    navegação e o de Ajustes eram irmãos diretos de `.lateral`. Aqui a
    navegação vem dentro de `<nav><ul>` (Navegacao.tsx) e o botão Sair fica
    num `.rodape` à parte — os seletores miram a estrutura real. */
-.lateral ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.lateral ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gap-0); }
 .lateral a {
   display: flex; align-items: center; gap: var(--gap-3);
-  padding: 10px var(--gap-3); border-radius: var(--raio);
-  color: var(--tinta-2); text-decoration: none; font-size: 14px; font-weight: 500;
+  height: 34px; padding: 0 var(--gap-3);
+  border-radius: var(--raio-sm);
+  color: var(--tinta-2);
+  font-size: var(--t-controle-tam);
+  letter-spacing: var(--t-controle-esp);
+  font-weight: var(--peso-medio);
+  text-decoration: none;
+  transition: background-color var(--dur-rapido) var(--curva-cor),
+              color var(--dur-rapido) var(--curva-cor);
 }
-.lateral a:hover { background: var(--superficie-2); color: var(--tinta); }
-/* nova regra (ver tokens.css): acao e forma, nao cor — o item ativo da nav
-   vira pilula suave, como o item selecionado do rail do Calendar/Gmail. */
-.lateral a.ativo { background: var(--acento-suave); color: var(--acento-escuro); border-radius: 999px; }
+@media (hover: hover) and (pointer: fine) {
+  .lateral a:hover { background: var(--superficie-3); color: var(--tinta); }
+}
+.lateral a:active { background: var(--superficie-3); }
+.lateral a.ativo {
+  background: var(--superficie-1);
+  color: var(--tinta);
+  font-weight: var(--peso-forte);
+  box-shadow: var(--sombra-cartao);
+}
 .lateral .rodape { margin-top: auto; }
 
-main { flex: 1; min-width: 0; }
+:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+main { flex: 1; min-width: 0; background: var(--fundo-base); }
 /* reescrito: o protótipo centralizava com `main > section` porque cada tela
    era uma <section> filha direta de <main>. Aqui o Login é sua própria
    <main> (fora do Layout) e as telas protegidas são um <div> dentro da
    <main> do Layout — uma classe própria evita depender da profundidade do
    DOM nos dois casos, e evita herdar padding em dobro de um <main> aninhado. */
-.tela { max-width: 960px; margin: 0 auto; padding: var(--gap-6); box-sizing: border-box; }
+.tela { max-width: var(--largura-conteudo); margin: 0 auto; padding: var(--gap-7) var(--gap-7) var(--gap-9); box-sizing: border-box; }
 
 /* bordas de cartao saem — a estrutura vem da grade em fio de cabelo e do
    espaco (fundo da pagina em --superficie-2, cartao em --superficie),
    nao de moldura em cada bloco. */
 .cartao {
-  background: var(--superficie);
-  border-radius: var(--raio-g); padding: var(--gap-4);
+  background: var(--superficie-1);
+  border-radius: var(--raio-lg);
+  padding: var(--gap-5);
+  box-shadow: var(--sombra-cartao);
 }
 h1 { font-size: 26px; margin: 0 0 var(--gap-1); letter-spacing: -.02em; }
 .sub { color: var(--tinta-2); font-size: 14px; margin: 0 0 var(--gap-6); }
@@ -59,30 +82,47 @@ h1 { font-size: 26px; margin: 0 0 var(--gap-1); letter-spacing: -.02em; }
    .botao). Nao e regra do prototipo (ele nao tem <a> nua fora de .botao/
    .lateral/.linha-paciente/.voltar), mas segue os mesmos tokens. */
 a { color: var(--acento); }
-a:hover { color: var(--acento-escuro); }
+a:hover { color: var(--acento-pressionado); }
 
 /* acao e forma, nao cor. A FORMA e o que separa: pilula = acao, bloco
    chapado com barra a esquerda = evento. Por isso a pilula pode ser azul
    sem reintroduzir a regra antiga — e o botao de acao padrao do Calendar
    (o "Salvar" do dialogo) e exatamente isto: pilula azul preenchida. */
 .botao {
-  border: 0; border-radius: 999px; padding: 9px var(--gap-5);
-  background: var(--acento); color: var(--superficie); font-size: 14px; font-weight: 500; cursor: pointer;
-  box-shadow: 0 1px 2px 0 var(--sombra-1), 0 1px 3px 1px var(--sombra-2);
-  text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
-  line-height: 1;
+  height: var(--altura-controle);
+  padding: 0 var(--gap-4);
+  border: 0;
+  border-radius: var(--raio-md);
+  background: var(--acento);
+  color: var(--tinta-sobre-cor);
+  font-size: var(--t-controle-tam);
+  line-height: var(--t-controle-alt);
+  letter-spacing: var(--t-controle-esp);
+  font-weight: var(--peso-forte);
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--gap-2);
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform var(--dur-toque) var(--curva-saida),
+              background-color var(--dur-rapido) var(--curva-cor);
 }
-.botao:hover { background: var(--acento-escuro); box-shadow: 0 1px 3px 0 var(--sombra-1), 0 4px 8px 3px var(--sombra-2); }
-.botao:disabled { opacity: .6; cursor: default; box-shadow: none; }
+@media (hover: hover) and (pointer: fine) {
+  .botao:hover { background: color-mix(in oklab, var(--acento) 92%, black); }
+}
+.botao:active { background: var(--acento-pressionado); transform: scale(0.972); }
+.botao:disabled { background: var(--superficie-3); color: var(--tinta-4); cursor: default; transform: none; }
 /* secundario continua pilula (ainda e acao) mas sem elevacao — a hierarquia
    vem da sombra, nao da cor. */
-.botao.secundario { background: var(--superficie); color: var(--tinta-2); border: 1px solid var(--linha); box-shadow: none; }
-.botao.secundario:hover { background: var(--superficie-2); color: var(--tinta); }
-.botao.mini { padding: 5px 14px; font-size: 13px; font-weight: 500; }
+.botao.secundario { background: var(--superficie-2); color: var(--tinta); box-shadow: none; }
+@media (hover: hover) and (pointer: fine) {
+  .botao.secundario:hover { background: var(--superficie-3); }
+}
+.lateral .botao.secundario { box-shadow: inset 0 0 0 1px var(--separador); }
+.botao.mini { height: var(--altura-controle-mini); padding: 0 var(--gap-3); border-radius: var(--raio-sm); font-size: 13px; }
 /* fix: botao "ligado" (aria-pressed) precisa parecer ligado — mesma regra do
    #privacidade.ativo do prototipo, generalizada por atributo ARIA em vez de
    um id fixo, porque qualquer Botao pode virar um toggle. */
-.botao[aria-pressed="true"] { background: var(--acento-suave); color: var(--acento-escuro); border-color: var(--acento-linha); }
+.botao[aria-pressed="true"] { background: var(--acento-suave); color: var(--acento-texto); box-shadow: inset 0 0 0 1px var(--acento-contorno); }
 
 /* tela hoje */
 .cabecalho-dia { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--gap-4); flex-wrap: wrap; }
@@ -104,12 +144,14 @@ a:hover { color: var(--acento-escuro); }
    estilo de linha em cartao (`.linha-pendencia`), so o nome da classe do
    container e novo (`.lista-sessoes`) para nao confundir com o widget que
    nao existe aqui. */
-.lista-sessoes, .faixa-pendencias { list-style: none; margin: 0 0 var(--gap-6); padding: 0; }
+.lista-sessoes, .faixa-pendencias { list-style: none; margin: 0 0 var(--gap-6); padding: 0; gap: var(--gap-1); display: flex; flex-direction: column; }
 .linha-pendencia {
   display: grid; grid-template-columns: 1fr auto; gap: var(--gap-3);
-  align-items: center; padding: var(--gap-2) var(--gap-4); border-bottom: 1px solid var(--linha);
+  align-items: center; padding: var(--gap-2) var(--gap-4);
 }
-.linha-pendencia:last-child { border-bottom: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .linha-pendencia:hover { background: var(--superficie-2); }
+}
 .hora { font-variant-numeric: tabular-nums; font-weight: 600; }
 .acoes-linha { display: flex; align-items: center; gap: var(--gap-2); }
 
@@ -127,19 +169,27 @@ a:hover { color: var(--acento-escuro); }
 /* fix round 1 (prototipo) — chips que substituem os botoes de acao depois
    do clique */
 .chip {
-  display: inline-flex; align-items: center; padding: 5px 10px;
-  border-radius: var(--raio); font-size: 13px; font-weight: 500;
-  background: var(--superficie-2); color: var(--tinta-2);
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px;
+  border-radius: var(--raio-sm);
+  font-size: var(--t-legenda-tam); line-height: var(--t-legenda-alt);
+  letter-spacing: var(--t-legenda-esp); font-weight: var(--peso-medio);
+  background: var(--superficie-3); color: var(--tinta-2);
+  box-shadow: inset 0 0 0 1px var(--separador);
 }
-.chip.realizada { background: var(--sucesso-suave); color: var(--sucesso); }
-.chip.faltou { background: var(--atencao-suave); color: var(--atencao); }
+.chip-glifo { flex: 0 0 auto; }
+.chip.realizada { background: var(--realizada-fundo); color: var(--realizada-tinta);
+                  box-shadow: inset 0 0 0 1px var(--realizada-contorno); }
+.chip.faltou    { background: var(--faltou-fundo);    color: var(--faltou-tinta);
+                  box-shadow: inset 0 0 0 1px var(--faltou-contorno); }
 /* copiado de `prototipo/estilo.css:220`, que declara `.chip.devendo,
    .chip.alerta, .chip.cancelada` na mesma regra. So `.alerta` vem junto: as
    outras duas nao tem consumidor nesta fatia, e a convencao da casa
    (frontend-design.md, "Placeholder tem dono e data de morte") e a regra
    entrar com o codigo que a usa. Consumidor: o chip de consentimento de
    `telas/ficha/FichaPage.tsx` quando `consentimentoAvisoEm` e null. */
-.chip.alerta { background: var(--atencao-suave); color: var(--atencao); }
+.chip.alerta    { background: var(--alerta-fundo);    color: var(--alerta-tinta);
+                  box-shadow: inset 0 0 0 1px var(--alerta-contorno); }
 
 /* estado vazio — Task 6 do prototipo, usado aqui em ui/EstadoVazio.tsx */
 .estado-vazio {
@@ -155,12 +205,12 @@ a:hover { color: var(--acento-escuro); }
    resultado em fio de cabelo que o grid do prototipo. */
 .agenda-grade {
   width: 100%; border-collapse: collapse;
-  border-top: 1px solid var(--linha); border-left: 1px solid var(--linha);
-  background: var(--superficie); border-radius: var(--raio-g); overflow: hidden;
+  border-top: 1px solid var(--separador); border-left: 1px solid var(--separador);
+  background: var(--superficie-1); border-radius: var(--raio-md); overflow: hidden;
 }
 .agenda-grade th,
 .agenda-grade td.slot {
-  border-right: 1px solid var(--linha); border-bottom: 1px solid var(--linha);
+  border-right: 1px solid var(--separador); border-bottom: 1px solid var(--separador);
   font-size: 13px; padding: var(--gap-2); text-align: left; font-weight: 400;
 }
 .slot.rotulo { background: var(--superficie-2); color: var(--tinta-2); font-weight: 600; text-align: center; }
@@ -174,12 +224,12 @@ a:hover { color: var(--acento-escuro); }
   width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
   border-radius: 50%; margin: 0 auto;
 }
-.dia-numero.hoje { background: var(--acento); color: var(--superficie); }
+.dia-numero.hoje { background: var(--acento); color: var(--superficie-1); }
 /* sessao ocupada: bloco chapado azul, texto branco — mesma linguagem de
    "evento" do tokens.css — com barra de 3px mais escura a esquerda. */
 .slot.ocupado {
-  background: var(--acento); color: var(--superficie); font-weight: 500; cursor: pointer;
-  border-left: 3px solid var(--acento-escuro);
+  background: var(--acento); color: var(--superficie-1); font-weight: 500; cursor: pointer;
+  border-left: 3px solid var(--acento-pressionado);
 }
 .slot:not(.rotulo):not(.ocupado) { cursor: pointer; }
 .slot:not(.rotulo):not(.ocupado):hover { background: var(--superficie-2); }
@@ -203,8 +253,29 @@ a:hover { color: var(--acento-escuro); }
    `prototipo/estilo.css` (linhas 147 e 198-199), nao reescrito: a barra de
    busca e a mesma linguagem visual do resto do design system. */
 .barra-agenda { display: flex; gap: var(--gap-3); margin-bottom: var(--gap-5); flex-wrap: wrap; }
-.busca { flex: 1; min-width: 200px; height: 38px; padding: 0 var(--gap-3);
-  border: 1px solid var(--linha); border-radius: var(--raio); font-size: 14px; }
+.busca {
+  flex: 1; min-width: 200px;
+  height: var(--altura-controle);
+  padding: 0 var(--gap-3);
+  border: 0;
+  border-radius: var(--raio-sm);
+  background: var(--superficie-2);
+  box-shadow: inset 0 0 0 1px var(--separador);
+  color: var(--tinta);
+  font-size: var(--t-corpo-tam);
+  line-height: var(--t-corpo-alt);
+  transition: background-color var(--dur-rapido) var(--curva-cor),
+              box-shadow var(--dur-rapido) var(--curva-cor);
+}
+@media (hover: hover) and (pointer: fine) {
+  .busca:hover { background: var(--superficie-3); }
+}
+.busca:focus {
+  outline: none;
+  background: var(--superficie-1);
+  box-shadow: inset 0 0 0 1px var(--acento), 0 0 0 3px var(--foco-anel);
+}
+.busca::placeholder { color: var(--tinta-3); }
 
 /* ficha de pagina unica (Task 4 da Fatia 2) — copiado verbatim de
    `prototipo/estilo.css` (linhas 207-214 e 230), nao reescrito. */
@@ -227,5 +298,6 @@ a:hover { color: var(--acento-escuro); }
 
 /* registro da anotacao dentro da linha da sessao (Task 5 da Fatia 2) —
    copiado verbatim de `prototipo/estilo.css` (linha 212-213), nao reescrito. */
-.registro-novo textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--linha);
-  border-radius: var(--raio); padding: var(--gap-3); font-size: 14px; resize: vertical; margin-bottom: var(--gap-3); }
+.registro-novo textarea { width: 100%; box-sizing: border-box; border: 0;
+  background: var(--superficie-2); box-shadow: inset 0 0 0 1px var(--separador);
+  border-radius: var(--raio-sm); padding: var(--gap-3); font-size: 14px; resize: vertical; margin-bottom: var(--gap-3); }

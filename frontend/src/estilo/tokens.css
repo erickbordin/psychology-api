@@ -1,57 +1,216 @@
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
-
 :root {
-  --superficie:     #ffffff;
-  --superficie-2:   #f1f3f4;
-  --linha:          #dadce0;
+  color-scheme: light dark;
 
-  --tinta:          #3c4043;
-  --tinta-2:        #5f6368;
-  --tinta-3:        #80868b;
+  /* ————— tipografia ————— */
+  --fonte-ui:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Helvetica,
+    Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Noto Color Emoji";
+  --fonte-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Mono", "Segoe UI Mono",
+    "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
-  /* Direcao visual: linguagem do Google Calendar (decisao do dono do
-     produto, tomada depois de ver o prototipo publicado — ver TRAVAS.md,
-     balde [decisao do dono]). A regra antiga — "azul e SO acao: botao
-     primario, item ativo da navegacao, icone de secao" — morreu: no
-     Calendar o azul e a cor do EVENTO, nao do botao; manter a regra antiga
-     e adotar o Calendar era impossivel.
+  --peso-regular: 400;
+  --peso-medio:   500;
+  --peso-forte:   600;
+  --peso-titulo:  700;
 
-     Regra nova, no lugar dela: ACAO E FORMA, NAO COR. A FORMA e o que
-     separa: pilula = acao, bloco chapado com barra a esquerda = evento.
-     Por isso os dois podem ser azuis sem confundir — e e assim no Calendar,
-     onde o evento e bloco azul e o "Salvar" do dialogo e pilula azul. */
-  --acento:         #1a73e8;
-  --acento-escuro:  #1967d2;
-  --acento-suave:   #e8f0fe;
-  --acento-linha:   #d2e3fc;
+  --t-pagina-tam:   28px;
+  --t-pagina-alt:   34px;
+  --t-pagina-esp:   -0.021em;
+  --t-secao-tam:    20px;
+  --t-secao-alt:    26px;
+  --t-secao-esp:    -0.014em;
+  --t-rotulo-tam:   11px;
+  --t-rotulo-alt:   14px;
+  --t-rotulo-esp:    0.062em;
+  --t-corpo-tam:    15px;
+  --t-corpo-alt:    22px;
+  --t-corpo-esp:    -0.003em;
+  --t-segundo-tam:  13px;
+  --t-segundo-alt:  19px;
+  --t-segundo-esp:   0.000em;
+  --t-legenda-tam:  12px;
+  --t-legenda-alt:  16px;
+  --t-legenda-esp:   0.006em;
+  --t-numero-tam:   15px;
+  --t-numero-alt:   20px;
+  --t-numero-esp:    0.000em;
+  --t-controle-tam: 14px;
+  --t-controle-alt: 18px;
+  --t-controle-esp: -0.006em;
 
-  --agora:          #ea4335;
-  --sucesso:        #188038;
-  --sucesso-suave:  #e6f4ea;
-  --atencao:        #e37400;
-  --atencao-suave:  #fef7e0;
-  --atencao-linha:  #fbe6ad;
-  --perigo:         #d93025;
-  --perigo-suave:   #fce8e6;
+  /* ————— cor: superfícies e material ————— */
+  --fundo-base:            #F1F1F4;
+  --fundo-fosco:           rgba(22, 22, 26, 0.34);
+  --superficie-1:          #FFFFFF;
+  --superficie-2:          #F7F7F9;
+  --superficie-3:          #EBEBEF;
+  --superficie-vidro:      rgba(255, 255, 255, 0.72);
+  --superficie-vidro-topo: rgba(255, 255, 255, 0.60);
+  --separador:             rgba(0, 0, 0, 0.075);
+  --separador-forte:       rgba(0, 0, 0, 0.14);
 
-  /* sombra da pilula elevada (botao primario) — mesma dupla-camada do
-     "Criar" do Calendar/Material; nenhuma cor fica escrita a mao fora
-     daqui, entao a sombra tambem vira token. */
-  --sombra-1: rgba(60, 64, 67, .30);
-  --sombra-2: rgba(60, 64, 67, .15);
+  /* ————— cor: tinta ————— */
+  --tinta:            rgba(0, 0, 0, 0.88);
+  --tinta-2:          rgba(0, 0, 0, 0.60);
+  --tinta-3:          rgba(0, 0, 0, 0.44);
+  --tinta-4:          rgba(0, 0, 0, 0.26);
+  --tinta-sobre-cor:  #FFFFFF;
 
-  --fonte: "Roboto", ui-sans-serif, system-ui, sans-serif;
+  /* ————— cor: acento ————— */
+  --acento:            #0B69D4;
+  --acento-pressionado:#0A5CBC;
+  --acento-texto:      #0A5AB4;
+  --acento-suave:      rgba(11, 105, 212, 0.10);
+  --acento-contorno:   rgba(11, 105, 212, 0.26);
+  --foco-anel:         rgba(11, 105, 212, 0.45);
 
-  --gap-1: 4px;  --gap-2: 8px;  --gap-3: 12px;
-  --gap-4: 16px; --gap-5: 20px; --gap-6: 24px; --gap-7: 32px;
-  --raio: 4px;   --raio-g: 8px;
+  /* ————— cor: estado da sessão (sempre com glifo, §2.5) ————— */
+  --realizada-fundo:    rgba(23, 116, 74, 0.11);
+  --realizada-tinta:    #12603D;
+  --realizada-contorno: rgba(23, 116, 74, 0.26);
+  --faltou-fundo:       rgba(160, 91, 0, 0.12);
+  --faltou-tinta:       #7A4500;
+  --faltou-contorno:    rgba(160, 91, 0, 0.28);
+  --alerta-fundo:       rgba(178, 40, 30, 0.10);
+  --alerta-tinta:       #8E2018;
+  --alerta-contorno:    rgba(178, 40, 30, 0.26);
+  --neutro-fundo:       rgba(0, 0, 0, 0.055);
+  --neutro-tinta:       rgba(0, 0, 0, 0.62);
+  --neutro-contorno:    rgba(0, 0, 0, 0.12);
+
+  /* ————— cor: destrutivo e marcador temporal ————— */
+  --perigo:          #B3261E;
+  --perigo-suave:    rgba(179, 38, 30, 0.10);
+  --perigo-contorno: rgba(179, 38, 30, 0.30);
+  --agora:           #C7381F;
+
+  /* ————— profundidade ————— */
+  --sombra-cartao:
+    0 0.5px 1px rgba(16, 18, 24, 0.045),
+    0 1px 2px  rgba(16, 18, 24, 0.035);
+  --sombra-flutuante:
+    0 1px 2px    rgba(16, 18, 24, 0.06),
+    0 6px 16px  -4px rgba(16, 18, 24, 0.10),
+    0 16px 40px -12px rgba(16, 18, 24, 0.14);
+  --sombra-dialogo:
+    0 2px 4px    rgba(16, 18, 24, 0.06),
+    0 14px 34px  -8px rgba(16, 18, 24, 0.16),
+    0 36px 84px -18px rgba(16, 18, 24, 0.24);
+  --vidro:       saturate(180%) blur(24px);
+  --vidro-forte: saturate(180%) blur(40px);
+
+  /* ————— forma ————— */
+  --raio-xs:    6px;
+  --raio-sm:    8px;
+  --raio-md:   10px;
+  --raio-lg:   14px;
+  --raio-xl:   20px;
+  --raio-cheio: 999px;
+
+  /* ————— espaço (grade de 4px, base 2px) ————— */
+  --gap-0: 2px;
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 20px;
+  --gap-6: 24px;
+  --gap-7: 32px;
+  --gap-8: 40px;
+  --gap-9: 48px;
+
+  /* ————— movimento ————— */
+  --curva-saida:   cubic-bezier(0.23, 1, 0.32, 1);
+  --curva-entrada: cubic-bezier(0.32, 0, 0.67, 0);
+  --curva-suave:   cubic-bezier(0.32, 0.72, 0, 1);
+  --curva-cor:     cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-toque:   110ms;
+  --dur-rapido:  150ms;
+  --dur-medio:   200ms;
+  --dur-dialogo: 260ms;
+  --dur-saida:   170ms;
+
+  /* ————— layout ————— */
+  --largura-lateral:      228px;
+  --largura-conteudo:     1080px;
+  --altura-controle:       36px;
+  --altura-controle-mini:  28px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo-base:            #17171A;
+    --fundo-fosco:           rgba(0, 0, 0, 0.55);
+    --superficie-1:          #212126;
+    --superficie-2:          #26262C;
+    --superficie-3:          #32323A;
+    --superficie-vidro:      rgba(30, 30, 35, 0.68);
+    --superficie-vidro-topo: rgba(255, 255, 255, 0.10);
+    --separador:             rgba(255, 255, 255, 0.10);
+    --separador-forte:       rgba(255, 255, 255, 0.18);
+
+    --tinta:           rgba(255, 255, 255, 0.92);
+    --tinta-2:         rgba(255, 255, 255, 0.66);
+    --tinta-3:         rgba(255, 255, 255, 0.48);
+    --tinta-4:         rgba(255, 255, 255, 0.28);
+    --tinta-sobre-cor: #FFFFFF;
+
+    --acento:             #3B92F5;
+    --acento-pressionado: #2C7FE0;
+    --acento-texto:       #79B6FA;
+    --acento-suave:       rgba(59, 146, 245, 0.16);
+    --acento-contorno:    rgba(59, 146, 245, 0.34);
+    --foco-anel:          rgba(103, 174, 250, 0.55);
+
+    --realizada-fundo:    rgba(62, 186, 129, 0.16);
+    --realizada-tinta:    #6FD6A4;
+    --realizada-contorno: rgba(62, 186, 129, 0.34);
+    --faltou-fundo:       rgba(230, 154, 47, 0.16);
+    --faltou-tinta:       #F0B45C;
+    --faltou-contorno:    rgba(230, 154, 47, 0.34);
+    --alerta-fundo:       rgba(240, 95, 82, 0.15);
+    --alerta-tinta:       #FF8D80;
+    --alerta-contorno:    rgba(240, 95, 82, 0.34);
+    --neutro-fundo:       rgba(255, 255, 255, 0.07);
+    --neutro-tinta:       rgba(255, 255, 255, 0.66);
+    --neutro-contorno:    rgba(255, 255, 255, 0.14);
+
+    --perigo:          #FF6B5E;
+    --perigo-suave:    rgba(255, 107, 94, 0.14);
+    --perigo-contorno: rgba(255, 107, 94, 0.34);
+    --agora:           #FF7A5C;
+
+    --sombra-cartao:
+      0 0.5px 1px rgba(0, 0, 0, 0.30),
+      0 1px 2px  rgba(0, 0, 0, 0.24);
+    --sombra-flutuante:
+      0 1px 2px    rgba(0, 0, 0, 0.36),
+      0 6px 16px  -4px rgba(0, 0, 0, 0.44),
+      0 16px 40px -12px rgba(0, 0, 0, 0.52);
+    --sombra-dialogo:
+      0 2px 4px    rgba(0, 0, 0, 0.40),
+      0 14px 34px  -8px rgba(0, 0, 0, 0.50),
+      0 36px 84px -18px rgba(0, 0, 0, 0.62);
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --superficie-vidro: #FAFAFC;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --superficie-vidro: #1E1E23; }
+  }
 }
 
 body {
   margin: 0;
-  background: var(--superficie-2);
+  background: var(--fundo-base);
   color: var(--tinta);
-  font-family: var(--fonte);
+  font-family: var(--fonte-ui);
   -webkit-font-smoothing: antialiased;
 }
 

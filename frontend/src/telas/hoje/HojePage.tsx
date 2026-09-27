@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { deApi } from '../../api/data'
 import { ErroDaApi } from '../../api/erro'
+import { usePrivacidade } from '../../privacidade/usePrivacidade'
 import { Botao } from '../../ui/Botao'
 import { Cartao } from '../../ui/Cartao'
 import { Chip } from '../../ui/Chip'
@@ -44,7 +45,7 @@ function Nome({ privacidade, children }: { privacidade: boolean; children: strin
 export function HojePage() {
   const { data, isLoading, isError } = usePainelDeHoje()
   const marcar = useMarcarStatus()
-  const [privacidade, setPrivacidade] = useState(false)
+  const { privacidade, alternar } = usePrivacidade()
 
   if (isLoading) return <p>Carregando o dia…</p>
   if (isError) return <p role="alert">Nao foi possivel carregar o dia. Tente de novo.</p>
@@ -60,11 +61,7 @@ export function HojePage() {
             estilizado em estilo/estilo.css (Critico 1 da revisao do
             conjunto: a regra nao existia) */}
         <div className="acoes-cabecalho-dia">
-          <Botao
-            variante="secundario"
-            aria-pressed={privacidade}
-            onClick={() => setPrivacidade((p) => !p)}
-          >
+          <Botao variante="secundario" aria-pressed={privacidade} onClick={alternar}>
             Modo privacidade
           </Botao>
         </div>

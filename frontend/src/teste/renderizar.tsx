@@ -3,6 +3,8 @@ import { render } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 
+import { PrivacidadeProvider } from '../privacidade/PrivacidadeProvider'
+
 /** O cliente padrao da suite, exportado para quem precisa de uma referencia
  *  propria — ver o parametro `cliente` de `renderizar`. */
 export function clienteDeTeste(opcoes: ConstructorParameters<typeof QueryClient>[0] = {}) {
@@ -32,7 +34,9 @@ export function renderizar(
   function Envolvido({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={cliente}>
-        <MemoryRouter initialEntries={[rota]}>{children}</MemoryRouter>
+        <MemoryRouter initialEntries={[rota]}>
+          <PrivacidadeProvider>{children}</PrivacidadeProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     )
   }

@@ -1,5 +1,6 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 
+import { PrivacidadeProvider } from '../privacidade/PrivacidadeProvider'
 import { useSessao } from '../sessao/useSessao'
 import { Botao } from './Botao'
 import { Navegacao } from './Navegacao'
@@ -22,18 +23,20 @@ export function Layout() {
   }
 
   return (
-    <div className="moldura">
-      <aside className="lateral">
-        <Navegacao />
-        <div className="rodape">
-          <Botao variante="secundario" className="mini" onClick={aoSair}>
-            Sair
-          </Botao>
-        </div>
-      </aside>
-      <main>
-        <Outlet />
-      </main>
-    </div>
+    <PrivacidadeProvider>
+      <div className="moldura">
+        <aside className="lateral">
+          <Navegacao />
+          <div className="rodape">
+            <Botao variante="secundario" className="mini" onClick={aoSair}>
+              Sair
+            </Botao>
+          </div>
+        </aside>
+        <main>
+          <Outlet />
+        </main>
+      </div>
+    </PrivacidadeProvider>
   )
 }
