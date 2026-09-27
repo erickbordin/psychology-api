@@ -1,4 +1,4 @@
-# CLAUDE.md
+git add ai/Claude.md docs && git commit -m "docs: quando usar cada skill de frontend, e as travas que valem para todas"# CLAUDE.md
 
 Contexto do projeto para qualquer sessão de IA trabalhando neste repositório.
 
