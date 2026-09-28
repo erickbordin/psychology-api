@@ -133,6 +133,24 @@ describe('ficha do paciente', () => {
     expect(await screen.findByText(/enviar recibo de novembro/i)).toBeInTheDocument()
   })
 
+  it('a faixa de pendencias diz quantas sao', async () => {
+    comFicha()
+    abrir()
+
+    const faixa = await screen.findByRole('complementary', { name: 'Pendencias' })
+    expect(within(faixa).getByText('1')).toBeInTheDocument()
+  })
+
+  it('a linha do tempo nao divide mais a largura com as pendencias', async () => {
+    comFicha()
+    abrir()
+
+    const lista = await screen.findByRole('list', { name: 'Sessoes' })
+    const faixa = screen.getByRole('complementary', { name: 'Pendencias' })
+    expect(faixa.contains(lista)).toBe(false)
+    expect(lista.closest('.colunas-ficha')).toBeNull()
+  })
+
   it('paciente sem sessao nenhuma diz o que fazer', async () => {
     comFicha({ ...FICHA, linhaDoTempo: [], pendencias: [] })
     abrir()

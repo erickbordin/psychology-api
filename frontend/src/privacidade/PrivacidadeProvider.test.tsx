@@ -22,13 +22,10 @@ function Sonda({ nome }: { nome: string }) {
 }
 
 function TelaComLink({ nome, para }: { nome: string; para: string }) {
-  const { privacidade, alternar } = usePrivacidade()
+  const { privacidade } = usePrivacidade()
   return (
     <div>
       <span data-borrado={privacidade ? 'true' : undefined}>{nome}</span>
-      <button type="button" aria-pressed={privacidade} onClick={alternar}>
-        Modo privacidade
-      </button>
       <Link to={para}>Ir para {para}</Link>
     </div>
   )

@@ -7,36 +7,70 @@
  * Acao e forma, nao cor — a pilula azul do rodape e a acao; o resto e campo.
  */
 .mascara {
-  position: fixed; inset: 0; background: rgba(32, 33, 36, .6);
-  z-index: 10;
+  position: fixed; inset: 0; z-index: 10;
+  background: var(--fundo-fosco);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
 }
 
 /* reescrito: no prototipo `.dialogo` era filho de `.mascara` e centralizava
    por flexbox no pai. No Radix, Overlay e Content sao IRMAOS dentro do
    Portal (ver DialogoDeConsulta.tsx) — centraliza sozinho por posicao fixa. */
 .dialogo {
-  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 11;
-  background: var(--superficie-1); border-radius: var(--raio-md);
-  box-shadow: var(--sombra-dialogo);
-  width: min(480px, calc(100vw - 2 * var(--gap-4)));
-  max-height: 90vh; box-sizing: border-box;
+  width: min(520px, calc(100vw - 2 * var(--gap-6)));
+  max-height: min(86vh, 720px);
+  box-sizing: border-box;
   display: flex; flex-direction: column;
+  background: var(--superficie-1);
+  border-radius: var(--raio-xl);
+  box-shadow: var(--sombra-dialogo);
 }
 .dialogo-cabecalho {
   display: flex; align-items: center; justify-content: space-between;
-  padding: var(--gap-4) var(--gap-4) 0;
+  padding: var(--gap-5) var(--gap-5) var(--gap-3);
 }
 /* aplicado direto no `Dialog.Title` (em vez de um `h2` a parte) — o Radix
    forwarda ref/props pro elemento que ele mesmo renderiza. */
-.dialogo-cabecalho-titulo { font-size: 18px; font-weight: 500; margin: 0; }
+.dialogo-cabecalho-titulo {
+  margin: 0;
+  font-size: var(--t-secao-tam); line-height: var(--t-secao-alt);
+  letter-spacing: var(--t-secao-esp); font-weight: var(--peso-forte);
+}
 .dialogo-corpo {
-  padding: var(--gap-4); overflow-y: auto;
+  padding: 0 var(--gap-5); overflow-y: auto;
   display: flex; flex-direction: column; gap: var(--gap-4);
 }
 .dialogo-rodape {
   display: flex; justify-content: flex-end; gap: var(--gap-3);
-  padding: 0 var(--gap-4) var(--gap-4);
+  padding: var(--gap-5);
+  background: var(--superficie-1);
+  border-radius: 0 0 var(--raio-xl) var(--raio-xl);
+}
+
+@keyframes mascara-entra { from { opacity: 0 } to { opacity: 1 } }
+@keyframes mascara-sai   { from { opacity: 1 } to { opacity: 0 } }
+
+@keyframes dialogo-entra {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.965); filter: blur(4px); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1);     filter: blur(0);   }
+}
+@keyframes dialogo-sai {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1);     filter: blur(0);   }
+  to   { opacity: 0; transform: translate(-50%, -49%) scale(0.975); filter: blur(3px); }
+}
+
+.mascara[data-state='open']   { animation: mascara-entra var(--dur-dialogo) var(--curva-saida); }
+.mascara[data-state='closed'] { animation: mascara-sai   var(--dur-saida)   var(--curva-entrada); }
+
+.dialogo[data-state='open'] {
+  animation: dialogo-entra var(--dur-dialogo) var(--curva-suave);
+  transform-origin: center;
+}
+.dialogo[data-state='closed'] {
+  animation: dialogo-sai var(--dur-saida) var(--curva-entrada);
 }
 
 /* campo */

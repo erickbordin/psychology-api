@@ -75,7 +75,13 @@ main { flex: 1; min-width: 0; background: var(--fundo-base); }
   box-shadow: var(--sombra-cartao);
 }
 h1 { font-size: 26px; margin: 0 0 var(--gap-1); letter-spacing: -.02em; }
-.sub { color: var(--tinta-2); font-size: 14px; margin: 0 0 var(--gap-6); }
+.sub {
+  color: var(--tinta-2);
+  font-size: var(--t-segundo-tam);
+  line-height: var(--t-segundo-alt);
+  letter-spacing: var(--t-segundo-esp);
+  margin: 0 0 var(--gap-6);
+}
 
 /* reset generico de link — sem isto o navegador desenha azul-sublinhado
    padrao em qualquer <a> sem classe (ex.: "Abrir a ficha" antes de virar
@@ -135,6 +141,7 @@ a:hover { color: var(--acento-pressionado); }
 .nome-grande { display: block; font-size: 24px; margin: var(--gap-1) 0 var(--gap-2); }
 .titulo-secao { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
   color: var(--tinta-3); margin: var(--gap-6) 0 var(--gap-3); }
+.titulo-secao { display: flex; align-items: center; gap: var(--gap-2); }
 
 /* reescrito: o prototipo tinha `.faixa-dia` (timeline horizontal com blocos
    posicionados por horario, `.trilho-dia`/`.sessao-bloco`) para "O dia" e
@@ -152,6 +159,20 @@ a:hover { color: var(--acento-pressionado); }
 @media (hover: hover) and (pointer: fine) {
   .linha-pendencia:hover { background: var(--superficie-2); }
 }
+.linha-paciente > a {
+  display: flex; flex-direction: column; gap: var(--gap-0);
+  text-decoration: none; color: inherit; min-width: 0;
+}
+.linha-paciente-nome {
+  font-size: var(--t-corpo-tam); line-height: var(--t-corpo-alt);
+  font-weight: var(--peso-medio); color: var(--tinta);
+}
+.linha-paciente-meta {
+  font-size: var(--t-segundo-tam); line-height: var(--t-segundo-alt);
+  color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .hora { font-variant-numeric: tabular-nums; font-weight: 600; }
 .acoes-linha { display: flex; align-items: center; gap: var(--gap-2); }
 
@@ -164,7 +185,10 @@ a:hover { color: var(--acento-pressionado); }
    id/classe) — o seletor de atributo entrega o mesmo efeito sem reescrever
    a árvore só para caber no seletor do protótipo. Critico 1 da revisao do
    conjunto: esta regra nao existia em lugar nenhum do repositorio. */
-[data-borrado='true'] { filter: blur(5px); }
+[data-borrado='true'] {
+  filter: blur(6px) saturate(0.7);
+  transition: filter var(--dur-medio) var(--curva-cor);
+}
 
 /* fix round 1 (prototipo) — chips que substituem os botoes de acao depois
    do clique */
@@ -193,10 +217,21 @@ a:hover { color: var(--acento-pressionado); }
 
 /* estado vazio — Task 6 do prototipo, usado aqui em ui/EstadoVazio.tsx */
 .estado-vazio {
-  display: flex; flex-direction: column; align-items: center; gap: var(--gap-3);
-  padding: var(--gap-7) var(--gap-4); text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--gap-3);
+  padding: var(--gap-9) var(--gap-5);
+  text-align: center;
 }
-.estado-vazio .titulo { font-size: 16px; font-weight: 500; color: var(--tinta); margin: 0; }
+.estado-vazio .titulo {
+  margin: 0;
+  font-size: var(--t-corpo-tam); line-height: var(--t-corpo-alt);
+  font-weight: var(--peso-forte); color: var(--tinta);
+}
+.estado-vazio .apoio {
+  margin: 0; max-width: 34ch;
+  font-size: var(--t-segundo-tam); line-height: var(--t-segundo-alt);
+  color: var(--tinta-2);
+}
 
 /* tela agenda — grade semanal, linguagem Google Calendar. reescrito: o
    prototipo montava a grade com CSS Grid num <div> (`.grade-semana`/
@@ -225,12 +260,43 @@ a:hover { color: var(--acento-pressionado); }
   border-radius: 50%; margin: 0 auto;
 }
 .dia-numero.hoje { background: var(--acento); color: var(--superficie-1); }
-/* sessao ocupada: bloco chapado azul, texto branco — mesma linguagem de
-   "evento" do tokens.css — com barra de 3px mais escura a esquerda. */
-.slot.ocupado {
-  background: var(--acento); color: var(--superficie-1); font-weight: 500; cursor: pointer;
-  border-left: 3px solid var(--acento-pressionado);
+/* sessao ocupada: superficie tonal com barra de estado a esquerda e duas
+   linhas — nome, depois glifo e palavra de estado (spec 4.5, spec 6.5). */
+.slot.ocupado { background: transparent; padding: 2px; cursor: pointer; }
+.bloco-sessao {
+  display: flex; flex-direction: column; gap: var(--gap-0);
+  padding: 4px 6px;
+  border-radius: var(--raio-md);
+  background: var(--acento-suave);
+  color: var(--tinta);
+  box-shadow: inset 2px 0 0 var(--acento);
+  transition: box-shadow var(--dur-rapido) var(--curva-suave),
+              transform var(--dur-rapido) var(--curva-suave);
 }
+.bloco-sessao[data-estado='realizada'] { box-shadow: inset 2px 0 0 var(--realizada-tinta); }
+.bloco-sessao[data-estado='faltou']    { box-shadow: inset 2px 0 0 var(--faltou-tinta); }
+.slot.ocupado:focus-visible .bloco-sessao {
+  box-shadow: var(--sombra-cartao), inset 2px 0 0 var(--acento);
+  transform: translateY(-1px);
+}
+.slot.ocupado:focus-visible .bloco-sessao[data-estado='realizada'] {
+  box-shadow: var(--sombra-cartao), inset 2px 0 0 var(--realizada-tinta);
+}
+.slot.ocupado:focus-visible .bloco-sessao[data-estado='faltou'] {
+  box-shadow: var(--sombra-cartao), inset 2px 0 0 var(--faltou-tinta);
+}
+.bloco-sessao-nome {
+  font-size: var(--t-legenda-tam); line-height: var(--t-legenda-alt);
+  font-weight: var(--peso-medio);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bloco-sessao-horario {
+  font-size: var(--t-legenda-tam); line-height: var(--t-legenda-alt);
+  color: var(--tinta-2);
+  opacity: 0;
+  transition: opacity var(--dur-rapido) var(--curva-suave);
+}
+.slot.ocupado:focus-visible .bloco-sessao-horario { opacity: 1; }
 .slot:not(.rotulo):not(.ocupado) { cursor: pointer; }
 .slot:not(.rotulo):not(.ocupado):hover { background: var(--superficie-2); }
 
@@ -239,15 +305,40 @@ a:hover { color: var(--acento-pressionado); }
    ui/Campo.tsx) e so precisa do estilo do resumo de erros e do anuncio de
    envio, que nao existiam nomeados no prototipo (ele nao tem tela de
    login). Construido com os mesmos tokens de cor/perigo. */
-.resumo-erros p { margin: 0 0 4px; font-size: 13px; color: var(--perigo); font-weight: 500; }
-.resumo-erros ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--perigo); }
-.anuncio { font-size: 13px; color: var(--perigo); min-height: 18px; margin: 0 0 var(--gap-3); }
+.resumo-erros p { margin: 0 0 var(--gap-1); font-size: var(--t-legenda-tam); color: var(--perigo); font-weight: var(--peso-medio); }
+.resumo-erros ul { margin: 0; padding-left: 18px; font-size: var(--t-legenda-tam); color: var(--perigo); }
+.anuncio {
+  font-size: var(--t-legenda-tam);
+  line-height: var(--t-legenda-alt);
+  color: var(--perigo);
+  min-height: 18px;
+  margin: 0 0 var(--gap-3);
+}
 
 /* moldura da tela de login (sem equivalente no prototipo: ele nao tem tela
    de autenticacao). Construida com os mesmos tokens/classes do resto. */
-.tela-login { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: var(--gap-4); box-sizing: border-box; }
-.cartao-login { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: var(--gap-4); box-sizing: border-box; }
+.tela-login {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  padding: var(--gap-5);
+  background: var(--fundo-base);
+  box-sizing: border-box;
+}
+.cartao-login {
+  width: 100%; max-width: 380px;
+  display: flex; flex-direction: column; gap: var(--gap-5);
+  box-sizing: border-box;
+}
+.cartao-login h1 {
+  margin: 0;
+  font-size: var(--t-pagina-tam);
+  line-height: var(--t-pagina-alt);
+  letter-spacing: var(--t-pagina-esp);
+  font-weight: var(--peso-titulo);
+  color: var(--tinta);
+}
 .cartao-login form { display: flex; flex-direction: column; gap: var(--gap-4); }
+.cartao-login .botao { margin-top: var(--gap-2); }
 
 /* tela pacientes (Task 2 da Fatia 2) — copiado verbatim de
    `prototipo/estilo.css` (linhas 147 e 198-199), nao reescrito: a barra de
@@ -283,7 +374,17 @@ a:hover { color: var(--acento-pressionado); }
 .cabecalho-ficha { display: flex; justify-content: space-between; align-items: flex-start;
   margin: var(--gap-3) 0 var(--gap-4); }
 .acoes-ficha { display: flex; gap: var(--gap-3); align-items: center; }
-.colunas-ficha { display: grid; grid-template-columns: 1fr 260px; gap: var(--gap-6); align-items: start; }
+.faixa-pendencias-bloco { margin: var(--gap-5) 0 var(--gap-8); }
+.contador-pendencias {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: var(--raio-cheio);
+  background: var(--alerta-fundo); color: var(--alerta-tinta);
+  font-size: var(--t-legenda-tam);
+  font-weight: var(--peso-forte);
+  font-variant-numeric: tabular-nums;
+}
+.prontuario { margin-bottom: var(--gap-8); }
 /* No prototipo `.linha-tempo` e uma <div> de <article>s; aqui e uma <ul>
    semantica (a linha do tempo E uma lista, e os testes navegam por `listitem`).
    O reset de lista entra explicito pelo mesmo motivo que `.lista-sessoes` ja
@@ -294,7 +395,6 @@ a:hover { color: var(--acento-pressionado); }
    navegador e a linha do tempo fica indentada dentro do proprio cartao,
    desalinhada da `.lista-sessoes` irma. */
 .linha-tempo { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--gap-3); margin: var(--gap-4) 0 0; }
-@media (max-width: 860px) { .colunas-ficha { grid-template-columns: 1fr; } }
 
 /* registro da anotacao dentro da linha da sessao (Task 5 da Fatia 2) —
    copiado verbatim de `prototipo/estilo.css` (linha 212-213), nao reescrito. */

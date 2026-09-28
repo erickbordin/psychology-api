@@ -108,30 +108,32 @@ export function FichaPage() {
             />
           )}
 
-          <div className="colunas-ficha">
-            <div>
-              <h2 className="titulo-secao">Sessoes</h2>
-              {data.linhaDoTempo.length === 0 ? (
-                <EstadoVazio titulo="Nenhuma sessao registrada ainda." />
-              ) : (
-                <LinhaDoTempo sessoes={data.linhaDoTempo} pacienteId={pacienteId} />
+          <aside aria-label="Pendencias" className="faixa-pendencias-bloco">
+            <h2 className="titulo-secao">
+              Pendencias
+              {data.pendencias.length > 0 && (
+                <span className="contador-pendencias">{data.pendencias.length}</span>
               )}
-            </div>
-
-            <aside aria-label="Pendencias">
-              <h2 className="titulo-secao">Pendencias</h2>
-              {data.pendencias.length === 0 ? (
-                <p className="sub">Nenhuma pendencia.</p>
-              ) : (
-                <ul className="cartao lista-sessoes">
-                  {data.pendencias.map((p) => (
-                    <li className="linha-pendencia" key={p.id}>
-                      {p.descricao}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </aside>
+            </h2>
+            {data.pendencias.length === 0 ? (
+              <p className="sub">Nenhuma pendencia.</p>
+            ) : (
+              <ul className="faixa-pendencias">
+                {data.pendencias.map((p) => (
+                  <li className="linha-pendencia" key={p.id}>
+                    {p.descricao}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+          <div className="prontuario">
+            <h2 className="titulo-secao">Sessoes</h2>
+            {data.linhaDoTempo.length === 0 ? (
+              <EstadoVazio titulo="Nenhuma sessao registrada ainda." />
+            ) : (
+              <LinhaDoTempo sessoes={data.linhaDoTempo} pacienteId={pacienteId} />
+            )}
           </div>
         </>
       )}

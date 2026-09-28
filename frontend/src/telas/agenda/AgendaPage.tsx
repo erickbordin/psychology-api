@@ -1,8 +1,15 @@
 import { useState } from 'react'
 
 import { deApi, paraApi } from '../../api/data'
+import { Chip } from '../../ui/Chip'
 import { DialogoDeConsulta } from './DialogoDeConsulta'
 import { useConsultasDaSemana, type ConsultaDaAgenda } from './queries'
+
+const ESTADO: Record<'REALIZADA' | 'AGENDADA' | 'FALTOU', { variante: 'realizada' | 'neutro' | 'faltou'; texto: string }> = {
+  REALIZADA: { variante: 'realizada', texto: 'Realizada' },
+  AGENDADA: { variante: 'neutro', texto: 'Agendada' },
+  FALTOU: { variante: 'faltou', texto: 'Faltou' },
+}
 
 /** Segunda a domingo da semana que contem `base`. */
 function diasDaSemana(base: Date): Date[] {
@@ -104,34 +111,49 @@ export function AgendaPage() {
           </tr>
         </thead>
         <tbody>
-          {HORAS.map((h) => (
-            <tr key={h}>
-              <th className="slot hora" scope="row">
-                {String(h).padStart(2, '0')}:00
-              </th>
-              {semana.map((d) => {
-                const celula = new Date(d)
-                celula.setHours(h, 0, 0, 0)
-                const ocupada = encontrarConsulta(consultas, celula)
-                return (
-                  <td
-                    key={celula.toISOString()}
-                    className={ocupada ? 'slot ocupado' : 'slot'}
-                    role="gridcell"
-                    tabIndex={0}
-                    aria-label={
-                      ocupada
-                        ? `Consulta de ${ocupada.pacienteNome} as ${celula.toLocaleString('pt-BR')}`
-                        : `Agendar ${celula.toLocaleString('pt-BR')}`
-                    }
-                    onClick={() => setQuando(paraApi(celula))}
-                  >
-                    {ocupada && <span>{ocupada.pacienteNome}</span>}
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
+          {HORAS.map((h) => {
+            const horario = `${String(h).padStart(2, '0')}:00`
+            return (
+              <tr key={h}>
+                <th className="slot hora" scope="row">
+                  {horario}
+                </th>
+                {semana.map((d) => {
+                  const celula = new Date(d)
+                  celula.setHours(h, 0, 0, 0)
+                  const ocupada = encontrarConsulta(consultas, celula)
+                  return (
+                    <td
+                      key={celula.toISOString()}
+                      className={ocupada ? 'slot ocupado' : 'slot'}
+                      role="gridcell"
+                      tabIndex={0}
+                      aria-label={
+                        ocupada
+                          ? `Consulta de ${ocupada.pacienteNome} as ${celula.toLocaleString('pt-BR')}`
+                          : `Agendar ${celula.toLocaleString('pt-BR')}`
+                      }
+                      onClick={() => setQuando(paraApi(celula))}
+                    >
+                      {ocupada && (
+                        <span className="bloco-sessao" data-estado={ocupada.status.toLowerCase()}>
+                          <span className="bloco-sessao-nome">{ocupada.pacienteNome}</span>
+                          <span className="bloco-sessao-horario" aria-hidden="true">
+                            {horario}
+                          </span>
+                          {ESTADO[ocupada.status as keyof typeof ESTADO] && (
+                            <Chip variante={ESTADO[ocupada.status as keyof typeof ESTADO].variante}>
+                              {ESTADO[ocupada.status as keyof typeof ESTADO].texto}
+                            </Chip>
+                          )}
+                        </span>
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
 

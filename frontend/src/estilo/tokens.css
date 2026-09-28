@@ -140,8 +140,7 @@
   --altura-controle-mini:  28px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root[data-tema='escuro'] {
     --fundo-base:            #17171A;
     --fundo-fosco:           rgba(0, 0, 0, 0.55);
     --superficie-1:          #212126;
@@ -194,16 +193,13 @@
       0 2px 4px    rgba(0, 0, 0, 0.40),
       0 14px 34px  -8px rgba(0, 0, 0, 0.50),
       0 36px 84px -18px rgba(0, 0, 0, 0.62);
-  }
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root {
     --superficie-vidro: #FAFAFC;
   }
-  @media (prefers-color-scheme: dark) {
-    :root { --superficie-vidro: #1E1E23; }
-  }
+  :root[data-tema='escuro'] { --superficie-vidro: #1E1E23; }
 }
 
 body {

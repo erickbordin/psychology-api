@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 
 import { PrivacidadeProvider } from '../privacidade/PrivacidadeProvider'
+import { usePrivacidade } from '../privacidade/usePrivacidade'
 import { useSessao } from '../sessao/useSessao'
 import { Botao } from './Botao'
 import { Navegacao } from './Navegacao'
@@ -27,6 +28,7 @@ export function Layout() {
       <div className="moldura">
         <aside className="lateral">
           <Navegacao />
+          <ControlePrivacidade />
           <div className="rodape">
             <Botao variante="secundario" className="mini" onClick={aoSair}>
               Sair
@@ -38,5 +40,17 @@ export function Layout() {
         </main>
       </div>
     </PrivacidadeProvider>
+  )
+}
+
+function ControlePrivacidade() {
+  const { privacidade, alternar } = usePrivacidade()
+
+  return (
+    <div className="acoes-cabecalho-dia">
+      <Botao variante="secundario" aria-pressed={privacidade} onClick={alternar}>
+        Modo privacidade
+      </Botao>
+    </div>
   )
 }

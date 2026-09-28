@@ -13,7 +13,7 @@ import { HojePage } from './HojePage'
 // marca (`toHaveAttribute`), nunca o efeito, e passava com o borrao morto.
 // Testes de tela nao passam por `main.tsx` (onde o app "de verdade" carrega
 // a folha de estilo global) — sem este import, `getComputedStyle` abaixo
-// nunca veria a regra `[data-borrado='true'] { filter: blur(5px) }`, mesmo
+// nunca veria a regra `[data-borrado='true'] { filter: blur(6px) saturate(0.7) }`, mesmo
 // que ela exista em estilo/estilo.css e o app real a aplique. Vitest com
 // `css: true` (vite.config.ts) processa este import e injeta a folha real no
 // `document` do jsdom — confirmado empiricamente que o jsdom desta versao
@@ -203,9 +203,8 @@ describe('tela Hoje', () => {
     expect(within(faixa).getByText(/registre a anotacao/i)).toBeInTheDocument()
   })
 
-  it('modo privacidade borra os nomes com um clique', async () => {
+  it('sem privacidade, o nome nao borra', async () => {
     comPainel()
-    const usuario = userEvent.setup()
     renderizar(<HojePage />)
 
     // Escopado ao destaque: Rui Sampaio aparece DUAS vezes na tela (no
@@ -214,21 +213,16 @@ describe('tela Hoje', () => {
     // encontra os dois nos e falha com "multiple elements" — o mesmo
     // problema que o brief ja evitou em "destaque"/"linhas[0]" com `within`.
     const destaque = await screen.findByRole('region', { name: /proxima sessao/i })
+    const nome = await within(destaque).findByText(/rui sampaio/i)
+    expect(getComputedStyle(nome).filter).not.toBe('blur(6px) saturate(0.7)')
+  })
 
-    // ANTES de clicar: sem privacidade, nada borra. Sem esta linha, um teste
-    // que so checa o estado "ligado" nao prova que o clique MUDOU alguma
-    // coisa de verdade.
-    const antes = await within(destaque).findByText(/rui sampaio/i)
-    expect(getComputedStyle(antes).filter).not.toBe('blur(5px)')
+  it('com privacidade ligada, o nome borra', async () => {
+    comPainel()
+    renderizar(<HojePage />, { privacidadeLigada: true })
 
-    await usuario.click(screen.getByRole('button', { name: /privacidade/i }))
-
-    // reconsulta DEPOIS do clique (nao reusa `antes`): `Nome` e definido
-    // dentro do corpo de `HojePage`, entao a re-renderizacao troca a
-    // identidade do componente e o React desmonta/remonta o <span> — o no
-    // antigo fica orfao no DOM antigo e `getComputedStyle` nele sempre
-    // devolveria "none", mesmo com a regra aplicada no elemento novo.
-    const depois = within(destaque).getByText(/rui sampaio/i)
+    const destaque = await screen.findByRole('region', { name: /proxima sessao/i })
+    const nome = await within(destaque).findByText(/rui sampaio/i)
 
     // a spec 4 pede BORRAR, nao remover: o psicologo continua sabendo onde
     // cada sessao esta, sem que quem entra na sala leia o nome. Prova o
@@ -236,11 +230,11 @@ describe('tela Hoje', () => {
     // nao so a marca — a marca sozinha (`data-borrado="true"`) e o que o
     // Critico 1 da revisao do conjunto achou passando com o borrao morto:
     // nenhuma regra CSS existia pro atributo em lugar nenhum do repositorio.
-    expect(getComputedStyle(depois).filter).toBe('blur(5px)')
+    expect(getComputedStyle(nome).filter).toBe('blur(6px) saturate(0.7)')
     // documenta a amarracao: e a regra `[data-borrado='true']` de
     // estilo/estilo.css que produz o filtro acima, entao continua valendo
     // conferir a marca tambem
-    expect(depois).toHaveAttribute('data-borrado', 'true')
+    expect(nome).toHaveAttribute('data-borrado', 'true')
   })
 
   it('dia 1 do psicologo: diz o que fazer, e nao e erro', async () => {

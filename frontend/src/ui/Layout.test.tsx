@@ -44,4 +44,24 @@ describe('Layout', () => {
     expect(screen.queryByText('conteudo protegido')).not.toBeInTheDocument()
     expect(logoutChamado).toBe(true)
   })
+
+  it('o controle de privacidade vive no shell, alcancavel de qualquer tela', async () => {
+    const usuario = userEvent.setup()
+    renderizar(
+      <SessaoProvider>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<p>conteudo</p>} />
+          </Route>
+        </Routes>
+      </SessaoProvider>,
+    )
+
+    const alternador = await screen.findByRole('button', { name: /modo privacidade/i })
+    expect(alternador).toHaveAttribute('aria-pressed', 'false')
+
+    await usuario.click(alternador)
+
+    expect(alternador).toHaveAttribute('aria-pressed', 'true')
+  })
 })

@@ -1,15 +1,42 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { usePrivacidade } from '../../privacidade/usePrivacidade'
 import { Botao } from '../../ui/Botao'
+import { Chip } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
 import { DialogoDePaciente } from './DialogoDePaciente'
 import { usePacientes } from './queries'
+import type { Paciente } from './queries'
+
+function idadeEmAnos(nascimento: string | null): number | null {
+  if (!nascimento) return null
+  const nasc = new Date(nascimento)
+  if (Number.isNaN(nasc.getTime())) return null
+  const hoje = new Date()
+  let anos = hoje.getFullYear() - nasc.getFullYear()
+  const mes = hoje.getMonth() - nasc.getMonth()
+  if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) anos -= 1
+  return anos >= 0 ? anos : null
+}
+
+function linhaDeMeta(p: Paciente): string {
+  const idade = idadeEmAnos(p.dataNascimento)
+  const partes = [
+    idade === null ? null : `${idade} anos`,
+    p.telefone ?? p.email,
+    p.valorSessao === null
+      ? null
+      : p.valorSessao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+  ]
+  return partes.filter(Boolean).join(' · ')
+}
 
 export function PacientesPage() {
   const [busca, setBusca] = useState('')
   const [dialogo, setDialogo] = useState(false)
   const { data, isPending, isError, isPlaceholderData } = usePacientes(busca)
+  const { privacidade } = usePrivacidade()
   const buscando = busca.trim().length > 0
 
   return (
@@ -71,7 +98,7 @@ export function PacientesPage() {
           }
           acao={
             !buscando ? (
-              <Botao onClick={() => setDialogo(true)}>Cadastrar o primeiro</Botao>
+              <Botao variante="secundario" onClick={() => setDialogo(true)}>Cadastrar o primeiro</Botao>
             ) : undefined
           }
         />
@@ -79,11 +106,22 @@ export function PacientesPage() {
 
       {data && data.length > 0 && (
         <ul className="cartao lista-sessoes">
-          {data.map((p) => (
-            <li className="linha-pendencia" key={p.idPaciente}>
-              <Link to={`/pacientes/${p.idPaciente}`}>{p.nome}</Link>
-            </li>
-          ))}
+          {data.map((p) => {
+            const meta = linhaDeMeta(p)
+            return (
+              <li className="linha-pendencia linha-paciente" key={p.idPaciente}>
+                <Link to={`/pacientes/${p.idPaciente}`}>
+                  <span className="linha-paciente-nome" data-borrado={privacidade}>{p.nome}</span>
+                  {meta && (
+                    <span className="linha-paciente-meta" data-borrado={privacidade}>{meta}</span>
+                  )}
+                </Link>
+                <Chip variante={p.consentimentoAvisoEm ? 'neutro' : 'alerta'}>
+                  {p.consentimentoAvisoEm ? 'Aviso autorizado' : 'Aviso nao autorizado'}
+                </Chip>
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>

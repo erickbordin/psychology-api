@@ -67,7 +67,7 @@ describe('agenda', () => {
             id: '44444444-4444-4444-4444-444444444444',
             pacienteNome: 'Otavio Lins',
             dtConsulta: `${de}T07:00:00`,
-            status: 'AGENDADA',
+            status: 'REALIZADA',
           },
         ])
       }),
@@ -75,6 +75,57 @@ describe('agenda', () => {
     renderizar(<AgendaPage />)
 
     expect(await screen.findByText(/otavio lins/i)).toBeInTheDocument()
+  })
+
+  it('o bloco diz o estado da sessao, nao so o nome', async () => {
+    servidor.use(
+      http.get('/consultas', ({ request }) => {
+        const de = new URL(request.url).searchParams.get('de')
+        return HttpResponse.json([
+          {
+            id: '44444444-4444-4444-4444-444444444444',
+            pacienteNome: 'Otavio Lins',
+            dtConsulta: `${de}T07:00:00`,
+            status: 'REALIZADA',
+          },
+        ])
+      }),
+    )
+    renderizar(<AgendaPage />)
+
+    await screen.findByRole('grid', { name: /semana/i })
+    const bloco = (await screen.findByText(/otavio lins/i)).closest<HTMLElement>('[role="gridcell"]')!
+    expect(within(bloco).getByText(/realizada/i)).toBeInTheDocument()
+  })
+
+  it('o bloco ocupado carrega o horario da sessao, pronto pra revelar no foco', async () => {
+    servidor.use(
+      http.get('/consultas', ({ request }) => {
+        const de = new URL(request.url).searchParams.get('de')
+        return HttpResponse.json([
+          {
+            id: '44444444-4444-4444-4444-444444444444',
+            pacienteNome: 'Otavio Lins',
+            dtConsulta: `${de}T07:00:00`,
+            status: 'REALIZADA',
+          },
+        ])
+      }),
+    )
+    renderizar(<AgendaPage />)
+
+    await screen.findByRole('grid', { name: /semana/i })
+    const bloco = (await screen.findByText(/otavio lins/i)).closest<HTMLElement>('[role="gridcell"]')!
+    expect(within(bloco).getByText('07:00')).toBeInTheDocument()
+  })
+
+  it('a grade nao perde nem ganha celula ao mostrar estado', async () => {
+    servidor.use(http.get('/consultas', () => HttpResponse.json([])))
+    renderizar(<AgendaPage />)
+
+    const grade = await screen.findByRole('grid', { name: /semana/i })
+    expect(within(grade).getAllByRole('columnheader')).toHaveLength(7)
+    expect(within(grade).getAllByRole('rowheader')).toHaveLength(13)
   })
 
   it('consulta cancelada nao ocupa a grade', async () => {

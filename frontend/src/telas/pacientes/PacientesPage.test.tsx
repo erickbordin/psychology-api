@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -151,5 +151,45 @@ describe('tela de pacientes', () => {
 
     // e quando ela chega, a lista de verdade aparece
     expect(await screen.findByText('Rui Sampaio')).toBeInTheDocument()
+  })
+
+  it('a linha mostra idade, contato e valor, nao so o nome', async () => {
+    comPacientes()
+    renderizar(<PacientesPage />)
+    const linha = (await screen.findByText('Helena Vaz')).closest('li')!
+    expect(within(linha).getByText(/anos/)).toBeInTheDocument()
+    expect(within(linha).getByText(/180/)).toBeInTheDocument()
+  })
+
+  it('o chip de consentimento fica na linha, fora do link', async () => {
+    comPacientes()
+    renderizar(<PacientesPage />)
+    const linha = (await screen.findByText('Helena Vaz')).closest('li')!
+    const chip = within(linha).getByText(/aviso (nao )?autorizado/i)
+    expect(chip).toBeInTheDocument()
+    expect(chip.closest('a')).toBeNull()
+  })
+
+  it('sob privacidade o nome e o metadado borram, o consentimento nao', async () => {
+    comPacientes()
+    renderizar(<PacientesPage />, { privacidadeLigada: true })
+
+    const linha = (await screen.findByText('Helena Vaz')).closest('li')!
+    expect(within(linha).getByText('Helena Vaz')).toHaveAttribute('data-borrado', 'true')
+    expect(
+      within(linha).getByText(/aviso (nao )?autorizado/i).closest('[data-borrado="true"]'),
+    ).toBeNull()
+  })
+
+  it('paciente sem telefone e sem valor nao mostra separador orfao', async () => {
+    servidor.use(
+      http.get('/pacientes', () =>
+        HttpResponse.json([{ ...HELENA, telefone: null, email: null, valorSessao: null }]),
+      ),
+    )
+    renderizar(<PacientesPage />)
+    const linha = (await screen.findByText('Helena Vaz')).closest('li')!
+    expect(within(linha).queryByText(/·\s*·/)).toBeNull()
+    expect(linha.textContent).not.toMatch(/·\s*$/)
   })
 })

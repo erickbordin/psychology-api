@@ -45,7 +45,7 @@ function Nome({ privacidade, children }: { privacidade: boolean; children: strin
 export function HojePage() {
   const { data, isLoading, isError } = usePainelDeHoje()
   const marcar = useMarcarStatus()
-  const { privacidade, alternar } = usePrivacidade()
+  const { privacidade } = usePrivacidade()
 
   if (isLoading) return <p>Carregando o dia…</p>
   if (isError) return <p role="alert">Nao foi possivel carregar o dia. Tente de novo.</p>
@@ -55,18 +55,13 @@ export function HojePage() {
     <div className="tela">
       <header className="cabecalho-dia">
         <h1>Hoje</h1>
-        {/* spec 4(1): a tela fica aberta em tela cheia no consultorio, com
-            paciente entrando. Um clique borra os nomes — a decisao de esconder
-            dado clinico preservada sem matar a utilidade. `[data-borrado]` e'
-            estilizado em estilo/estilo.css (Critico 1 da revisao do
-            conjunto: a regra nao existia) */}
-        <div className="acoes-cabecalho-dia">
-          <Botao variante="secundario" aria-pressed={privacidade} onClick={alternar}>
-            Modo privacidade
-          </Botao>
-        </div>
       </header>
 
+      {/* spec 4(1): a tela fica aberta em tela cheia no consultorio, com
+          paciente entrando. Um clique borra os nomes — a decisao de esconder
+          dado clinico preservada sem matar a utilidade. `[data-borrado]` e'
+          estilizado em estilo/estilo.css (Critico 1 da revisao do
+          conjunto: a regra nao existia) */}
       {data.proxima ? (
         <section aria-label="Proxima sessao">
           <Cartao destaque>
@@ -87,7 +82,7 @@ export function HojePage() {
           <EstadoVazio
             titulo="Nenhuma sessao hoje"
             acao={
-              <Link className="botao" to="/agenda">
+              <Link className="botao secundario" to="/agenda">
                 Ver a agenda
               </Link>
             }

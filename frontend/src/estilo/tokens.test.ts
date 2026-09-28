@@ -32,7 +32,11 @@ describe('tokens', () => {
   })
 
   it('declara o par claro e escuro', () => {
-    expect(tokensCss).toContain('prefers-color-scheme: dark')
+    expect(tokensCss).toContain(":root[data-tema='escuro']")
+  })
+
+  it('o tema escuro nao dispara sozinho pelo sistema operacional', () => {
+    expect(tokensCss).not.toContain('prefers-color-scheme')
   })
 
   it('mantem o kill-switch de movimento reduzido', () => {

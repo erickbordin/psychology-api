@@ -29,13 +29,17 @@ export function clienteDeTeste(opcoes: ConstructorParameters<typeof QueryClient>
  */
 export function renderizar(
   ui: ReactElement,
-  { rota = '/', cliente = clienteDeTeste() }: { rota?: string; cliente?: QueryClient } = {},
+  {
+    rota = '/',
+    cliente = clienteDeTeste(),
+    privacidadeLigada = false,
+  }: { rota?: string; cliente?: QueryClient; privacidadeLigada?: boolean } = {},
 ) {
   function Envolvido({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={cliente}>
         <MemoryRouter initialEntries={[rota]}>
-          <PrivacidadeProvider>{children}</PrivacidadeProvider>
+          <PrivacidadeProvider inicial={privacidadeLigada}>{children}</PrivacidadeProvider>
         </MemoryRouter>
       </QueryClientProvider>
     )
