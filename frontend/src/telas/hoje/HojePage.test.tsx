@@ -49,6 +49,7 @@ const PAINEL = {
       consultaId: '22222222-2222-2222-2222-222222222222',
       dtConsulta: '2026-12-02T08:00:00',
       pacienteNome: 'Helena Vaz',
+      tipo: 'SEM_STATUS',
     },
   ],
 }
@@ -69,12 +70,35 @@ describe('tela Hoje', () => {
   })
 
   it('lista o dia em ordem, com o status de cada sessao', async () => {
-    comPainel()
+    comPainel({
+      proxima: null,
+      sessoes: [
+        {
+          consultaId: '44444444-4444-4444-4444-444444444444',
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          pacienteNome: 'Ana Lopes',
+          status: 'REALIZADA',
+        },
+        {
+          consultaId: '55555555-5555-5555-5555-555555555555',
+          dtConsulta: '2026-12-02T10:00:00',
+          pacienteId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+          pacienteNome: 'Bruno Reis',
+          status: 'FALTOU',
+        },
+      ],
+      pendencias: [],
+    })
     renderizar(<HojePage />)
 
-    const linhas = await screen.findAllByRole('listitem', { name: /sessao/i })
+    const lista = await screen.findByRole('region', { name: /sessoes de hoje/i })
+    const linhas = within(lista).getAllByRole('listitem', { name: /sessao/i })
     expect(linhas).toHaveLength(2)
-    expect(within(linhas[0]).getByText(/helena vaz/i)).toBeInTheDocument()
+    expect(within(linhas[0]).getByText(/ana lopes/i)).toBeInTheDocument()
+    expect(within(linhas[0]).getByText('REALIZADA')).toBeInTheDocument()
+    expect(within(linhas[1]).getByText(/bruno reis/i)).toBeInTheDocument()
+    expect(within(linhas[1]).getByText('FALTOU')).toBeInTheDocument()
   })
 
   it('marca Realizada em um clique na propria linha, sem abrir dialogo', async () => {
@@ -89,7 +113,8 @@ describe('tela Hoje', () => {
     const usuario = userEvent.setup()
     renderizar(<HojePage />)
 
-    const linhas = await screen.findAllByRole('listitem', { name: /sessao/i })
+    const fila = await screen.findByRole('region', { name: /precisa de voce/i })
+    const linhas = within(fila).getAllByRole('listitem', { name: /sessao/i })
     await usuario.click(within(linhas[0]).getByRole('button', { name: /realizada/i }))
 
     expect(corpoEnviado).toEqual({ status: 'REALIZADA' })
@@ -112,7 +137,8 @@ describe('tela Hoje', () => {
     const usuario = userEvent.setup()
     renderizar(<HojePage />)
 
-    const linhas = await screen.findAllByRole('listitem', { name: /sessao/i })
+    const fila = await screen.findByRole('region', { name: /precisa de voce/i })
+    const linhas = within(fila).getAllByRole('listitem', { name: /sessao/i })
     await usuario.click(within(linhas[0]).getByRole('button', { name: /realizada/i }))
 
     // texto primeiro, role depois: o mesmo cuidado do
@@ -146,7 +172,7 @@ describe('tela Hoje', () => {
     comPainel()
     renderizar(<HojePage />)
 
-    const faixa = await screen.findByRole('region', { name: /pendencia/i })
+    const faixa = await screen.findByRole('region', { name: /precisa de voce/i })
     expect(within(faixa).getByText(/helena vaz/i)).toBeInTheDocument()
   })
 
@@ -172,7 +198,7 @@ describe('tela Hoje', () => {
     })
     renderizar(<HojePage />)
 
-    const faixa = await screen.findByRole('region', { name: /pendencia/i })
+    const faixa = await screen.findByRole('region', { name: /precisa de voce/i })
     expect(within(faixa).getByText(/teodoro alencar/i)).toBeInTheDocument()
     expect(within(faixa).queryByText(/sem status/i)).not.toBeInTheDocument()
   })
@@ -198,7 +224,7 @@ describe('tela Hoje', () => {
     })
     renderizar(<HojePage />)
 
-    const faixa = await screen.findByRole('region', { name: /pendencia/i })
+    const faixa = await screen.findByRole('region', { name: /precisa de voce/i })
     expect(within(faixa).getByText(/marque o que aconteceu/i)).toBeInTheDocument()
     expect(within(faixa).getByText(/registre a anotacao/i)).toBeInTheDocument()
   })
@@ -208,8 +234,8 @@ describe('tela Hoje', () => {
     renderizar(<HojePage />)
 
     // Escopado ao destaque: Rui Sampaio aparece DUAS vezes na tela (no
-    // destaque da proxima sessao e de novo na lista do dia, porque a proxima
-    // tambem faz parte da lista). Um `findByText`/`getByText` sem escopo
+    // destaque da proxima sessao e de novo na fila "Precisa de voce", porque
+    // a proxima tambem faz parte da fila). Um `findByText`/`getByText` sem escopo
     // encontra os dois nos e falha com "multiple elements" — o mesmo
     // problema que o brief ja evitou em "destaque"/"linhas[0]" com `within`.
     const destaque = await screen.findByRole('region', { name: /proxima sessao/i })
@@ -235,6 +261,56 @@ describe('tela Hoje', () => {
     // estilo/estilo.css que produz o filtro acima, entao continua valendo
     // conferir a marca tambem
     expect(nome).toHaveAttribute('data-borrado', 'true')
+  })
+
+  it('a fila junta pendencia e sessao agendada, ordenadas por hora', async () => {
+    comPainel()
+    renderizar(<HojePage />)
+
+    const fila = await screen.findByRole('region', { name: /precisa de voce/i })
+    const linhas = within(fila).getAllByRole('listitem')
+    expect(linhas).toHaveLength(2)
+    expect(within(linhas[0]).getByText(/helena vaz/i)).toBeInTheDocument()
+    expect(within(linhas[1]).getByText(/rui sampaio/i)).toBeInTheDocument()
+  })
+
+  it('a sessao ja resolvida nao fica na fila', async () => {
+    comPainel({
+      proxima: null,
+      sessoes: [
+        {
+          consultaId: '44444444-4444-4444-4444-444444444444',
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          pacienteNome: 'Ana Lopes',
+          status: 'REALIZADA',
+        },
+        {
+          consultaId: '11111111-1111-1111-1111-111111111111',
+          dtConsulta: '2026-12-02T15:00:00',
+          pacienteId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          pacienteNome: 'Rui Sampaio',
+          status: 'AGENDADA',
+        },
+      ],
+      pendencias: [],
+    })
+    renderizar(<HojePage />)
+
+    const fila = await screen.findByRole('region', { name: /precisa de voce/i })
+    expect(within(fila).getByText(/rui sampaio/i)).toBeInTheDocument()
+    expect(within(fila).queryByText(/ana lopes/i)).toBeNull()
+
+    const resolvidas = screen.getByRole('region', { name: /sessoes de hoje/i })
+    expect(within(resolvidas).getByText(/ana lopes/i)).toBeInTheDocument()
+  })
+
+  it('a linha marcavel continua marcavel a partir da fila', async () => {
+    comPainel()
+    renderizar(<HojePage />)
+
+    const fila = await screen.findByRole('region', { name: /precisa de voce/i })
+    expect(within(fila).getAllByRole('button', { name: /realizada/i }).length).toBeGreaterThan(0)
   })
 
   it('dia 1 do psicologo: diz o que fazer, e nao e erro', async () => {

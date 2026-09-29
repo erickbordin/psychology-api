@@ -8,7 +8,8 @@ import { Botao } from '../../ui/Botao'
 import { Cartao } from '../../ui/Cartao'
 import { Chip } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
-import { useMarcarStatus, usePainelDeHoje, type PendenciaDoPainel, type SessaoDoDia } from './queries'
+import { reconciliar, type ItemDaFila } from './fila'
+import { useMarcarStatus, usePainelDeHoje, type PendenciaDoPainel } from './queries'
 
 const hora = (iso: string) =>
   deApi(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -51,6 +52,8 @@ export function HojePage() {
   if (isError) return <p role="alert">Nao foi possivel carregar o dia. Tente de novo.</p>
   if (!data) return null
 
+  const { fila, resolvidas } = reconciliar(data.sessoes, data.pendencias)
+
   return (
     <div className="tela">
       <header className="cabecalho-dia">
@@ -77,49 +80,62 @@ export function HojePage() {
         </section>
       ) : null}
 
-      <section aria-label="Sessoes de hoje">
-        {data.sessoes.length === 0 ? (
-          <EstadoVazio
-            titulo="Nenhuma sessao hoje"
-            acao={
-              <Link className="botao secundario" to="/agenda">
-                Ver a agenda
-              </Link>
-            }
-          />
-        ) : (
-          <ul className="lista-sessoes cartao">
-            {data.sessoes.map((s) => (
-              <LinhaDaSessao
-                key={s.consultaId}
-                sessao={s}
-                privacidade={privacidade}
-                aoMarcar={(status) => marcar.mutate({ id: s.consultaId, status })}
-                erro={
-                  marcar.isError && marcar.variables?.id === s.consultaId
-                    ? marcar.error
-                    : null
-                }
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+      {fila.length === 0 && resolvidas.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhuma sessao hoje"
+          acao={
+            <Link className="botao secundario" to="/agenda">
+              Ver a agenda
+            </Link>
+          }
+        />
+      ) : (
+        <>
+          {fila.length > 0 && (
+            <section aria-label="Precisa de voce">
+              <h2 className="titulo-secao">
+                Precisa de voce
+                <span className="contador-fila">{fila.length}</span>
+              </h2>
+              <ul className="lista-sessoes cartao">
+                {fila.map((item) => (
+                  <LinhaDaFila
+                    key={item.consultaId}
+                    item={item}
+                    privacidade={privacidade}
+                    aoMarcar={(status) => marcar.mutate({ id: item.consultaId, status })}
+                    erro={
+                      marcar.isError && marcar.variables?.id === item.consultaId
+                        ? marcar.error
+                        : null
+                    }
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
 
-      {data.pendencias.length > 0 && (
-        <section aria-label="Pendencias">
-          <ul className="faixa-pendencias cartao">
-            {data.pendencias.map((p) => (
-              <li className="linha-pendencia" key={p.consultaId}>
-                <span>
-                  <span className="hora">{hora(p.dtConsulta)}</span> ·{' '}
-                  <Nome privacidade={privacidade}>{p.pacienteNome}</Nome> ·{' '}
-                  {frasePendente(p.tipo)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+          {resolvidas.length > 0 && (
+            <section aria-label="Sessoes de hoje">
+              <h2 className="titulo-secao">Sessoes de hoje</h2>
+              <ul className="lista-resolvidas cartao">
+                {resolvidas.map((s) => (
+                  <li
+                    className="linha-resolvida"
+                    key={s.consultaId}
+                    aria-label={`Sessao de ${s.pacienteNome}`}
+                  >
+                    <span className="hora">{hora(s.dtConsulta)}</span>
+                    <Nome privacidade={privacidade}>{s.pacienteNome}</Nome>
+                    <Chip variante={s.status === 'REALIZADA' ? 'realizada' : 'faltou'}>
+                      {s.status}
+                    </Chip>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
     </div>
   )
@@ -155,29 +171,30 @@ function QuantoFalta({ para }: { para: string }) {
   )
 }
 
-function LinhaDaSessao({
-  sessao,
+function LinhaDaFila({
+  item,
   privacidade,
   aoMarcar,
   erro,
 }: {
-  sessao: SessaoDoDia
+  item: ItemDaFila
   privacidade: boolean
   aoMarcar: (status: 'REALIZADA' | 'FALTOU') => void
   erro: Error | null
 }) {
-  const variante = sessao.status === 'REALIZADA' ? 'realizada' : sessao.status === 'FALTOU' ? 'faltou' : undefined
+  const variante = item.status === 'REALIZADA' ? 'realizada' : item.status === 'FALTOU' ? 'faltou' : undefined
 
   return (
-    <li className="linha-pendencia" aria-label={`Sessao de ${sessao.pacienteNome}`}>
+    <li className="linha-pendencia" aria-label={`Sessao de ${item.pacienteNome}`}>
       <span>
-        <span className="hora">{hora(sessao.dtConsulta)}</span>{' '}
-        <Nome privacidade={privacidade}>{sessao.pacienteNome}</Nome>
+        <span className="hora">{hora(item.dtConsulta)}</span>{' '}
+        <Nome privacidade={privacidade}>{item.pacienteNome}</Nome>
+        {item.tipo && <span className="acao-pedida"> · {frasePendente(item.tipo)}</span>}
       </span>
       <span className="acoes-linha">
-        <Chip variante={variante}>{sessao.status}</Chip>
+        {item.status && <Chip variante={variante}>{item.status}</Chip>}
         {/* spec 4(1): em um clique NA PROPRIA LINHA. Hoje exige abrir dialogo */}
-        {sessao.status === 'AGENDADA' && (
+        {item.status === 'AGENDADA' && (
           <>
             <Botao variante="secundario" className="mini" onClick={() => aoMarcar('REALIZADA')}>
               Realizada
@@ -186,6 +203,11 @@ function LinhaDaSessao({
               Faltou
             </Botao>
           </>
+        )}
+        {item.pacienteId && (
+          <Link className="botao secundario mini" to={`/pacientes/${item.pacienteId}`}>
+            Abrir a ficha
+          </Link>
         )}
       </span>
       {/* spec 6.2: botao nunca morre em silencio. `useMarcarStatus` e a unica

@@ -123,7 +123,7 @@ a:hover { color: var(--acento-pressionado); }
 @media (hover: hover) and (pointer: fine) {
   .botao.secundario:hover { background: var(--superficie-3); }
 }
-.lateral .botao.secundario { box-shadow: inset 0 0 0 1px var(--separador); }
+.lateral .botao.secundario { box-shadow: inset 0 0 0 1px var(--acento-contorno); }
 .botao.mini { height: var(--altura-controle-mini); padding: 0 var(--gap-3); border-radius: var(--raio-sm); font-size: 13px; }
 /* fix: botao "ligado" (aria-pressed) precisa parecer ligado — mesma regra do
    #privacidade.ativo do prototipo, generalizada por atributo ARIA em vez de
@@ -134,7 +134,9 @@ a:hover { color: var(--acento-pressionado); }
 .cabecalho-dia { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--gap-4); flex-wrap: wrap; }
 .acoes-cabecalho-dia { display: flex; align-items: center; gap: var(--gap-2); }
 .destaque {
-  background: var(--acento-suave); border-left: 3px solid var(--acento); margin-bottom: var(--gap-6);
+  background: var(--superficie-1);
+  box-shadow: var(--sombra-cartao), inset 3px 0 0 var(--acento);
+  margin-bottom: var(--gap-6);
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--gap-1);
 }
 .etiqueta { font-size: 13px; color: var(--tinta-2); margin: 0; }
@@ -158,6 +160,27 @@ a:hover { color: var(--acento-pressionado); }
 }
 @media (hover: hover) and (pointer: fine) {
   .linha-pendencia:hover { background: var(--superficie-2); }
+}
+.contador-fila {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: var(--raio-cheio);
+  background: var(--alerta-fundo); color: var(--alerta-tinta);
+  font-size: var(--t-legenda-tam);
+  font-weight: var(--peso-forte);
+  font-variant-numeric: tabular-nums;
+}
+.acao-pedida { color: var(--tinta-2); }
+.lista-resolvidas {
+  list-style: none; margin: 0 0 var(--gap-8); padding: 0;
+  display: flex; flex-direction: column; gap: var(--gap-0);
+}
+.linha-resolvida {
+  display: grid; grid-template-columns: auto 1fr auto;
+  gap: var(--gap-3); align-items: center;
+  padding: var(--gap-1) var(--gap-4);
+  color: var(--tinta-2);
+  font-size: var(--t-segundo-tam); line-height: var(--t-segundo-alt);
 }
 .linha-paciente > a {
   display: flex; flex-direction: column; gap: var(--gap-0);
@@ -199,7 +222,7 @@ a:hover { color: var(--acento-pressionado); }
   font-size: var(--t-legenda-tam); line-height: var(--t-legenda-alt);
   letter-spacing: var(--t-legenda-esp); font-weight: var(--peso-medio);
   background: var(--superficie-3); color: var(--tinta-2);
-  box-shadow: inset 0 0 0 1px var(--separador);
+  box-shadow: inset 0 0 0 1px var(--neutro-contorno);
 }
 .chip-glifo { flex: 0 0 auto; }
 .chip.realizada { background: var(--realizada-fundo); color: var(--realizada-tinta);
