@@ -17,6 +17,7 @@ import com.psychologyapi.psychologyapi.controller.dto.error.ErroCampoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroRespostaDTO;
 import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
+import com.psychologyapi.psychologyapi.exceptions.BaixaInvalidaException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.EmailExigidoPeloCanalException;
 import com.psychologyapi.psychologyapi.exceptions.PendenciaNaoEncontradaException;
@@ -25,6 +26,7 @@ import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoExcepti
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoComAnotacaoException;
+import com.psychologyapi.psychologyapi.exceptions.SessaoComBaixaException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoDeOutroPacienteException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoInvalidaException;
 import com.psychologyapi.psychologyapi.exceptions.TransicaoDeStatusInvalidaException;
@@ -144,6 +146,18 @@ public class GlobalExceptionsHandler {
     @ExceptionHandler(SessaoComAnotacaoException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErroRespostaDTO sessaoComAnotacao(SessaoComAnotacaoException e) {
+        return semCampos(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(BaixaInvalidaException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErroRespostaDTO baixaInvalida(BaixaInvalidaException e) {
+        return semCampos(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(SessaoComBaixaException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErroRespostaDTO sessaoComBaixa(SessaoComBaixaException e) {
         return semCampos(HttpStatus.CONFLICT, e.getMessage());
     }
 
