@@ -12,7 +12,7 @@ import tailwindcss from '@tailwindcss/vite'
  * por engano.
  */
 const API = process.env.API_URL ?? 'http://localhost:8080'
-const CAMINHOS_DA_API = ['/auth', '/pacientes', '/consultas', '/anotacoes', '/pendencias', '/painel', '/auditoria']
+const CAMINHOS_DA_API = ['/auth', '/pacientes', '/consultas', '/anotacoes', '/pendencias', '/painel', '/auditoria', '/financeiro']
 
 /**
  * `/pacientes` e `/auditoria` sao caminho da API E rota de tela. Sem o desvio
