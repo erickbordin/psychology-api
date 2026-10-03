@@ -424,3 +424,12 @@ a:hover { color: var(--acento-pressionado); }
 .registro-novo textarea { width: 100%; box-sizing: border-box; border: 0;
   background: var(--superficie-2); box-shadow: inset 0 0 0 1px var(--separador);
   border-radius: var(--raio-sm); padding: var(--gap-3); font-size: 14px; resize: vertical; margin-bottom: var(--gap-3); }
+
+.indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--gap-4); margin: 0 0 var(--gap-3); }
+.indicador { display: flex; flex-direction: column; gap: var(--gap-1); margin: 0; }
+.indicador dt { font-size: var(--t-segundo-tam); line-height: var(--t-segundo-alt); color: var(--tinta-2); }
+.indicador dd { margin: 0; font-size: var(--t-secao-tam); line-height: var(--t-secao-alt); font-weight: var(--peso-forte); font-variant-numeric: tabular-nums; color: var(--tinta); }
+
+.linha-resolvida > .anuncio {
+  grid-column: 1 / -1;
+}

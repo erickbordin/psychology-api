@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 import { RotaProtegida } from './sessao/RotaProtegida'
 import { AgendaPage } from './telas/agenda/AgendaPage'
 import { FichaPage } from './telas/ficha/FichaPage'
+import { FinanceiroPage } from './telas/financeiro/FinanceiroPage'
 import { HojePage } from './telas/hoje/HojePage'
 import { LoginPage } from './telas/login/LoginPage'
 import { PacientesPage } from './telas/pacientes/PacientesPage'
@@ -31,7 +32,7 @@ export function Rotas() {
         <Route path="/agenda" element={<AgendaPage />} />
         <Route path="/pacientes" element={<PacientesPage />} />
         <Route path="/pacientes/:pacienteId" element={<FichaPage />} />
-        <Route path="/financeiro" element={<AindaNaoNestaFatia nome="Financeiro" />} />
+        <Route path="/financeiro" element={<FinanceiroPage />} />
         <Route path="/ajustes" element={<AindaNaoNestaFatia nome="Ajustes" />} />
       </Route>
     </Routes>
