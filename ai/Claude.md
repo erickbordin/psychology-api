@@ -369,6 +369,10 @@ ou `ResponseEntity` explícito:
   `ate`) ou invertido em `GET /consultas`
 - `FiltroAuditoriaInvalidoException` → `400` — `entidadeId` sem `entidade` em
   `GET /auditoria`
+- `SessaoComBaixaException` → `409` — sessão com baixa não muda de status, não
+  tem o valor alterado e não é excluída até a baixa ser desfeita
+- `BaixaInvalidaException` → `409` — baixa em sessão que não é REALIZADA ou que
+  não tem valor
 
 As duas últimas devolvem o **mesmo** `ErroRespostaDTO` da validação de bean, com
 `campo` preenchido. O contrato de `400` da API é um só, independente de qual
@@ -499,6 +503,15 @@ e o boot aplica a `V1` nova.
   `ConsultaResponseDTO` de toda consulta (`null` quando avulsa), senão o
   cancelamento seria inalcançável para um cliente que perdesse a resposta da
   criação.
+  **Dinheiro (Fatia 3).** `valor` congela quando a sessão vira `REALIZADA`
+  (F5): `paciente.valorSessao`, senão `usuario.valorPadraoSessao`, senão nulo;
+  agendar não grava valor e sair de `REALIZADA` não o apaga. `pagoEm` é a baixa.
+  Sessão com baixa não sai de `REALIZADA`, não tem o valor alterado e não é
+  excluída — `409` até a baixa ser desfeita (F8/F18); baixa exige `REALIZADA`
+  com valor (`409`) e repetida é idempotente, sem auditar de novo. Rotas:
+  `PATCH /consultas/{id}/valor`, `PATCH`/`DELETE /consultas/{id}/baixa` e
+  `POST /consultas/baixas` (lote de 1 a 200 ids, tudo ou nada); leituras
+  `GET /financeiro/mes` e `GET /painel/mes`, com `ano` e `mes` juntos ou nenhum.
 - **`Anotacao`**: sem `PUT` (registro histórico de sessão, não editável).
   Listagem paginada (ver "Paginação" abaixo).
   Soft delete ativo. Campo da entidade chama-se `anotacao`, DTO usa
@@ -625,13 +638,13 @@ A camada de teste HTTP, ao entrar, pegou outras três — todas corrigidas:
 - Requisição sem token respondia `403`, não `401` — entry point default do
   Spring Security. Pego por `SegurancaHttpTest.semTokenResponde401`.
 
-A suíte está verde (169 testes); mantenha esta seção como o lugar de registrar
+A suíte está verde (390 testes); mantenha esta seção como o lugar de registrar
 qualquer contradição nova entre o código e as regras acima, sempre apontando o
 teste que a pega.
 
 ## Fora de escopo (não sugerir sem o usuário pedir explicitamente)
 
-Financeiro, relatórios, convênios, documentos, multiempresa, chat,
+Relatórios, convênios, documentos, multiempresa, chat,
 assinaturas, IA, dashboard complexo, roles/múltiplos psicólogos por
 clínica, OAuth2/login social.
 

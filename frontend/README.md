@@ -5,7 +5,7 @@ Frontend do consultório — a interface do psicólogo autônomo para a
 semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão.
 
 > **Status:** as telas estão de pé e rodam ponta a ponta contra a API real, e os
-> dois fluxos de e2e passam contra ela. A configuração de host está pronta;
+> três fluxos de e2e passam contra ela. A configuração de host está pronta;
 > falta criar o projeto na plataforma.
 
 > **Este arquivo descreve o código como ele está**, e não o plano que o gerou.
@@ -23,7 +23,8 @@ semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão
 | `/agenda` | grade da semana, 07h–19h, de segunda a domingo. Clicar numa célula abre o diálogo de nova consulta, com checagem prévia de conflito |
 | `/pacientes` | lista com busca por nome e o diálogo de cadastro |
 | `/pacientes/:pacienteId` | ficha de **página única**: cabeçalho com nome/idade/contato/valor, botão *Editar*, linha do tempo das sessões com a anotação dentro da linha de cada uma, e as pendências ao lado |
-| `/financeiro`, `/ajustes` | destinos da navegação que ainda não têm tela — respondem uma frase dizendo isso |
+| `/financeiro` | o mês: painel de presença, faturado/recebido/a receber, quem está devendo (com baixa em lote por paciente) e as sessões do mês, com baixa, desfazer e valor da sessão |
+| `/ajustes` | destino da navegação que ainda não tem tela — responde uma frase dizendo isso |
 
 **A ficha é uma página só, de propósito.** Ela substituiu as quatro abas
 (`/pacientes/:id/anotacoes`, `/lembretes`, `/consultas`) do desenho anterior:
@@ -107,7 +108,9 @@ afeta, declaradas no `onSuccess` — e não se conta com o conserto que acontece
 sozinho no `refetchOnMount`, porque o que se conserta sozinho hoje deixa de se
 consertar no dia em que alguém mexer no `staleTime`. As chaves são
 `['pacientes']`, `['ficha', pacienteId]`, `['painel','hoje']`, `['consultas',
-…]` e `['conflito', …]`.
+…]` e `['conflito', …]`. Toda escrita de dinheiro e a troca de status derrubam
+os três prefixos `['financeiro']`, `['painel']` (cobre `hoje` e `mes`) e
+`['ficha']`.
 
 **Uma exceção conhecida:** `telas/agenda/DialogoDeConsulta.tsx` chama
 `api('/consultas', …)` e `invalidateQueries` direto no componente, em vez de
@@ -211,6 +214,11 @@ morto.
 | `POST` | `/auth/logout` | `sessao/SessaoProvider.tsx` |
 | `GET` | `/painel/hoje` | `telas/hoje/queries.ts` |
 | `PATCH` | `/consultas/{id}/status` | `telas/hoje/queries.ts` |
+| `GET` | `/financeiro/mes?ano&mes` | `telas/financeiro/queries.ts` |
+| `GET` | `/painel/mes?ano&mes` | `telas/financeiro/queries.ts` |
+| `PATCH` / `DELETE` | `/consultas/{id}/baixa` | `telas/financeiro/queries.ts` (usado também pela Hoje e pela ficha) |
+| `POST` | `/consultas/baixas` | `telas/financeiro/queries.ts` |
+| `PATCH` | `/consultas/{id}/valor` | `telas/financeiro/queries.ts` |
 | `GET` | `/consultas?de&ate` | `telas/agenda/queries.ts` |
 | `GET` | `/consultas/conflito?dtConsulta&excluirConsultaId` | `telas/agenda/queries.ts` |
 | `POST` | `/consultas` | `telas/agenda/DialogoDeConsulta.tsx` |
@@ -348,7 +356,7 @@ só passam a importar quando o frontend usar o refresh — hoje ele não usa.
 ## Por que o proxy espelha os caminhos
 
 Em desenvolvimento o Vite proxia `/auth`, `/pacientes`, `/consultas`,
-`/anotacoes`, `/pendencias`, `/painel` e `/auditoria` para
+`/anotacoes`, `/pendencias`, `/painel`, `/auditoria` e `/financeiro` para
 `http://localhost:8080`. Isso torna tudo same-origin e tira CORS e `SameSite` do
 caminho.
 
@@ -365,8 +373,8 @@ para o `index.html`; chamada do cliente pede JSON e segue para a API.
 ## Testes
 
 ```bash
-npm test          # 86 testes de unidade e de componente, com MSW
-npm run e2e       # 2 fluxos contra a API real — exigem a API no ar
+npm test          # 165 testes de unidade e de componente, com MSW
+npm run e2e       # 3 fluxos contra a API real — exigem a API no ar
 ```
 
 Na primeira vez, o Playwright precisa do navegador:
@@ -389,12 +397,13 @@ Duas convenções valem em toda a suíte, e não são estilo:
 `e2e/` fica fora do glob do Vitest (`vite.config.ts`), porque o `test()` do
 Playwright explode dentro do Vitest.
 
-### Os dois fluxos de e2e
+### Os três fluxos de e2e
 
 | Arquivo | O que percorre |
 |---|---|
 | `e2e/fluxo-de-fumaca.spec.ts` | registrar (pela API) → entrar → ver o dia → agendar → marcar presença |
 | `e2e/fluxo-da-sessao.spec.ts` | cadastrar paciente → agendar **duas** sessões no mesmo dia → marcar só a primeira como realizada → anotar → conferir que a anotação voltou na linha da sessão A **e não** na da sessão B |
+| `e2e/fluxo-do-dinheiro.spec.ts` | cadastrar paciente com valor → agendar hoje → marcar *Realizada* → Financeiro mostra faturado e a receber → dar baixa em todas → recebido → desfazer baixa e o débito volta |
 
 A segunda metade dessa última linha é o ponto. Enquanto o fluxo criava uma
 sessão só, "a anotação está na linha certa" era verdade por construção: com uma
@@ -407,7 +416,7 @@ de autenticar, e pegou que este projeto lia `erros[].mensagem` onde a API manda
 verde enquanto, contra a API real, um `400` de validação não mostrava nada na
 tela.
 
-Os dois criam um **usuário novo por execução** (`*-${Date.now()}@teste.local`,
+Os três criam um **usuário novo por execução** (`*-${Date.now()}@teste.local`,
 senha `senhaforte123`): o banco não tem usuário semeado e o cadastro responde
 `409` em e-mail repetido. Nenhum dado de pessoa real entra num teste.
 

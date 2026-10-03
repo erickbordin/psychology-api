@@ -9,9 +9,9 @@ paciente. Isso definiu as decisões de projeto de cada lado: isolamento entre
 profissionais verificado por teste, exclusão reversível, registro de acesso, e
 access token que nunca é persistido no navegador.
 
-> **Status:** as duas aplicações rodam local, ponta a ponta, com o e2e de fumaça
-> passando contra a API real — painel, agenda, pacientes, cadastro, ficha e
-> trilha. **Nada foi para produção ainda:** o deploy do backend e a configuração
+> **Status:** as duas aplicações rodam local, ponta a ponta, com os três e2e (fumaça,
+> sessão e dinheiro) passando contra a API real — painel, agenda, pacientes,
+> cadastro, ficha, trilha e Financeiro, da sessão realizada à baixa. **Nada foi para produção ainda:** o deploy do backend e a configuração
 > de host do frontend estão prontos no repositório, não executados
 > ([passo a passo](frontend/README.md#hospedagem)).
 
@@ -37,9 +37,10 @@ sessão anterior. **Depois da sessão**, registra a anotação e agenda o retorn
 | Lembretes | `/pacientes/:id/lembretes` | pendências do paciente |
 | Consultas | `/pacientes/:id/consultas` | histórico do paciente, só leitura |
 | Trilha | `/auditoria` | tudo que foi criado, alterado e excluído na conta |
+| Financeiro | `/financeiro` | o mês: presença, faturado/recebido/a receber, quem deve, baixa e valor da sessão |
 
-O que **não** existe, de propósito: financeiro, relatórios, convênios,
-documentos, multiempresa, chat, assinaturas, roles, login social. A lista
+O que **não** existe, de propósito: gateway de pagamento, recibo, NFS-e,
+relatórios, convênios, documentos, multiempresa, chat, assinaturas, roles, login social. A lista
 completa está em [Fora de escopo](#fora-de-escopo).
 
 ## Como as duas aplicações se encaixam
@@ -208,9 +209,9 @@ próprios pacientes.
 ## Testes
 
 ```bash
-cd backend  && sh ./mvnw test    # 169 — unitários, integração (Testcontainers) e HTTP
-cd frontend && npm test          # 74  — unidade e componente, com MSW
-cd frontend && npm run e2e       # 2   — fumaça ponta a ponta, exige a API no ar
+cd backend  && sh ./mvnw test    # 390 — unitários, integração (Testcontainers) e HTTP
+cd frontend && npm test          # 165 — unidade e componente, com MSW
+cd frontend && npm run e2e       # 3   — fumaça, sessão e dinheiro ponta a ponta, exige a API no ar
 ```
 
 Cada camada pega um tipo de defeito:
@@ -304,8 +305,8 @@ valem mais que os planos: elas registram também as **alternativas rejeitadas**,
 
 ## Fora de escopo
 
-MVP deliberadamente enxuto. Não faz parte do escopo: financeiro, relatórios,
-convênios, documentos, multiempresa, chat, assinaturas, dashboard complexo,
+MVP deliberadamente enxuto. Não faz parte do escopo: gateway de pagamento, recibo,
+NFS-e, relatórios, convênios, documentos, multiempresa, chat, assinaturas, dashboard complexo,
 roles/múltiplos psicólogos por clínica, OAuth2 e login social.
 
 Do lado do frontend, também ficam fora: modo escuro, responsivo de celular além

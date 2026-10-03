@@ -252,7 +252,12 @@ Documentação interativa em `/swagger-ui.html`.
 | `GET` | `/consultas/conflito` | Checa choque de horário antes do envio |
 | `POST` | `/consultas/recorrentes` | Agenda uma série semanal (2 a 52 sessões) |
 | `DELETE` | `/consultas/series/{serieId}` | Cancela as ocorrências futuras da série |
+| `PATCH` | `/consultas/{id}/valor` | Altera o valor de uma sessão realizada sem baixa |
+| `PATCH` `DELETE` | `/consultas/{id}/baixa` | Dá baixa no pagamento / desfaz a baixa |
+| `POST` | `/consultas/baixas` | Baixa em lote, por lista de ids (1 a 200; tudo ou nada) |
 | `GET` | `/painel/hoje` | O painel Hoje: as sessões do dia e a fila de pendências |
+| `GET` | `/painel/mes` | O painel do mês: realizadas, faltas, canceladas, taxa de falta e pacientes ativos |
+| `GET` | `/financeiro/mes` | O mês em dinheiro: faturado, recebido, a receber, sessões do mês e quem está devendo |
 | `POST` `GET` | `/pacientes/{pacienteId}/anotacoes` | Cria / lista anotações (paginado) |
 | `DELETE` | `/anotacoes/{anotacaoId}` | Remove anotação (soft) |
 | `POST` `GET` | `/pacientes/{pacienteId}/pendencias` | Cria / lista pendências (paginado) |
