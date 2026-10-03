@@ -2,13 +2,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../../api/cliente'
 import type { components } from '../../api/contrato'
+import { invalidarDinheiro } from '../financeiro/queries'
 
 /**
  * O contrato e gerado do springdoc, que nao marca `required` — todo campo sai
  * opcional. `Required<>` deriva do schema real (renomeou um campo no backend,
  * o build quebra aqui) sem redeclarar a forma a mao.
  */
-export type SessaoDoDia = Required<components['schemas']['SessaoDoDiaDTO']>
+type SessaoDoDiaDTO = components['schemas']['SessaoDoDiaDTO']
+
+export type SessaoDoDia = {
+  consultaId: NonNullable<SessaoDoDiaDTO['consultaId']>
+  dtConsulta: NonNullable<SessaoDoDiaDTO['dtConsulta']>
+  pacienteId: NonNullable<SessaoDoDiaDTO['pacienteId']>
+  pacienteNome: NonNullable<SessaoDoDiaDTO['pacienteNome']>
+  status: NonNullable<SessaoDoDiaDTO['status']>
+  valor: NonNullable<SessaoDoDiaDTO['valor']> | null
+  pagoEm: NonNullable<SessaoDoDiaDTO['pagoEm']> | null
+}
 export type PendenciaDoPainel = Required<components['schemas']['PendenciaDoPainelDTO']>
 
 /**
@@ -55,6 +66,6 @@ export function useMarcarStatus() {
       }),
     // o painel inteiro se refaz: marcar presenca tira a sessao da faixa de
     // pendencias, e as duas metades da tela nao podem discordar
-    onSuccess: () => cliente.invalidateQueries({ queryKey: CHAVE_DO_PAINEL }),
+    onSuccess: () => invalidarDinheiro(cliente),
   })
 }

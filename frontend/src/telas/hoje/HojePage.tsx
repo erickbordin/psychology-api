@@ -9,6 +9,7 @@ import { Cartao } from '../../ui/Cartao'
 import { Chip } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
 import { reconciliar, type ItemDaFila } from './fila'
+import { useDarBaixa, useDesfazerBaixa } from '../financeiro/queries'
 import { useMarcarStatus, usePainelDeHoje, type PendenciaDoPainel } from './queries'
 
 const hora = (iso: string) =>
@@ -28,6 +29,8 @@ function frasePendente(tipo: PendenciaDoPainel['tipo']): string {
       return 'marque o que aconteceu'
     case 'SEM_ANOTACAO':
       return 'registre a anotacao'
+    case 'SEM_BAIXA':
+      return 'dê baixa no pagamento'
   }
 }
 
@@ -46,6 +49,8 @@ function Nome({ privacidade, children }: { privacidade: boolean; children: strin
 export function HojePage() {
   const { data, isLoading, isError } = usePainelDeHoje()
   const marcar = useMarcarStatus()
+  const darBaixa = useDarBaixa()
+  const desfazerBaixa = useDesfazerBaixa()
   const { privacidade } = usePrivacidade()
 
   if (isLoading) return <p>Carregando o dia…</p>
@@ -104,10 +109,13 @@ export function HojePage() {
                     item={item}
                     privacidade={privacidade}
                     aoMarcar={(status) => marcar.mutate({ id: item.consultaId, status })}
+                    aoDarBaixa={() => darBaixa.mutate(item.consultaId)}
                     erro={
                       marcar.isError && marcar.variables?.id === item.consultaId
                         ? marcar.error
-                        : null
+                        : darBaixa.isError && darBaixa.variables === item.consultaId
+                          ? darBaixa.error
+                          : null
                     }
                   />
                 ))}
@@ -127,9 +135,30 @@ export function HojePage() {
                   >
                     <span className="hora">{hora(s.dtConsulta)}</span>
                     <Nome privacidade={privacidade}>{s.pacienteNome}</Nome>
-                    <Chip variante={s.status === 'REALIZADA' ? 'realizada' : 'faltou'}>
-                      {s.status}
-                    </Chip>
+                    <span className="acoes-linha">
+                      <Chip variante={s.status === 'REALIZADA' ? 'realizada' : 'faltou'}>
+                        {s.status}
+                      </Chip>
+                      {s.pagoEm && (
+                        <>
+                          <Chip variante="realizada">Pago</Chip>
+                          <Botao
+                            variante="secundario"
+                            className="mini"
+                            onClick={() => desfazerBaixa.mutate(s.consultaId)}
+                          >
+                            Desfazer baixa
+                          </Botao>
+                        </>
+                      )}
+                    </span>
+                    {desfazerBaixa.isError && desfazerBaixa.variables === s.consultaId && (
+                      <p className="anuncio" role="alert">
+                        {desfazerBaixa.error instanceof ErroDaApi
+                          ? desfazerBaixa.error.mensagem
+                          : 'Nao foi possivel completar a acao. Tente de novo.'}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -175,11 +204,13 @@ function LinhaDaFila({
   item,
   privacidade,
   aoMarcar,
+  aoDarBaixa,
   erro,
 }: {
   item: ItemDaFila
   privacidade: boolean
   aoMarcar: (status: 'REALIZADA' | 'FALTOU') => void
+  aoDarBaixa: () => void
   erro: Error | null
 }) {
   const variante = item.status === 'REALIZADA' ? 'realizada' : item.status === 'FALTOU' ? 'faltou' : undefined
@@ -189,7 +220,9 @@ function LinhaDaFila({
       <span>
         <span className="hora">{hora(item.dtConsulta)}</span>{' '}
         <Nome privacidade={privacidade}>{item.pacienteNome}</Nome>
-        {item.tipo && <span className="acao-pedida"> · {frasePendente(item.tipo)}</span>}
+        {item.tipos.length > 0 && (
+          <span className="acao-pedida"> · {item.tipos.map(frasePendente).join(' · ')}</span>
+        )}
       </span>
       <span className="acoes-linha">
         {item.status && <Chip variante={variante}>{item.status}</Chip>}
@@ -203,6 +236,11 @@ function LinhaDaFila({
               Faltou
             </Botao>
           </>
+        )}
+        {item.tipos.includes('SEM_BAIXA') && (
+          <Botao className="mini" onClick={aoDarBaixa}>
+            Dar baixa
+          </Botao>
         )}
         {item.pacienteId && (
           <Link className="botao secundario mini" to={`/pacientes/${item.pacienteId}`}>

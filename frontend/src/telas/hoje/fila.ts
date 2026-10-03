@@ -5,7 +5,7 @@ export type ItemDaFila = {
   dtConsulta: string
   pacienteNome: string
   pacienteId: string | null
-  tipo: PendenciaDoPainel['tipo'] | null
+  tipos: PendenciaDoPainel['tipo'][]
   status: SessaoDoDia['status'] | null
 }
 
@@ -27,7 +27,7 @@ export function reconciliar(
       dtConsulta: s.dtConsulta,
       pacienteNome: s.pacienteNome,
       pacienteId: s.pacienteId,
-      tipo: null,
+      tipos: [],
       status: s.status,
     })
   }
@@ -35,13 +35,18 @@ export function reconciliar(
   const sessaoPorId = new Map(sessoes.map((s) => [s.consultaId, s]))
 
   for (const p of pendencias) {
+    const existente = porId.get(p.consultaId)
+    if (existente) {
+      if (!existente.tipos.includes(p.tipo)) existente.tipos.push(p.tipo)
+      continue
+    }
     const par = sessaoPorId.get(p.consultaId)
     porId.set(p.consultaId, {
       consultaId: p.consultaId,
       dtConsulta: p.dtConsulta,
       pacienteNome: p.pacienteNome,
       pacienteId: par ? par.pacienteId : null,
-      tipo: p.tipo,
+      tipos: [p.tipo],
       status: par ? par.status : null,
     })
   }

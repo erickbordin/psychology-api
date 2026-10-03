@@ -320,4 +320,187 @@ describe('tela Hoje', () => {
     expect(await screen.findByText(/nenhuma sessao hoje/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /agenda/i })).toBeInTheDocument()
   })
+
+  it('pendencia SEM_BAIXA mostra a frase e o botao Dar baixa, que faz PATCH na baixa', async () => {
+    const ID = '66666666-6666-6666-6666-666666666666'
+    comPainel({
+      proxima: null,
+      sessoes: [
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          pacienteNome: 'Ana Lopes',
+          status: 'REALIZADA',
+          valor: 180,
+          pagoEm: null,
+        },
+      ],
+      pendencias: [
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteNome: 'Ana Lopes',
+          tipo: 'SEM_BAIXA',
+        },
+      ],
+    })
+    let metodo = ''
+    let caminho = ''
+    servidor.use(
+      http.patch('/consultas/:id/baixa', ({ request }) => {
+        metodo = request.method
+        caminho = new URL(request.url).pathname
+        return HttpResponse.json({ id: ID, status: 'REALIZADA' })
+      }),
+    )
+    const usuario = userEvent.setup()
+    renderizar(<HojePage />)
+
+    const fila = await screen.findByRole('region', { name: /precisa de voce/i })
+    expect(within(fila).getByText(/dê baixa no pagamento/)).toBeInTheDocument()
+    await usuario.click(within(fila).getByRole('button', { name: 'Dar baixa' }))
+
+    await vi.waitFor(() => expect(caminho).toBe(`/consultas/${ID}/baixa`))
+    expect(metodo).toBe('PATCH')
+  })
+
+  it('duas pendencias da mesma sessao aparecem em UMA linha, juntas', async () => {
+    const ID = '77777777-7777-7777-7777-777777777777'
+    comPainel({
+      proxima: null,
+      sessoes: [
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          pacienteNome: 'Ana Lopes',
+          status: 'REALIZADA',
+          valor: 180,
+          pagoEm: null,
+        },
+      ],
+      pendencias: [
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteNome: 'Ana Lopes',
+          tipo: 'SEM_ANOTACAO',
+        },
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteNome: 'Ana Lopes',
+          tipo: 'SEM_BAIXA',
+        },
+      ],
+    })
+    renderizar(<HojePage />)
+
+    const fila = await screen.findByRole('region', { name: /precisa de voce/i })
+    const linhas = within(fila).getAllByRole('listitem', { name: /sessao/i })
+    expect(linhas).toHaveLength(1)
+    expect(
+      within(linhas[0]).getByText(/registre a anotacao · dê baixa no pagamento/),
+    ).toBeInTheDocument()
+  })
+
+  it('sessao realizada e paga mostra Pago e Desfazer baixa, que faz DELETE na baixa', async () => {
+    const ID = '88888888-8888-8888-8888-888888888888'
+    comPainel({
+      proxima: null,
+      sessoes: [
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          pacienteNome: 'Ana Lopes',
+          status: 'REALIZADA',
+          valor: 180,
+          pagoEm: '2026-12-02T10:00:00',
+        },
+      ],
+      pendencias: [],
+    })
+    let metodo = ''
+    let caminho = ''
+    servidor.use(
+      http.delete('/consultas/:id/baixa', ({ request }) => {
+        metodo = request.method
+        caminho = new URL(request.url).pathname
+        return HttpResponse.json({ id: ID, status: 'REALIZADA' })
+      }),
+    )
+    const usuario = userEvent.setup()
+    renderizar(<HojePage />)
+
+    const resolvidas = await screen.findByRole('region', { name: /sessoes de hoje/i })
+    const linha = within(resolvidas).getByRole('listitem', { name: /sessao/i })
+    expect(within(linha).getByText('Pago')).toBeInTheDocument()
+    await usuario.click(within(linha).getByRole('button', { name: 'Desfazer baixa' }))
+
+    await vi.waitFor(() => expect(caminho).toBe(`/consultas/${ID}/baixa`))
+    expect(metodo).toBe('DELETE')
+  })
+
+  it('Dar baixa recusado (409) mostra o motivo dentro da linha', async () => {
+    const ID = '99999999-9999-9999-9999-999999999999'
+    const MENSAGEM = 'Esta sessão já foi baixada.'
+    comPainel({
+      proxima: null,
+      sessoes: [],
+      pendencias: [
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteNome: 'Ana Lopes',
+          tipo: 'SEM_BAIXA',
+        },
+      ],
+    })
+    servidor.use(
+      http.patch('/consultas/:id/baixa', () =>
+        HttpResponse.json({ status: 409, mensagem: MENSAGEM, erros: [] }, { status: 409 }),
+      ),
+    )
+    const usuario = userEvent.setup()
+    renderizar(<HojePage />)
+
+    const fila = await screen.findByRole('region', { name: /precisa de voce/i })
+    const linha = within(fila).getByRole('listitem', { name: /sessao/i })
+    await usuario.click(within(linha).getByRole('button', { name: 'Dar baixa' }))
+
+    const aviso = await within(linha).findByText(MENSAGEM)
+    expect(aviso).toHaveAttribute('role', 'alert')
+  })
+
+  it('a tela nao mostra valor em reais', async () => {
+    const ID = 'aaaaaaaa-1111-2222-3333-444444444444'
+    comPainel({
+      proxima: null,
+      sessoes: [
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          pacienteNome: 'Ana Lopes',
+          status: 'REALIZADA',
+          valor: 180,
+          pagoEm: null,
+        },
+      ],
+      pendencias: [
+        {
+          consultaId: ID,
+          dtConsulta: '2026-12-02T09:00:00',
+          pacienteNome: 'Ana Lopes',
+          tipo: 'SEM_BAIXA',
+        },
+      ],
+    })
+    renderizar(<HojePage />)
+
+    await screen.findByRole('region', { name: /precisa de voce/i })
+    expect(screen.queryByText(/R\$/)).toBeNull()
+  })
 })

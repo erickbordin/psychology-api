@@ -9,6 +9,8 @@ const sessao = (over: Partial<SessaoDoDia>): SessaoDoDia => ({
   pacienteId: 'p1',
   pacienteNome: 'Paciente Um',
   status: 'AGENDADA',
+  valor: null,
+  pagoEm: null,
   ...over,
 })
 
@@ -47,7 +49,7 @@ describe('reconciliar', () => {
       [sessao({ consultaId: 'a', status: 'REALIZADA', pacienteId: 'p9' })],
       [pendencia({ consultaId: 'a', tipo: 'SEM_ANOTACAO' })],
     )
-    expect(r.fila[0].tipo).toBe('SEM_ANOTACAO')
+    expect(r.fila[0].tipos).toEqual(['SEM_ANOTACAO'])
     expect(r.fila[0].pacienteId).toBe('p9')
   })
 
@@ -85,5 +87,23 @@ describe('reconciliar', () => {
 
     expect([...naFila].filter((id) => resolvidas.has(id))).toEqual([])
     expect(new Set([...naFila, ...resolvidas])).toEqual(new Set(['a', 'b', 'c', 'z']))
+  })
+
+  it('a mesma sessao com duas pendencias vira UMA linha com as duas, na ordem recebida', () => {
+    const r = reconciliar(
+      [sessao({ consultaId: 'a', status: 'REALIZADA' })],
+      [
+        pendencia({ consultaId: 'a', tipo: 'SEM_ANOTACAO' }),
+        pendencia({ consultaId: 'a', tipo: 'SEM_BAIXA' }),
+      ],
+    )
+    expect(r.fila).toHaveLength(1)
+    expect(r.fila[0].tipos).toEqual(['SEM_ANOTACAO', 'SEM_BAIXA'])
+    expect(r.resolvidas).toHaveLength(0)
+  })
+
+  it('sessao agendada sem pendencia entra com tipos vazio', () => {
+    const r = reconciliar([sessao({ consultaId: 'a', status: 'AGENDADA' })], [])
+    expect(r.fila[0].tipos).toEqual([])
   })
 })
