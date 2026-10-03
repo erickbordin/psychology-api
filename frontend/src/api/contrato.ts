@@ -116,6 +116,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/consultas/baixas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["darBaixaEmLote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/registrar": {
         parameters: {
             query?: never;
@@ -212,6 +228,54 @@ export interface paths {
         patch: operations["atualizarStatus"];
         trace?: never;
     };
+    "/consultas/{consultaId}/valor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["alterarValor"];
+        trace?: never;
+    };
+    "/consultas/{consultaId}/baixa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["desfazerBaixa"];
+        options?: never;
+        head?: never;
+        patch: operations["darBaixa"];
+        trace?: never;
+    };
+    "/painel/mes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/painel/hoje": {
         parameters: {
             query?: never;
@@ -252,6 +316,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["listarPorPaciente_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/financeiro/mes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["doMes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -423,6 +503,12 @@ export interface components {
             createdAt?: string;
             /** Format: uuid */
             serieId?: string;
+            valor?: number;
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            pagoEm?: string;
         };
         PacienteCadastroDTO: {
             nome: string;
@@ -500,6 +586,13 @@ export interface components {
             quantidade?: number;
             consultas?: components["schemas"]["ConsultaResponseDTO"][];
         };
+        BaixaEmLoteDTO: {
+            consultaIds: string[];
+        };
+        BaixaEmLoteResponseDTO: {
+            /** Format: int32 */
+            consultasBaixadas?: number;
+        };
         UsuarioCadastroDTO: {
             nome: string;
             email: string;
@@ -527,6 +620,28 @@ export interface components {
             /** @enum {string} */
             status: "REALIZADA" | "AGENDADA" | "CANCELADA" | "FALTOU";
         };
+        ValorDaConsultaDTO: {
+            /**
+             * @description Valor desta sessão. Maior que zero, no máximo 8 dígitos inteiros e 2 casas decimais.
+             * @example 180
+             */
+            valor: number;
+        };
+        PainelMesDTO: {
+            /** Format: int32 */
+            ano?: number;
+            /** Format: int32 */
+            mes?: number;
+            /** Format: int64 */
+            realizadas?: number;
+            /** Format: int64 */
+            faltas?: number;
+            /** Format: int64 */
+            canceladas?: number;
+            taxaDeFalta?: number;
+            /** Format: int64 */
+            pacientesAtivos?: number;
+        };
         PainelHojeDTO: {
             proxima?: components["schemas"]["SessaoDoDiaDTO"];
             sessoes?: components["schemas"]["SessaoDoDiaDTO"][];
@@ -542,7 +657,7 @@ export interface components {
             dtConsulta?: string;
             pacienteNome?: string;
             /** @enum {string} */
-            tipo?: "SEM_STATUS" | "SEM_ANOTACAO";
+            tipo?: "SEM_STATUS" | "SEM_ANOTACAO" | "SEM_BAIXA";
         };
         SessaoDoDiaDTO: {
             /** Format: uuid */
@@ -557,6 +672,12 @@ export interface components {
             pacienteNome?: string;
             /** @enum {string} */
             status?: "REALIZADA" | "AGENDADA" | "CANCELADA" | "FALTOU";
+            valor?: number;
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            pagoEm?: string;
         };
         Pageable: {
             /** Format: int32 */
@@ -605,6 +726,12 @@ export interface components {
             /** @enum {string} */
             status?: "REALIZADA" | "AGENDADA" | "CANCELADA" | "FALTOU";
             anotacoes?: components["schemas"]["AnotacaoDaSessaoDTO"][];
+            valor?: number;
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            pagoEm?: string;
         };
         PagedModelConsultaResponseDTO: {
             content?: components["schemas"]["ConsultaResponseDTO"][];
@@ -613,6 +740,48 @@ export interface components {
         PagedModelAnotacaoResponseDTO: {
             content?: components["schemas"]["AnotacaoResponseDTO"][];
             page?: components["schemas"]["PageMetadata"];
+        };
+        DevedorDTO: {
+            /** Format: uuid */
+            pacienteId?: string;
+            pacienteNome?: string;
+            pacienteExcluido?: boolean;
+            /** Format: int32 */
+            quantidadeSessoes?: number;
+            total?: number;
+            consultaIds?: string[];
+        };
+        FinanceiroMesDTO: {
+            /** Format: int32 */
+            ano?: number;
+            /** Format: int32 */
+            mes?: number;
+            faturado?: number;
+            recebido?: number;
+            aReceber?: number;
+            /** Format: int32 */
+            sessoesSemValor?: number;
+            sessoes?: components["schemas"]["SessaoFinanceiraDTO"][];
+            devendo?: components["schemas"]["DevedorDTO"][];
+        };
+        SessaoFinanceiraDTO: {
+            /** Format: uuid */
+            consultaId?: string;
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            dtConsulta?: string;
+            /** Format: uuid */
+            pacienteId?: string;
+            pacienteNome?: string;
+            pacienteExcluido?: boolean;
+            valor?: number;
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            pagoEm?: string;
         };
         ConflitoResponseDTO: {
             livre?: boolean;
@@ -1548,6 +1717,66 @@ export interface operations {
             };
         };
     };
+    darBaixaEmLote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BaixaEmLoteDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BaixaEmLoteResponseDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
     registrarUsuario: {
         parameters: {
             query?: never;
@@ -1902,6 +2131,243 @@ export interface operations {
             };
         };
     };
+    alterarValor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consultaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValorDaConsultaDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultaResponseDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    desfazerBaixa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consultaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultaResponseDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    darBaixa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consultaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultaResponseDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    mes: {
+        parameters: {
+            query?: {
+                ano?: number;
+                mes?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PainelMesDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
     hoje: {
         parameters: {
             query?: never;
@@ -2036,6 +2502,65 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedModelConsultaResponseDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    doMes: {
+        parameters: {
+            query?: {
+                ano?: number;
+                mes?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FinanceiroMesDTO"];
                 };
             };
             /** @description Bad Request */
