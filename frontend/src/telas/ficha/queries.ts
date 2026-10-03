@@ -21,6 +21,8 @@ export type SessaoDaFicha = {
   dtConsulta: NonNullable<SessaoDTO['dtConsulta']>
   status: NonNullable<SessaoDTO['status']>
   anotacoes: AnotacaoDaSessao[]
+  valor: NonNullable<SessaoDTO['valor']> | null
+  pagoEm: NonNullable<SessaoDTO['pagoEm']> | null
 }
 
 export type Ficha = {

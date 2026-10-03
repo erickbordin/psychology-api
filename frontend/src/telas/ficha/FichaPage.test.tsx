@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { Route, Routes } from 'react-router-dom'
@@ -19,6 +19,7 @@ const ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const CONSULTA_1 = 'c1a2b3c4-0001-4a1b-8c2d-000000000001'
 const CONSULTA_2 = 'c1a2b3c4-0002-4a1b-8c2d-000000000002'
 const CONSULTA_3 = 'c1a2b3c4-0003-4a1b-8c2d-000000000003'
+const CONSULTA_4 = 'c1a2b3c4-0004-4a1b-8c2d-000000000004'
 const ANOTACAO_1 = 'a9b8c7d6-0001-4e5f-9a1b-000000000001'
 const PENDENCIA_1 = 'f1e2d3c4-0001-4b5a-9c8d-000000000001'
 
@@ -35,7 +36,7 @@ const FICHA = {
     createdAt: '2026-03-02T10:00:00',
   },
   linhaDoTempo: [
-    { consultaId: CONSULTA_3, dtConsulta: '2026-12-02T09:00:00', status: 'AGENDADA', anotacoes: [] },
+    { consultaId: CONSULTA_3, dtConsulta: '2026-12-02T09:00:00', status: 'AGENDADA', anotacoes: [], valor: null, pagoEm: null },
     {
       consultaId: CONSULTA_2,
       dtConsulta: '2026-11-25T09:00:00',
@@ -43,8 +44,10 @@ const FICHA = {
       anotacoes: [
         { anotacaoId: ANOTACAO_1, conteudo: 'Retomamos o combinado da semana.', createdAt: '2026-11-25T10:00:00' },
       ],
+      valor: null,
+      pagoEm: null,
     },
-    { consultaId: CONSULTA_1, dtConsulta: '2026-11-18T09:00:00', status: 'FALTOU', anotacoes: [] },
+    { consultaId: CONSULTA_1, dtConsulta: '2026-11-18T09:00:00', status: 'FALTOU', anotacoes: [], valor: null, pagoEm: null },
   ],
   pendencias: [
     { id: PENDENCIA_1, descricao: 'Enviar recibo de novembro', concluido: false, createdAt: '2026-11-30T10:00:00' },
@@ -218,5 +221,103 @@ describe('ficha do paciente', () => {
     abrir()
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+})
+
+const sessaoRealizada = (valor: number | null, pagoEm: string | null) => ({
+  consultaId: CONSULTA_4,
+  dtConsulta: '2026-11-10T09:00:00',
+  status: 'REALIZADA',
+  anotacoes: [{ anotacaoId: ANOTACAO_1, conteudo: 'Sessao anotada.', createdAt: '2026-11-10T10:00:00' }],
+  valor,
+  pagoEm,
+})
+
+const fichaCom = (sessao: Record<string, unknown>) => ({ ...FICHA, linhaDoTempo: [sessao] })
+
+describe('dinheiro na linha do tempo', () => {
+  it('sessao realizada com valor e sem baixa mostra o valor, A receber e Dar baixa, que manda o PATCH', async () => {
+    let metodo: string | null = null
+    servidor.use(
+      http.patch(`/consultas/${CONSULTA_4}/baixa`, ({ request }) => {
+        metodo = request.method
+        return HttpResponse.json({ id: CONSULTA_4, status: 'REALIZADA' })
+      }),
+    )
+    comFicha(fichaCom(sessaoRealizada(180, null)))
+    const usuario = userEvent.setup()
+    abrir()
+
+    const linha = within(await linhaDoTempo()).getByRole('listitem')
+    expect(within(linha).getByText('R$ 180,00')).toBeInTheDocument()
+    expect(within(linha).getByText('A receber')).toBeInTheDocument()
+    await usuario.click(within(linha).getByRole('button', { name: 'Dar baixa' }))
+
+    await waitFor(() => expect(metodo).toBe('PATCH'))
+  })
+
+  it('sessao realizada paga mostra Pago e Desfazer baixa, que manda o DELETE', async () => {
+    let metodo: string | null = null
+    servidor.use(
+      http.delete(`/consultas/${CONSULTA_4}/baixa`, ({ request }) => {
+        metodo = request.method
+        return HttpResponse.json({ id: CONSULTA_4, status: 'REALIZADA' })
+      }),
+    )
+    comFicha(fichaCom(sessaoRealizada(180, '2026-11-12T08:00:00')))
+    const usuario = userEvent.setup()
+    abrir()
+
+    const linha = within(await linhaDoTempo()).getByRole('listitem')
+    expect(within(linha).getByText('Pago')).toBeInTheDocument()
+    expect(within(linha).queryByText('A receber')).not.toBeInTheDocument()
+    await usuario.click(within(linha).getByRole('button', { name: 'Desfazer baixa' }))
+
+    await waitFor(() => expect(metodo).toBe('DELETE'))
+  })
+
+  it('sessao realizada sem valor diz Sem valor definido e nao oferece baixa', async () => {
+    comFicha(fichaCom(sessaoRealizada(null, null)))
+    abrir()
+
+    const linha = within(await linhaDoTempo()).getByRole('listitem')
+    expect(within(linha).getByText('Sem valor definido')).toBeInTheDocument()
+    expect(within(linha).queryByRole('button', { name: /baixa/i })).not.toBeInTheDocument()
+  })
+
+  it('sessao que faltou diz Não cobrada e a agendada nao mostra nada de dinheiro', async () => {
+    comFicha()
+    abrir()
+
+    const linhas = within(await linhaDoTempo()).getAllByRole('listitem')
+    expect(within(linhas[2]).getByText('Não cobrada')).toBeInTheDocument()
+    expect(within(linhas[0]).queryByText('Não cobrada')).not.toBeInTheDocument()
+    expect(within(linhas[0]).queryByText('A receber')).not.toBeInTheDocument()
+    expect(within(linhas[0]).queryByRole('button', { name: /baixa/i })).not.toBeInTheDocument()
+  })
+
+  it('baixa recusada com 409 mostra a mensagem da API na linha da sessao', async () => {
+    servidor.use(
+      http.patch(`/consultas/${CONSULTA_4}/baixa`, () =>
+        HttpResponse.json({ status: 409, mensagem: 'Sessao ja esta paga', erros: [] }, { status: 409 }),
+      ),
+    )
+    comFicha(fichaCom(sessaoRealizada(180, null)))
+    const usuario = userEvent.setup()
+    abrir()
+
+    const linha = within(await linhaDoTempo()).getByRole('listitem')
+    await usuario.click(within(linha).getByRole('button', { name: 'Dar baixa' }))
+
+    expect(await within(linha).findByRole('alert')).toHaveTextContent('Sessao ja esta paga')
+  })
+
+  it('sessao realizada sem anotacao continua com a caixa de registro', async () => {
+    comFicha(fichaCom({ ...sessaoRealizada(180, null), anotacoes: [] }))
+    abrir()
+
+    const linha = within(await linhaDoTempo()).getByRole('listitem')
+    expect(within(linha).getByRole('button', { name: 'Dar baixa' })).toBeInTheDocument()
+    expect(within(linha).getByRole('textbox')).toBeInTheDocument()
   })
 })

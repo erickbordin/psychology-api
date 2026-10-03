@@ -13,6 +13,8 @@ const SESSAO = {
   dtConsulta: '2026-11-25T09:00:00',
   status: 'REALIZADA' as const,
   anotacoes: [],
+  valor: null,
+  pagoEm: null,
 }
 
 describe('registro da anotacao da sessao', () => {
