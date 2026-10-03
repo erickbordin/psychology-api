@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -79,6 +80,24 @@ class FichaDoPacienteHttpTest {
 
         Usuario outro = usuarioRepository.save(Fixtures.usuario("outro.ficha@example.com"));
         tokenDoOutro = "Bearer " + tokenService.gerarToken(outro.getEmailUsuario());
+    }
+
+    @Test
+    @DisplayName("a linha do tempo traz valor e pagoEm da sessao paga")
+    void linhaDoTempoTrazOsDadosDeDinheiro() throws Exception {
+        Usuario dono = usuarioRepository.findByEmailUsuario("dona.ficha@example.com").orElseThrow();
+        Paciente bruna = pacienteRepository.save(Fixtures.paciente(dono, "Bruna Teixeira"));
+        Consulta paga = Fixtures.consulta(dono, bruna, LocalDateTime.parse("2026-12-01T09:00:00"), Status.REALIZADA);
+        paga.setValor(new BigDecimal("180.00"));
+        paga.setPagoEm(LocalDateTime.parse("2026-12-01T10:30:00"));
+        consultaRepository.save(paga);
+
+        mockMvc.perform(get("/pacientes/" + bruna.getId() + "/ficha")
+                        .header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.linhaDoTempo.length()").value(1))
+               .andExpect(jsonPath("$.linhaDoTempo[0].valor").value(180.0))
+               .andExpect(jsonPath("$.linhaDoTempo[0].pagoEm").value("2026-12-01T10:30:00"));
     }
 
     @Test

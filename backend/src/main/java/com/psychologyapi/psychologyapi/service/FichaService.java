@@ -100,7 +100,9 @@ public class FichaService {
                         c.getId(),
                         c.getDtConsulta(),
                         c.getStatus(),
-                        anotacoesPorSessao.getOrDefault(c.getId(), List.of())))
+                        anotacoesPorSessao.getOrDefault(c.getId(), List.of()),
+                        c.getValor(),
+                        c.getPagoEm()))
                 .toList();
 
         // Sim, isto duplica a consulta e o mapeamento que PendenciaService.
