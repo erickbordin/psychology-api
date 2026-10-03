@@ -43,10 +43,6 @@ public class Consulta {
     @Column(name = "status_consulta", nullable = false)
     private Status status;
 
-    // COPIA do valor vigente no agendamento, nao referencia ao paciente:
-    // reajustar a sessao de 150 para 200 nao pode reescrever o historico
-    // faturado (5.3). Nulo quando a consulta foi agendada sem valor definido,
-    // nem no paciente nem no padrao do usuario
     @Column(name = "valor_consulta", nullable = true, precision = 10, scale = 2)
     private BigDecimal valor;
 

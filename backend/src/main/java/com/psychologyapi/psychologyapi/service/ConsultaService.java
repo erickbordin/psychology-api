@@ -23,6 +23,7 @@ import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoComAnotacaoException;
+import com.psychologyapi.psychologyapi.exceptions.SessaoComBaixaException;
 import com.psychologyapi.psychologyapi.exceptions.TransicaoDeStatusInvalidaException;
 import com.psychologyapi.psychologyapi.mapper.ConsultaMapper;
 import com.psychologyapi.psychologyapi.model.Consulta;
@@ -33,6 +34,7 @@ import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
+import com.psychologyapi.psychologyapi.service.dinheiro.ValorDaSessao;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
 import com.psychologyapi.psychologyapi.service.serie.OcorrenciasSemanais;
 
@@ -178,7 +180,15 @@ public class ConsultaService {
         Consulta consulta = consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(id, usuarioLogado)
                 .orElseThrow(() -> new ConsultaNaoEncontradaException("Consulta nao encontrada"));
 
+        if (consulta.getPagoEm() != null && dto.status() != null && dto.status() != Status.REALIZADA) {
+            throw new SessaoComBaixaException(SessaoComBaixaException.AO_MUDAR_STATUS);
+        }
+
+        Status statusAnterior = consulta.getStatus();
         consultaMapper.atualizarConsultaApartirDoDTO(dto, consulta);
+        if (statusAnterior != Status.REALIZADA) {
+            ValorDaSessao.congelarSeRealizada(consulta);
+        }
 
         if (dto.dtConsulta() != null) {
             LocalDateTime inicioJanela = dto.dtConsulta().minusMinutes(DURACAO_CONSULTA_MINUTOS);
@@ -237,7 +247,15 @@ public class ConsultaService {
                     "Esta sessão foi cancelada. Reagende-a para poder marcar presença.");
         }
 
+        if (consulta.getPagoEm() != null && dto.status() != Status.REALIZADA) {
+            throw new SessaoComBaixaException(SessaoComBaixaException.AO_MUDAR_STATUS);
+        }
+
+        Status statusAnterior = consulta.getStatus();
         consulta.setStatus(dto.status());
+        if (statusAnterior != Status.REALIZADA) {
+            ValorDaSessao.congelarSeRealizada(consulta);
+        }
 
         Consulta salva = consultaRepository.save(consulta);
         auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "Consulta", salva.getId());
@@ -271,6 +289,10 @@ public class ConsultaService {
         if (anotacaoRepository.existsByConsultaAndDeletedAtIsNull(consulta)) {
             throw new SessaoComAnotacaoException(
                     "Esta sessão tem anotação registrada. Exclua a anotação antes de excluir a sessão.");
+        }
+
+        if (consulta.getPagoEm() != null) {
+            throw new SessaoComBaixaException(SessaoComBaixaException.AO_EXCLUIR);
         }
 
         consulta.setDeletedAt(LocalDateTime.now());

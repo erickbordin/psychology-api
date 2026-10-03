@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.controller.dto.consulta;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import com.psychologyapi.psychologyapi.model.Status;
@@ -11,5 +12,7 @@ public record ConsultaResponseDTO(
     LocalDateTime dtConsulta,
     Status status,
     LocalDateTime createdAt,
-    UUID serieId
+    UUID serieId,
+    BigDecimal valor,
+    LocalDateTime pagoEm
 ) {}

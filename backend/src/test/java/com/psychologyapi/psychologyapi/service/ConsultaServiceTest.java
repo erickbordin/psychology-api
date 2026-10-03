@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -14,6 +15,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -35,10 +37,12 @@ import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaCadastroD
 import com.psychologyapi.psychologyapi.controller.dto.consulta.ConsultaRecorrenteCadastroDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieCancelamentoResponseDTO;
 import com.psychologyapi.psychologyapi.controller.dto.consulta.SerieConsultaResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.consulta.StatusConsultaDTO;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
+import com.psychologyapi.psychologyapi.exceptions.SessaoComBaixaException;
 import com.psychologyapi.psychologyapi.mapper.ConsultaMapper;
 import com.psychologyapi.psychologyapi.model.Consulta;
 import com.psychologyapi.psychologyapi.model.Paciente;
@@ -632,6 +636,195 @@ class ConsultaServiceTest {
 
         verify(consultaRepository, never()).findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(any(), any(), any());
         verify(consultaRepository, never()).saveAll(anyList());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    private Consulta consultaDoLogado(Status status, BigDecimal valorDoPaciente) {
+        Paciente paciente = pacienteDoLogado(UUID.randomUUID());
+        paciente.setValorSessao(valorDoPaciente);
+        Consulta consulta = Fixtures.consulta(logado, paciente, quando, status);
+        consulta.setId(UUID.randomUUID());
+        return consulta;
+    }
+
+    private void comConsultaSalvaDevolvida(Consulta consulta) {
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(consulta.getId(), logado))
+                .thenReturn(Optional.of(consulta));
+        when(consultaRepository.save(consulta)).thenReturn(consulta);
+    }
+
+    @Test
+    @DisplayName("atualizarStatus para REALIZADA congela o valor do paciente na consulta")
+    void realizadaCongelaValorDoPaciente() {
+        Consulta consulta = consultaDoLogado(Status.AGENDADA, new BigDecimal("180.00"));
+        comConsultaSalvaDevolvida(consulta);
+
+        consultaService.atualizarStatus(consulta.getId(), new StatusConsultaDTO(Status.REALIZADA));
+
+        assertThat(consulta.getValor()).isEqualByComparingTo("180.00");
+    }
+
+    @Test
+    @DisplayName("sem valor no paciente, REALIZADA congela o valor padrao do psicologo")
+    void realizadaUsaValorPadraoDoUsuario() {
+        logado.setValorPadraoSessao(new BigDecimal("150.00"));
+        Consulta consulta = consultaDoLogado(Status.AGENDADA, null);
+        comConsultaSalvaDevolvida(consulta);
+
+        consultaService.atualizarStatus(consulta.getId(), new StatusConsultaDTO(Status.REALIZADA));
+
+        assertThat(consulta.getValor()).isEqualByComparingTo("150.00");
+    }
+
+    @Test
+    @DisplayName("sem valor no paciente nem padrao, REALIZADA fica sem valor")
+    void realizadaSemNenhumValorFicaNula() {
+        Consulta consulta = consultaDoLogado(Status.AGENDADA, null);
+        comConsultaSalvaDevolvida(consulta);
+
+        consultaService.atualizarStatus(consulta.getId(), new StatusConsultaDTO(Status.REALIZADA));
+
+        assertThat(consulta.getValor()).isNull();
+    }
+
+    @Test
+    @DisplayName("valor ja congelado nao e sobrescrito pelo valor atual do paciente")
+    void valorJaCongeladoNaoMuda() {
+        Consulta consulta = consultaDoLogado(Status.FALTOU, new BigDecimal("200.00"));
+        consulta.setValor(new BigDecimal("150.00"));
+        comConsultaSalvaDevolvida(consulta);
+
+        consultaService.atualizarStatus(consulta.getId(), new StatusConsultaDTO(Status.REALIZADA));
+
+        assertThat(consulta.getValor()).isEqualByComparingTo("150.00");
+    }
+
+    @Test
+    @DisplayName("FALTOU nao congela valor")
+    void faltouNaoCongela() {
+        Consulta consulta = consultaDoLogado(Status.AGENDADA, new BigDecimal("180.00"));
+        comConsultaSalvaDevolvida(consulta);
+
+        consultaService.atualizarStatus(consulta.getId(), new StatusConsultaDTO(Status.FALTOU));
+
+        assertThat(consulta.getValor()).isNull();
+    }
+
+    @Test
+    @DisplayName("sessao com baixa nao sai de REALIZADA pelo PATCH de status: 409 e nada salvo")
+    void comBaixaNaoViraFaltou() {
+        Consulta consulta = consultaDoLogado(Status.REALIZADA, null);
+        consulta.setValor(new BigDecimal("180.00"));
+        consulta.setPagoEm(quando.plusHours(1));
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(consulta.getId(), logado))
+                .thenReturn(Optional.of(consulta));
+
+        assertThatThrownBy(() -> consultaService.atualizarStatus(
+                consulta.getId(), new StatusConsultaDTO(Status.FALTOU)))
+                .isInstanceOf(SessaoComBaixaException.class)
+                .hasMessage("Esta sessão já tem baixa. Desfaça a baixa antes de mudar o status.");
+
+        assertThat(consulta.getStatus()).isEqualTo(Status.REALIZADA);
+        verify(consultaRepository, never()).save(any());
+        verify(auditoriaService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("sessao com baixa pode receber REALIZADA de novo sem erro")
+    void comBaixaRealizadaDeNovoPassa() {
+        Consulta consulta = consultaDoLogado(Status.REALIZADA, null);
+        consulta.setValor(new BigDecimal("180.00"));
+        consulta.setPagoEm(quando.plusHours(1));
+        comConsultaSalvaDevolvida(consulta);
+
+        assertThatCode(() -> consultaService.atualizarStatus(
+                consulta.getId(), new StatusConsultaDTO(Status.REALIZADA)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("PUT com status CANCELADA numa sessao com baixa: 409 antes de mexer em qualquer campo")
+    void putComBaixaNaoCancela() {
+        Consulta consulta = consultaDoLogado(Status.REALIZADA, null);
+        consulta.setValor(new BigDecimal("180.00"));
+        consulta.setPagoEm(quando.plusHours(1));
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(consulta.getId(), logado))
+                .thenReturn(Optional.of(consulta));
+
+        assertThatThrownBy(() -> consultaService.atualizarConsulta(
+                consulta.getId(), new ConsultaAtualizacaoDTO(null, Status.CANCELADA)))
+                .isInstanceOf(SessaoComBaixaException.class)
+                .hasMessage("Esta sessão já tem baixa. Desfaça a baixa antes de mudar o status.");
+
+        verify(consultaMapper, never()).atualizarConsultaApartirDoDTO(any(), any());
+        verify(consultaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("PUT que leva a sessao a REALIZADA congela o valor")
+    void putRealizadaCongela() {
+        Consulta consulta = consultaDoLogado(Status.AGENDADA, new BigDecimal("180.00"));
+        ConsultaAtualizacaoDTO dto = new ConsultaAtualizacaoDTO(null, Status.REALIZADA);
+        comConsultaSalvaDevolvida(consulta);
+        doAnswer(invocacao -> {
+            consulta.setStatus(Status.REALIZADA);
+            return null;
+        }).when(consultaMapper).atualizarConsultaApartirDoDTO(dto, consulta);
+
+        consultaService.atualizarConsulta(consulta.getId(), dto);
+
+        assertThat(consulta.getValor()).isEqualByComparingTo("180.00");
+    }
+
+    @Test
+    @DisplayName("PUT so com data numa REALIZADA sem valor nao congela o valor")
+    void putSoComDataNaoCongelaRealizadaSemValor() {
+        Consulta consulta = consultaDoLogado(Status.REALIZADA, new BigDecimal("180.00"));
+        LocalDateTime novaData = quando.plusDays(7);
+        ConsultaAtualizacaoDTO dto = new ConsultaAtualizacaoDTO(novaData, null);
+        comConsultaSalvaDevolvida(consulta);
+        doAnswer(invocacao -> {
+            consulta.setDtConsulta(novaData);
+            return null;
+        }).when(consultaMapper).atualizarConsultaApartirDoDTO(dto, consulta);
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(eq(logado), any(), any()))
+                .thenReturn(List.of());
+
+        consultaService.atualizarConsulta(consulta.getId(), dto);
+
+        assertThat(consulta.getValor()).isNull();
+    }
+
+    @Test
+    @DisplayName("PATCH REALIZADA numa sessao ja REALIZADA sem valor nao congela")
+    void patchRealizadaSobreRealizadaNaoCongela() {
+        Consulta consulta = consultaDoLogado(Status.REALIZADA, new BigDecimal("180.00"));
+        comConsultaSalvaDevolvida(consulta);
+
+        consultaService.atualizarStatus(consulta.getId(), new StatusConsultaDTO(Status.REALIZADA));
+
+        assertThat(consulta.getValor()).isNull();
+    }
+
+    @Test
+    @DisplayName("deletarConsulta com baixa: 409, sem soft delete e sem auditoria")
+    void deletarComBaixaRecusa() {
+        Consulta consulta = consultaDoLogado(Status.REALIZADA, null);
+        consulta.setValor(new BigDecimal("180.00"));
+        consulta.setPagoEm(quando.plusHours(1));
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByIdAndUsuarioAndDeletedAtIsNull(consulta.getId(), logado))
+                .thenReturn(Optional.of(consulta));
+
+        assertThatThrownBy(() -> consultaService.deletarConsulta(consulta.getId()))
+                .isInstanceOf(SessaoComBaixaException.class)
+                .hasMessage("Esta sessão tem baixa registrada. Desfaça a baixa antes de excluir a sessão.");
+
+        assertThat(consulta.getDeletedAt()).isNull();
+        verify(consultaRepository, never()).save(any());
         verify(auditoriaService, never()).registrar(any(), any(), any(), any());
     }
 }
