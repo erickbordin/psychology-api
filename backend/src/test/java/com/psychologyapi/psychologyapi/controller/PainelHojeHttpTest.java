@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -92,6 +93,40 @@ class PainelHojeHttpTest {
 
         Usuario semNada = usuarioRepository.save(Fixtures.usuario("dia.um@example.com"));
         tokenDeQuemNaoTemNada = "Bearer " + tokenService.gerarToken(semNada.getEmailUsuario());
+    }
+
+    private void realizadaDeBrunaHoje(Usuario dono, String pagoEm) {
+        Paciente bruna = Fixtures.paciente(dono, "Bruna Teixeira");
+        bruna.setValorSessao(new BigDecimal("180.00"));
+        bruna = pacienteRepository.save(bruna);
+        Consulta consulta = Fixtures.consulta(
+                dono, bruna, LocalDateTime.parse("2026-12-02T09:30:00"), Status.REALIZADA);
+        consulta.setValor(new BigDecimal("180.00"));
+        consulta.setPagoEm(pagoEm == null ? null : LocalDateTime.parse(pagoEm));
+        consultaRepository.save(consulta);
+    }
+
+    @Test
+    @DisplayName("realizada hoje com valor e sem baixa entra como SEM_BAIXA e a linha do dia traz o valor")
+    void realizadaSemBaixaEntraNaFila() throws Exception {
+        realizadaDeBrunaHoje(usuarioRepository.findByEmailUsuario("dona.painel@example.com").orElseThrow(), null);
+
+        mockMvc.perform(get("/painel/hoje").header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.pendencias[?(@.tipo == 'SEM_BAIXA')].pacienteNome").value(hasItem("Bruna Teixeira")))
+               .andExpect(jsonPath("$.sessoes[?(@.pacienteNome == 'Bruna Teixeira')].valor").value(hasItem(180.0)));
+    }
+
+    @Test
+    @DisplayName("realizada hoje com baixa nao gera SEM_BAIXA")
+    void realizadaComBaixaNaoEPendencia() throws Exception {
+        realizadaDeBrunaHoje(usuarioRepository.findByEmailUsuario("dona.painel@example.com").orElseThrow(),
+                "2026-12-02T09:45:00");
+
+        mockMvc.perform(get("/painel/hoje").header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.pendencias[?(@.tipo == 'SEM_BAIXA')].pacienteNome")
+                       .value(not(hasItem("Bruna Teixeira"))));
     }
 
     @Test

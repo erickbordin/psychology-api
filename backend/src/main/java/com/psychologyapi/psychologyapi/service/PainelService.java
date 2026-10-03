@@ -1,5 +1,7 @@
 package com.psychologyapi.psychologyapi.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.psychologyapi.psychologyapi.controller.dto.painel.PainelHojeDTO;
+import com.psychologyapi.psychologyapi.controller.dto.painel.PainelMesDTO;
 import com.psychologyapi.psychologyapi.controller.dto.painel.PendenciaDoPainelDTO;
 import com.psychologyapi.psychologyapi.controller.dto.painel.SessaoDoDiaDTO;
 import com.psychologyapi.psychologyapi.controller.dto.painel.TipoPendencia;
@@ -21,6 +24,8 @@ import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
+import com.psychologyapi.psychologyapi.repository.projecao.ContagemDoMes;
+import com.psychologyapi.psychologyapi.service.periodo.MesConsultado;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
 
 import lombok.RequiredArgsConstructor;
@@ -67,7 +72,9 @@ public class PainelService {
                         c.getDtConsulta(),
                         c.getPaciente().getId(),
                         c.getPaciente().getNomePaciente(),
-                        c.getStatus()))
+                        c.getStatus(),
+                        c.getValor(),
+                        c.getPagoEm()))
                 .toList();
 
         // a proxima e a primeira que ainda nao comecou E continua agendada:
@@ -114,10 +121,36 @@ public class PainelService {
                         TipoPendencia.SEM_ANOTACAO))
                 .toList();
 
-        List<PendenciaDoPainelDTO> pendencias = Stream.concat(semStatus.stream(), semAnotacao.stream())
+        List<PendenciaDoPainelDTO> semBaixa = realizadasHoje.stream()
+                .filter(c -> c.getValor() != null && c.getPagoEm() == null)
+                .map(c -> new PendenciaDoPainelDTO(
+                        c.getId(), c.getDtConsulta(), c.getPaciente().getNomePaciente(),
+                        TipoPendencia.SEM_BAIXA))
+                .toList();
+
+        List<PendenciaDoPainelDTO> pendencias = Stream.of(semStatus, semAnotacao, semBaixa)
+                .flatMap(List::stream)
                 .sorted(Comparator.comparing(PendenciaDoPainelDTO::dtConsulta))
                 .toList();
 
         return new PainelHojeDTO(proxima, sessoes, pendencias);
+    }
+
+    @Transactional(readOnly = true)
+    public PainelMesDTO mes(Integer ano, Integer mes) {
+        MesConsultado periodo = MesConsultado.resolver(ano, mes, clock);
+        Usuario usuario = securityService.obterUsuarioLogado();
+        ContagemDoMes contagem = consultaRepository.contagemDoMes(
+                usuario, periodo.inicio(), periodo.fimExclusivo());
+
+        long realizadas = contagem.getRealizadas();
+        long faltas = contagem.getFaltas();
+        long denominador = realizadas + faltas;
+        BigDecimal taxaDeFalta = denominador == 0
+                ? null
+                : BigDecimal.valueOf(faltas).divide(BigDecimal.valueOf(denominador), 4, RoundingMode.HALF_UP);
+
+        return new PainelMesDTO(periodo.ano(), periodo.mes(), realizadas, faltas,
+                contagem.getCanceladas(), taxaDeFalta, contagem.getPacientesAtivos());
     }
 }

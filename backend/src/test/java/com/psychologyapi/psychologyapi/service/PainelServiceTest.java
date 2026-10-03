@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -120,5 +121,39 @@ class PainelServiceTest {
         verify(consultaRepository, times(1))
                 .findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNullOrderByDtConsultaAsc(any(), any(), any());
         assertThat(painel.pendencias()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("realizada hoje com valor e sem baixa gera SEM_BAIXA, e a mesma sessao sem anotacao gera as duas")
+    void realizadaSemBaixaESemAnotacao() {
+        Consulta semNada = consultaDe("Bruna Teixeira", AGORA.minusHours(2), Status.REALIZADA);
+        semNada.setValor(new BigDecimal("180.00"));
+        Consulta paga = consultaDe("Ivan Prado", AGORA.minusHours(1), Status.REALIZADA);
+        paga.setValor(new BigDecimal("180.00"));
+        paga.setPagoEm(AGORA.minusMinutes(30));
+        Consulta semValor = consultaDe("Clara Bueno", AGORA.minusMinutes(50), Status.REALIZADA);
+
+        when(securityService.obterUsuarioLogado()).thenReturn(logado);
+        when(consultaRepository.findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNullOrderByDtConsultaAsc(
+                any(), any(), any()))
+                .thenReturn(List.of(semNada, paga, semValor));
+        when(consultaRepository.findByUsuarioAndStatusAndDtConsultaBeforeAndDeletedAtIsNullOrderByDtConsultaAsc(
+                any(), any(), any()))
+                .thenReturn(List.of());
+        when(anotacaoRepository.idsDeConsultasComAnotacao(any(), anyList()))
+                .thenReturn(List.of(paga.getId(), semValor.getId()));
+
+        PainelHojeDTO painel = painelService.hoje();
+
+        assertThat(painel.pendencias())
+                .extracting(p -> p.pacienteNome() + ":" + p.tipo())
+                .containsExactly("Bruna Teixeira:SEM_ANOTACAO", "Bruna Teixeira:SEM_BAIXA");
+        assertThat(painel.sessoes())
+                .filteredOn(s -> s.pacienteNome().equals("Ivan Prado"))
+                .singleElement()
+                .satisfies(s -> {
+                    assertThat(s.valor()).isEqualByComparingTo("180.00");
+                    assertThat(s.pagoEm()).isEqualTo(AGORA.minusMinutes(30));
+                });
     }
 }

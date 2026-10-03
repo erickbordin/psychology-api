@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.controller.dto.painel;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -10,5 +11,7 @@ public record SessaoDoDiaDTO(
         LocalDateTime dtConsulta,
         UUID pacienteId,
         String pacienteNome,
-        Status status) {
+        Status status,
+        BigDecimal valor,
+        LocalDateTime pagoEm) {
 }

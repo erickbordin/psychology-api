@@ -42,6 +42,7 @@ class OpenApiHttpTest {
     void contratoDescreveAFatia1() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                .andExpect(jsonPath("$.paths['/painel/hoje']").exists())
+               .andExpect(jsonPath("$.paths['/painel/mes']").exists())
                .andExpect(jsonPath("$.paths['/consultas/conflito']").exists())
                .andExpect(jsonPath("$.paths['/auth/login']").exists());
     }
@@ -159,5 +160,12 @@ class OpenApiHttpTest {
         mockMvc.perform(get("/v3/api-docs"))
                .andExpect(jsonPath(email).value(org.hamcrest.Matchers.containsString("em branco")))
                .andExpect(jsonPath(telefone).value(org.hamcrest.Matchers.containsString("em branco")));
+    }
+
+    @Test
+    @DisplayName("o contrato descreve o endpoint do financeiro do mes")
+    void contratoDescreveFinanceiroDoMes() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+               .andExpect(jsonPath("$.paths['/financeiro/mes']").exists());
     }
 }
