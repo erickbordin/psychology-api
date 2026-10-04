@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useMemo, useState, type ReactNode } from 'react'
 
 import { api, definirToken } from '../api/cliente'
@@ -46,6 +47,7 @@ export const ContextoDaSessao = createContext<Sessao | null>(null)
 export function SessaoProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [carregando, setCarregando] = useState(false)
+  const cliente = useQueryClient()
 
   const entrar = useCallback(async (dto: { emailUsuario: string; senha: string }) => {
     setCarregando(true)
@@ -84,8 +86,9 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     } finally {
       definirToken(null)
       setUsuario(null)
+      cliente.clear()
     }
-  }, [])
+  }, [cliente])
 
   const valor = useMemo(
     () => ({ usuario, carregando, entrar, sair }),

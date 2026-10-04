@@ -111,6 +111,11 @@ public class RefreshTokenService {
         refreshTokenRepository.deleteByUsuarioAndExpiresAtBefore(usuario, LocalDateTime.now());
     }
 
+    @Transactional
+    public void apagarTodosDe(Usuario usuario) {
+        refreshTokenRepository.apagarTodosDe(usuario);
+    }
+
     private void revogarCadeiaDe(Usuario usuario) {
         LocalDateTime agora = LocalDateTime.now();
         List<RefreshToken> vivos = refreshTokenRepository.findByUsuarioAndRevokedAtIsNull(usuario);

@@ -228,6 +228,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ajustes/senha": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["trocarSenha"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pendencias/{pendenciaId}/concluir": {
         parameters: {
             query?: never;
@@ -690,6 +706,10 @@ export interface components {
             emailUsuario: string;
             senha: string;
         };
+        TrocaDeSenhaDTO: {
+            senhaAtual: string;
+            novaSenha: string;
+        };
         StatusConsultaDTO: {
             /** @enum {string} */
             status: "REALIZADA" | "AGENDADA" | "CANCELADA" | "FALTOU";
@@ -878,6 +898,10 @@ export interface components {
              * @example 2026-12-02T14:00:00
              */
             createdAt?: string;
+            /** Format: uuid */
+            pacienteId?: string;
+            pacienteNome?: string;
+            pacienteExcluido?: boolean;
         };
         PagedModelLogAuditoriaResponseDTO: {
             content?: components["schemas"]["LogAuditoriaResponseDTO"][];
@@ -2280,6 +2304,64 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["TokenResponseDTO"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    trocarSenha: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrocaDeSenhaDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {

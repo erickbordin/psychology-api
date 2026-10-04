@@ -25,6 +25,10 @@ public interface ConsultaRepository extends JpaRepository<Consulta, UUID>{
     List<Consulta> findByUsuarioAndDtConsultaBetweenAndDeletedAtIsNull(Usuario usuario, LocalDateTime inicio, LocalDateTime fim);
     Optional<Consulta> findByIdAndUsuarioAndDeletedAtIsNull(UUID id, Usuario usuario);
     List<Consulta> findByIdInAndUsuarioAndDeletedAtIsNull(Collection<UUID> ids, Usuario usuario);
+
+    @EntityGraph(attributePaths = "paciente")
+    List<Consulta> findByIdInAndUsuario(Collection<UUID> ids, Usuario usuario);
+
     List<Consulta> findBySerieIdAndUsuarioAndDeletedAtIsNull(UUID serieId, Usuario usuario);
     Page<Consulta> findByPacienteAndUsuarioAndDeletedAtIsNullOrderByDtConsultaDesc(
             Paciente paciente, Usuario usuario, Pageable pageable);

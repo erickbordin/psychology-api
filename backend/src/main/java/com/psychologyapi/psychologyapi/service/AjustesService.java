@@ -4,11 +4,13 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.psychologyapi.psychologyapi.controller.dto.ajustes.AjustesAtualizacaoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.ajustes.AjustesResponseDTO;
+import com.psychologyapi.psychologyapi.controller.dto.ajustes.TrocaDeSenhaDTO;
 import com.psychologyapi.psychologyapi.exceptions.CampoInvalidoException;
 import com.psychologyapi.psychologyapi.model.BlocoAviso;
 import com.psychologyapi.psychologyapi.model.Usuario;
@@ -23,10 +25,13 @@ import lombok.RequiredArgsConstructor;
 public class AjustesService {
 
     public static final String ENTIDADE_AUDITADA = "Ajustes";
+    public static final String ENTIDADE_SENHA = "Senha";
 
     private final SecurityService securityService;
     private final UsuarioRepository usuarioRepository;
     private final AuditoriaService auditoriaService;
+    private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional(readOnly = true)
     public AjustesResponseDTO obter() {
@@ -60,6 +65,25 @@ public class AjustesService {
         Usuario salvo = usuarioRepository.save(usuario);
         auditoriaService.registrar(salvo, AcaoAuditoria.ATUALIZACAO, ENTIDADE_AUDITADA, salvo.getId());
         return resposta(salvo);
+    }
+
+    @Transactional
+    public String trocarSenha(TrocaDeSenhaDTO dto) {
+        Usuario usuario = securityService.obterUsuarioLogado();
+
+        if (!passwordEncoder.matches(dto.senhaAtual(), usuario.getSenhaUsuario())) {
+            throw new CampoInvalidoException("senhaAtual", "A senha atual não confere.");
+        }
+        if (passwordEncoder.matches(dto.novaSenha(), usuario.getSenhaUsuario())) {
+            throw new CampoInvalidoException("novaSenha", "A nova senha precisa ser diferente da atual.");
+        }
+
+        usuario.setSenhaUsuario(passwordEncoder.encode(dto.novaSenha()));
+        Usuario salvo = usuarioRepository.save(usuario);
+        refreshTokenService.apagarTodosDe(salvo);
+        String tokenEmClaro = refreshTokenService.emitir(salvo).tokenEmClaro();
+        auditoriaService.registrar(salvo, AcaoAuditoria.ATUALIZACAO, ENTIDADE_SENHA, salvo.getId());
+        return tokenEmClaro;
     }
 
     private Set<BlocoAviso> blocos(Set<BlocoAviso> recebidos) {

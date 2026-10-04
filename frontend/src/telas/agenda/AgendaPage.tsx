@@ -2,7 +2,9 @@ import { useState } from 'react'
 
 import { deApi, paraApi } from '../../api/data'
 import { Chip } from '../../ui/Chip'
+import { useAjustes } from '../ajustes/queries'
 import { DialogoDeConsulta } from './DialogoDeConsulta'
+import { horasDaGrade } from './grade'
 import { useConsultasDaSemana, type ConsultaDaAgenda } from './queries'
 
 const ESTADO: Record<'REALIZADA' | 'AGENDADA' | 'FALTOU', { variante: 'realizada' | 'neutro' | 'faltou'; texto: string }> = {
@@ -23,8 +25,6 @@ function diasDaSemana(base: Date): Date[] {
     return d
   })
 }
-
-const HORAS = Array.from({ length: 13 }, (_, i) => i + 7) // 07h as 19h
 
 const doisDigitos = (n: number) => String(n).padStart(2, '0')
 
@@ -68,14 +68,20 @@ export function AgendaPage() {
     isLoading,
     isError,
   } = useConsultasDaSemana(paraDataPura(semana[0]), paraDataPura(semana[6]))
+  const { data: ajustes, isLoading: carregandoAjustes } = useAjustes()
 
   // spec 6.2: botao nunca morre em silencio — e o mesmo principio vale para
   // uma busca que falha. Sem isto, a grade desenha as 91 celulas vazias e a
   // psicologa le "semana livre" onde na verdade a API caiu — uma mentira
   // silenciosa pior do que nao mostrar nada (Critico 4 da revisao do
   // conjunto). Comparar com `HojePage.tsx`, que ja trata os dois estados.
-  if (isLoading) return <p>Carregando a semana…</p>
+  if (isLoading || carregandoAjustes) return <p>Carregando a semana…</p>
   if (isError) return <p role="alert">Nao foi possivel carregar a semana. Tente de novo.</p>
+
+  const horasOcupadas = consultas
+    .filter((c) => c.status !== 'CANCELADA')
+    .map((c) => deApi(c.dtConsulta).getHours())
+  const horas = horasDaGrade(ajustes?.expedienteInicio ?? null, ajustes?.expedienteFim ?? null, horasOcupadas)
 
   const hoje = new Date()
   const ehHoje = (d: Date) =>
@@ -111,7 +117,7 @@ export function AgendaPage() {
           </tr>
         </thead>
         <tbody>
-          {HORAS.map((h) => {
+          {horas.map((h) => {
             const horario = `${String(h).padStart(2, '0')}:00`
             return (
               <tr key={h}>

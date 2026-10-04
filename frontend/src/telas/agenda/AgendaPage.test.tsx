@@ -1,13 +1,50 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { renderizar } from '../../teste/renderizar'
 import { servidor } from '../../teste/servidor'
 import { AgendaPage } from './AgendaPage'
 
+const AJUSTES = {
+  nome: 'Ana Souza',
+  email: 'ana@exemplo.local',
+  valorPadraoSessao: null,
+  antecedencia: 'H24',
+  blocosAviso: [],
+  tituloNoEmail: false,
+  tituloProfissional: null,
+  resumoDiario: false,
+  expedienteInicio: null,
+  expedienteFim: null,
+}
+
+function servirAjustes(corpo: object = AJUSTES) {
+  servidor.use(http.get('/ajustes', () => HttpResponse.json(corpo)))
+}
+
+function servirSemana(sessoes: { hora: string; status: string }[]) {
+  servidor.use(
+    http.get('/consultas', ({ request }) => {
+      const de = new URL(request.url).searchParams.get('de')
+      return HttpResponse.json(
+        sessoes.map((s, i) => ({
+          id: `77777777-7777-7777-7777-77777777777${i}`,
+          pacienteNome: `Cliente_00${i + 1}`,
+          dtConsulta: `${de}T${s.hora}:00`,
+          status: s.status,
+        })),
+      )
+    }),
+  )
+}
+
 describe('agenda', () => {
+  beforeEach(() => {
+    servirAjustes()
+  })
+
   it('mostra carregando enquanto busca a semana', async () => {
     servidor.use(
       http.get('/consultas', async () => {
@@ -155,5 +192,73 @@ describe('agenda', () => {
     // CANCELADA (Helena, 7h) foi processada e a grade re-renderizou
     expect(await screen.findByText(/rui sampaio/i)).toBeInTheDocument()
     expect(screen.queryByText(/helena vaz/i)).not.toBeInTheDocument()
+  })
+
+  it('com expediente de 8 a 18 a grade vai de 08:00 a 17:00', async () => {
+    servirAjustes({ ...AJUSTES, expedienteInicio: 8, expedienteFim: 18 })
+    servirSemana([])
+    renderizar(<AgendaPage />)
+
+    const grade = await screen.findByRole('grid', { name: /semana/i })
+    expect(within(grade).getByRole('rowheader', { name: '08:00' })).toBeInTheDocument()
+    expect(within(grade).getByRole('rowheader', { name: '17:00' })).toBeInTheDocument()
+    expect(within(grade).queryByRole('rowheader', { name: '07:00' })).not.toBeInTheDocument()
+    expect(within(grade).queryByRole('rowheader', { name: '18:00' })).not.toBeInTheDocument()
+  })
+
+  it('sessao agendada fora do expediente estica a grade ate ela', async () => {
+    servirAjustes({ ...AJUSTES, expedienteInicio: 8, expedienteFim: 18 })
+    servirSemana([{ hora: '06:00', status: 'AGENDADA' }])
+    renderizar(<AgendaPage />)
+
+    const grade = await screen.findByRole('grid', { name: /semana/i })
+    expect(within(grade).getByRole('rowheader', { name: '06:00' })).toBeInTheDocument()
+  })
+
+  it('sessao cancelada fora do expediente nao estica a grade', async () => {
+    servirAjustes({ ...AJUSTES, expedienteInicio: 8, expedienteFim: 18 })
+    servirSemana([{ hora: '06:00', status: 'CANCELADA' }])
+    renderizar(<AgendaPage />)
+
+    const grade = await screen.findByRole('grid', { name: /semana/i })
+    expect(within(grade).getByRole('rowheader', { name: '08:00' })).toBeInTheDocument()
+    expect(within(grade).queryByRole('rowheader', { name: '06:00' })).not.toBeInTheDocument()
+  })
+
+  it('expediente ate 24 termina na linha das 23:00', async () => {
+    servirAjustes({ ...AJUSTES, expedienteInicio: 20, expedienteFim: 24 })
+    servirSemana([])
+    renderizar(<AgendaPage />)
+
+    const grade = await screen.findByRole('grid', { name: /semana/i })
+    expect(within(grade).getAllByRole('rowheader')).toHaveLength(4)
+    expect(within(grade).getByRole('rowheader', { name: '23:00' })).toBeInTheDocument()
+  })
+
+  it('espera os ajustes antes de desenhar a grade', async () => {
+    servirSemana([])
+    servidor.use(
+      http.get('/ajustes', async () => {
+        await new Promise((resolver) => setTimeout(resolver, 20))
+        return HttpResponse.json({ ...AJUSTES, expedienteInicio: 9, expedienteFim: 12 })
+      }),
+    )
+    renderizar(<AgendaPage />)
+
+    expect(screen.getByText('Carregando a semana…')).toBeInTheDocument()
+    expect(screen.queryByRole('grid')).not.toBeInTheDocument()
+    const grade = await screen.findByRole('grid', { name: /semana/i })
+    expect(within(grade).getAllByRole('rowheader')).toHaveLength(3)
+  })
+
+  it('se os ajustes falham a grade padrao de 07:00 a 19:00 aparece', async () => {
+    servirSemana([])
+    servidor.use(http.get('/ajustes', () => new HttpResponse(null, { status: 500 })))
+    renderizar(<AgendaPage />)
+
+    const grade = await screen.findByRole('grid', { name: /semana/i })
+    expect(within(grade).getByRole('rowheader', { name: '07:00' })).toBeInTheDocument()
+    expect(within(grade).getByRole('rowheader', { name: '19:00' })).toBeInTheDocument()
+    expect(within(grade).getAllByRole('rowheader')).toHaveLength(13)
   })
 })
