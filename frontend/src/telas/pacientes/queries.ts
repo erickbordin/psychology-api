@@ -28,6 +28,7 @@ export type Paciente = {
   valorSessao: NonNullable<PacienteDTO['valorSessao']> | null
   canalAviso: NonNullable<PacienteDTO['canalAviso']>
   consentimentoAvisoEm: NonNullable<PacienteDTO['consentimentoAvisoEm']> | null
+  descadastradoEm: NonNullable<PacienteDTO['descadastradoEm']> | null
 }
 
 export const CHAVE_DOS_PACIENTES = ['pacientes'] as const
@@ -85,7 +86,7 @@ export function useSalvarPaciente(idExistente?: string) {
         telefone: editando ? valores.telefone : valores.telefone || null,
         dataNascimento: valores.dataNascimento || null,
         valorSessao: valores.valorSessao ? Number(valores.valorSessao) : null,
-        canalAviso: valores.canalAviso,
+        canalAviso: valores.autorizaAviso ? 'EMAIL' : 'NENHUM',
       }
       return api<Paciente>(editando ? `/pacientes/${idExistente}` : '/pacientes', {
         method: editando ? 'PUT' : 'POST',

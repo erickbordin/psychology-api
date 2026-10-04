@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 
+import { deApi } from '../../api/data'
 import { ResumoDeErros } from '../../formulario/ResumoDeErros'
 import { useFormularioDoProduto } from '../../formulario/useFormularioDoProduto'
 import { Botao } from '../../ui/Botao'
@@ -30,7 +31,7 @@ export function DialogoDePaciente({ aberto, aoFechar, paciente }: Props) {
         telefone: paciente?.telefone ?? '',
         dataNascimento: paciente?.dataNascimento ?? '',
         valorSessao: paciente?.valorSessao != null ? String(paciente.valorSessao) : '',
-        canalAviso: paciente?.canalAviso ?? 'NENHUM',
+        autorizaAviso: paciente?.canalAviso === 'EMAIL' && paciente?.consentimentoAvisoEm != null,
       },
     },
   )
@@ -90,13 +91,16 @@ export function DialogoDePaciente({ aberto, aoFechar, paciente }: Props) {
               />
 
               <div className="campo">
-                <label className="campo-rotulo" htmlFor="canal">
-                  Canal de aviso
+                <label htmlFor="autoriza-aviso">
+                  <input id="autoriza-aviso" type="checkbox" {...f.register('autorizaAviso')} />
+                  Paciente autorizou receber lembretes por e-mail
                 </label>
-                <select id="canal" {...f.register('canalAviso')}>
-                  <option value="NENHUM">Nenhum</option>
-                  <option value="EMAIL">E-mail</option>
-                </select>
+                {paciente?.descadastradoEm && (
+                  <p className="sub">
+                    Este paciente parou de receber lembretes pelo link do e-mail em{' '}
+                    {deApi(paciente.descadastradoEm).toLocaleDateString('pt-BR')}. Marque só se ele autorizou de novo.
+                  </p>
+                )}
               </div>
             </div>
 
