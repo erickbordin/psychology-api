@@ -5,7 +5,7 @@ Frontend do consultório — a interface do psicólogo autônomo para a
 semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão.
 
 > **Status:** as telas estão de pé e rodam ponta a ponta contra a API real, e os
-> três fluxos de e2e passam contra ela. A configuração de host está pronta;
+> quatro fluxos de e2e passam contra ela. A configuração de host está pronta;
 > falta criar o projeto na plataforma.
 
 > **Este arquivo descreve o código como ele está**, e não o plano que o gerou.
@@ -24,7 +24,8 @@ semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão
 | `/pacientes` | lista com busca por nome e o diálogo de cadastro |
 | `/pacientes/:pacienteId` | ficha de **página única**: cabeçalho com nome/idade/contato/valor, botão *Editar*, linha do tempo das sessões com a anotação dentro da linha de cada uma, e as pendências ao lado |
 | `/financeiro` | o mês: painel de presença, faturado/recebido/a receber, quem está devendo (com baixa em lote por paciente) e as sessões do mês, com baixa, desfazer e valor da sessão |
-| `/ajustes` | destino da navegação que ainda não tem tela — responde uma frase dizendo isso |
+| `/ajustes` | perfil, valor padrão da sessão, antecedência do aviso, frases do e-mail, título profissional e resumo diário, com a prévia de como o aviso chega |
+| `/descadastro/:token` | página pública, fora do layout e do login: abre pelo link do e-mail e confirma que o paciente parou de receber lembretes |
 
 **A ficha é uma página só, de propósito.** Ela substituiu as quatro abas
 (`/pacientes/:id/anotacoes`, `/lembretes`, `/consultas`) do desenho anterior:
@@ -226,6 +227,8 @@ morto.
 | `POST` / `PUT` | `/pacientes`, `/pacientes/{id}` | `telas/pacientes/queries.ts` |
 | `GET` | `/pacientes/{id}/ficha` | `telas/ficha/queries.ts` |
 | `POST` | `/pacientes/{id}/anotacoes` | `telas/ficha/queries.ts` |
+| `GET` / `PUT` | `/ajustes` | `telas/ajustes/queries.ts` |
+| `GET` / `POST` | `/descadastro/{token}` | `telas/descadastro/queries.ts` |
 
 Série recorrente, lembretes, exclusão de paciente e a trilha de auditoria
 existem na API e **não** têm cliente aqui.
@@ -342,6 +345,15 @@ faltou. Vale reconhecer os três:
 | `APP_REFRESH_EXPIRACAO_DIAS` | `14` | validade do refresh token |
 | `APP_REFRESH_COOKIE_SEGURO` | `true` | `Secure` no cookie de refresh |
 | `APP_REFRESH_COOKIE_SAMESITE` | `None` | `SameSite` do cookie de refresh |
+| `APP_EMAIL_REMETENTE` | `lembretes@localhost` | endereço de origem dos e-mails de aviso |
+| `APP_FRONTEND_URL` | `http://localhost:5173` | origem do frontend usada no link de descadastro do e-mail |
+| `APP_AVISOS_HABILITADO` | `true` | liga o job de avisos; `false` o desliga (use em teste e em segunda instância) |
+| `SPRING_MAIL_HOST` | vazio | servidor SMTP. Vazio: o job de avisos não roda e nada é registrado como enviado. Com host, `APP_EMAIL_REMETENTE` e `APP_FRONTEND_URL` são obrigatórias, ou a API não sobe |
+| `SPRING_MAIL_PORT` | `587` | porta do SMTP |
+| `SPRING_MAIL_USERNAME` | vazio | usuário do SMTP |
+| `SPRING_MAIL_PASSWORD` | vazio | senha do SMTP — só no painel da plataforma, nunca no repositório |
+| `SPRING_MAIL_AUTH` | `true` | autenticação SMTP |
+| `SPRING_MAIL_STARTTLS` | `true` | STARTTLS no SMTP |
 
 As três primeiras o `debug.sh` já define para o ambiente local. As três últimas
 só passam a importar quando o frontend usar o refresh — hoje ele não usa.
@@ -356,7 +368,8 @@ só passam a importar quando o frontend usar o refresh — hoje ele não usa.
 ## Por que o proxy espelha os caminhos
 
 Em desenvolvimento o Vite proxia `/auth`, `/pacientes`, `/consultas`,
-`/anotacoes`, `/pendencias`, `/painel`, `/auditoria` e `/financeiro` para
+`/anotacoes`, `/pendencias`, `/painel`, `/auditoria`, `/financeiro`, `/descadastro` e
+`/ajustes` para
 `http://localhost:8080`. Isso torna tudo same-origin e tira CORS e `SameSite` do
 caminho.
 
@@ -365,7 +378,7 @@ marcado `Path=/auth`, e sob um prefixo o navegador veria `/api/auth/refresh` e
 simplesmente não o enviaria. A renovação quebraria só em desenvolvimento — o pior
 lugar para descobrir isso.
 
-O preço do espelho é que `/pacientes` é caminho de API **e** rota de tela.
+O preço do espelho é que `/pacientes`, `/ajustes` e `/descadastro` são caminho de API **e** rota de tela.
 Recarregar a página em `/pacientes` entregava o JSON da API no lugar do app. Daí
 o `bypass` no `vite.config.ts`: navegação de documento pede `text/html` e volta
 para o `index.html`; chamada do cliente pede JSON e segue para a API.
@@ -373,8 +386,8 @@ para o `index.html`; chamada do cliente pede JSON e segue para a API.
 ## Testes
 
 ```bash
-npm test          # 165 testes de unidade e de componente, com MSW
-npm run e2e       # 3 fluxos contra a API real — exigem a API no ar
+npm test          # 213 testes de unidade e de componente, com MSW
+npm run e2e       # 4 fluxos contra a API real — exigem a API no ar
 ```
 
 Na primeira vez, o Playwright precisa do navegador:
@@ -397,13 +410,14 @@ Duas convenções valem em toda a suíte, e não são estilo:
 `e2e/` fica fora do glob do Vitest (`vite.config.ts`), porque o `test()` do
 Playwright explode dentro do Vitest.
 
-### Os três fluxos de e2e
+### Os quatro fluxos de e2e
 
 | Arquivo | O que percorre |
 |---|---|
 | `e2e/fluxo-de-fumaca.spec.ts` | registrar (pela API) → entrar → ver o dia → agendar → marcar presença |
 | `e2e/fluxo-da-sessao.spec.ts` | cadastrar paciente → agendar **duas** sessões no mesmo dia → marcar só a primeira como realizada → anotar → conferir que a anotação voltou na linha da sessão A **e não** na da sessão B |
 | `e2e/fluxo-do-dinheiro.spec.ts` | cadastrar paciente com valor → agendar hoje → marcar *Realizada* → Financeiro mostra faturado e a receber → dar baixa em todas → recebido → desfazer baixa e o débito volta |
+| `e2e/fluxo-do-aviso.spec.ts` | Ajustes: antecedência `2 horas antes` e uma frase ligada → salvar → sair e voltar, os valores persistiram e a prévia mostra a frase → cadastrar paciente com o consentimento marcado → a ficha mostra *Aviso autorizado* |
 
 A segunda metade dessa última linha é o ponto. Enquanto o fluxo criava uma
 sessão só, "a anotação está na linha certa" era verdade por construção: com uma
@@ -416,7 +430,7 @@ de autenticar, e pegou que este projeto lia `erros[].mensagem` onde a API manda
 verde enquanto, contra a API real, um `400` de validação não mostrava nada na
 tela.
 
-Os três criam um **usuário novo por execução** (`*-${Date.now()}@teste.local`,
+Os quatro criam um **usuário novo por execução** (`*-${Date.now()}@teste.local`,
 senha `senhaforte123`): o banco não tem usuário semeado e o cadastro responde
 `409` em e-mail repetido. Nenhum dado de pessoa real entra num teste.
 

@@ -9,9 +9,9 @@ paciente. Isso definiu as decisões de projeto de cada lado: isolamento entre
 profissionais verificado por teste, exclusão reversível, registro de acesso, e
 access token que nunca é persistido no navegador.
 
-> **Status:** as duas aplicações rodam local, ponta a ponta, com os três e2e (fumaça,
-> sessão e dinheiro) passando contra a API real — painel, agenda, pacientes,
-> cadastro, ficha, trilha e Financeiro, da sessão realizada à baixa. **Nada foi para produção ainda:** o deploy do backend e a configuração
+> **Status:** as duas aplicações rodam local, ponta a ponta, com os quatro e2e (fumaça,
+> sessão, dinheiro e aviso) passando contra a API real — painel, agenda, pacientes,
+> cadastro, ficha, trilha, Financeiro, da sessão realizada à baixa, e o aviso de consulta por e-mail com os Ajustes. **Nada foi para produção ainda:** o deploy do backend e a configuração
 > de host do frontend estão prontos no repositório, não executados
 > ([passo a passo](frontend/README.md#hospedagem)).
 
@@ -38,6 +38,8 @@ sessão anterior. **Depois da sessão**, registra a anotação e agenda o retorn
 | Consultas | `/pacientes/:id/consultas` | histórico do paciente, só leitura |
 | Trilha | `/auditoria` | tudo que foi criado, alterado e excluído na conta |
 | Financeiro | `/financeiro` | o mês: presença, faturado/recebido/a receber, quem deve, baixa e valor da sessão |
+| Ajustes | `/ajustes` | nome, valor padrão da sessão, antecedência e frases do aviso, título profissional, resumo diário, com prévia do e-mail |
+| Descadastro | `/descadastro/:token` | página pública aberta pelo link do e-mail: o paciente para de receber lembretes |
 
 O que **não** existe, de propósito: gateway de pagamento, recibo, NFS-e,
 relatórios, convênios, documentos, multiempresa, chat, assinaturas, roles, login social. A lista
@@ -117,13 +119,13 @@ as futuras e deixa as que já aconteceram. O horizonte é um XOR: número de ses
 (2 a 52) **ou** data limite, nunca os dois.
 
 **Schema versionado, Hibernate sem DDL.** Não existe `ddl-auto` no projeto: quem
-cria tabela é o Flyway. Hoje é uma migration só, com o schema inteiro — as oito
-originais foram fundidas antes do primeiro deploy. Depois do deploy isso deixa de
-ser possível, e mudança vira `V2`, `V3`, …
+cria tabela é o Flyway. São duas migrations: a `V1`, com o schema inteiro (as oito
+originais foram fundidas antes do primeiro deploy), e a `V2`, do aviso de consulta.
+Migration aplicada é imutável, e mudança nova vira `V3`, …
 
 ## Modelo de dados
 
-Sete tabelas, todas penduradas no profissional dono da conta:
+Oito tabelas, todas penduradas no profissional dono da conta:
 
 | Tabela | Guarda | Observações |
 |---|---|---|
@@ -134,10 +136,12 @@ Sete tabelas, todas penduradas no profissional dono da conta:
 | `lembrete` | pendência do paciente | `concluido` é mão única; soft delete |
 | `log_auditoria` | a trilha | só insere |
 | `refresh_token` | sessões vivas | guarda o hash, nunca o token; `substituido_por` encadeia a rotação |
+| `aviso_de_consulta` | cada aviso a enviar ou já enviado | `UNIQUE (id_consulta, destinatario, horário)` é a trava contra envio duplo; guarda tentativas e próxima tentativa |
+| `resumo_diario` | o resumo da agenda de amanhã, por psicólogo e dia | `UNIQUE (id_usuario, data)` é a trava; mesma lógica de tentativas |
 
 ## Superfície da API
 
-Tudo exige `Authorization: Bearer <token>`, menos `/auth/**`.
+Tudo exige `Authorization: Bearer <token>`, menos `/auth/**` e `/descadastro/**`.
 
 | Recurso | Endpoints |
 |---|---|
@@ -148,6 +152,19 @@ Tudo exige `Authorization: Bearer <token>`, menos `/auth/**`.
 | Anotações | `POST` e `GET /pacientes/{id}/anotacoes` · `DELETE /anotacoes/{id}` |
 | Lembretes | `POST` e `GET /pacientes/{id}/lembretes` · `PATCH /lembretes/{id}/concluir` · `DELETE /lembretes/{id}` |
 | Trilha | `GET /auditoria?entidade=&entidadeId=&page=` |
+| Ajustes | `GET /ajustes` · `PUT /ajustes` |
+| Descadastro (público) | `GET /descadastro/{token}` · `POST /descadastro/{token}` |
+
+**Aviso de consulta.** Um job dentro da própria API (`@Scheduled`, uma passada por
+minuto) manda por e-mail o lembrete da sessão ao paciente que autorizou, com a
+antecedência e as frases escolhidas nos Ajustes, e às 18h o resumo da agenda de
+amanhã ao psicólogo. A trava contra envio duplo é uma `UNIQUE` no banco, não um
+`if` no código; falha de envio entra em nova tentativa e grava só o nome da
+exceção. Cada e-mail traz um link de descadastro que não exige login. Sem
+`SPRING_MAIL_HOST` o job não roda e nada é registrado como enviado; com o host
+definido, `APP_EMAIL_REMETENTE` e `APP_FRONTEND_URL` passam a ser obrigatórias, ou
+a API recusa subir. `APP_AVISOS_HABILITADO=false` desliga o job. Variáveis em
+[backend/README.md](backend/README.md#variáveis-de-ambiente).
 
 Erro de validação vem sempre no mesmo envelope, com o campo culpado nomeado:
 
@@ -209,9 +226,9 @@ próprios pacientes.
 ## Testes
 
 ```bash
-cd backend  && sh ./mvnw test    # 390 — unitários, integração (Testcontainers) e HTTP
-cd frontend && npm test          # 165 — unidade e componente, com MSW
-cd frontend && npm run e2e       # 3   — fumaça, sessão e dinheiro ponta a ponta, exige a API no ar
+cd backend  && sh ./mvnw test    # 487 — unitários, integração (Testcontainers) e HTTP
+cd frontend && npm test          # 213 — unidade e componente, com MSW
+cd frontend && npm run e2e       # 4   — fumaça, sessão, dinheiro e aviso ponta a ponta, exige a API no ar
 ```
 
 Cada camada pega um tipo de defeito:
@@ -244,7 +261,8 @@ docker build backend/
 ```
 
 Variáveis (`SPRING_DATASOURCE_*`, `JWT_SECRET`, `APP_CORS_ORIGINS`,
-`APP_REFRESH_*`) ficam no painel da plataforma, nunca no repositório.
+`APP_REFRESH_*`, `APP_EMAIL_REMETENTE`, `APP_FRONTEND_URL`, `APP_AVISOS_HABILITADO`,
+`SPRING_MAIL_*`) ficam no painel da plataforma, nunca no repositório.
 
 **Frontend** — o build é estático e a configuração de host já está versionada
 (`frontend/vercel.json`, `frontend/public/_redirects`). Falta criar o projeto na

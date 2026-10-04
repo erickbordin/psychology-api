@@ -126,13 +126,15 @@ no projeto: o Hibernate não cria nem altera tabela. Mudança de schema é sempr
 migration nova e versionada — migration já aplicada é imutável, porque editar o
 arquivo muda o checksum e o Flyway falha na validação.
 
-Uma migration só, `V1__20260901.sql`, com o schema inteiro. As oito anteriores
+Duas migrations. A `V1__20260901.sql` traz o schema inteiro; as oito anteriores
 (de 30/07 a 26/08) foram fundidas nela antes do primeiro deploy: sem banco de
 produção em lugar nenhum, o histórico de `ALTER`s não servia a ninguém — só
 obrigava quem chegasse a ler oito arquivos para saber o formato de uma tabela.
 
-A partir do primeiro deploy isso deixa de ser possível: migration aplicada em
-produção é imutável, e mudança de schema passa a ser uma `V2`, `V3`, … novas.
+A `V2__20261003.sql` é o aviso de consulta: colunas novas em `usuario`, `paciente`
+e `aviso_de_consulta`, a tabela `resumo_diario` e a `UNIQUE` que impede o envio
+duplo. Daqui em diante migration aplicada é imutável, e mudança de schema é
+`V3`, … nova.
 A convenção de nome continua `V<n>__<AAAAMMDD>.sql`.
 
 Quem já tinha o banco de desenvolvimento com o histórico antigo precisa
@@ -211,6 +213,23 @@ duas partes com a mesma credencial significa que existe uma cópia.
 Detalhes e alternativas rejeitadas em
 `docs/superpowers/specs/2026-08-26-sessao-com-refresh-design.md`.
 
+### Aviso de consulta com trava no banco
+
+Um job `@Scheduled` (`AgendadorDeAvisos`, uma passada por minuto, ligado por
+`APP_AVISOS_HABILITADO`) varre os psicólogos e manda o lembrete de cada sessão ao
+paciente que autorizou, na antecedência escolhida nos Ajustes, e às 18h o resumo
+da agenda de amanhã. A trava contra envio duplo é a `UNIQUE (id_consulta,
+destinatario_aviso, data_hora_consulta_aviso)` de `aviso_de_consulta`: remarcar muda
+o horário, e o aviso do horário novo é outro aviso. Falha de envio incrementa
+`tentativas_aviso` e agenda a próxima; o campo `erro` guarda só o nome simples da
+exceção, nunca a mensagem, que pode conter endereço. O e-mail não leva nada
+clínico, e o link de descadastro (`/descadastro/{token}`) funciona sem login.
+`Carteiro` é a interface de envio: com `SPRING_MAIL_HOST` vazio entra o
+`CarteiroDeRegistro` e o job nem roda; com host, o `CarteiroSmtp`.
+
+Detalhes e alternativas rejeitadas em
+`docs/superpowers/specs/2026-10-03-fatia-4-aviso-design.md`.
+
 ### Paginação com `PagedModel`
 
 Aplicada em `Anotacao`, `Lembrete` e `LogAuditoria` — as listagens que crescem sem
@@ -226,7 +245,7 @@ a ordem padrão em silêncio.
 | Entidade | Regras |
 |---|---|
 | `Usuario` | O psicólogo. Email único. Sem roles (MVP single-tenant por profissional). |
-| `Paciente` | Pertence a um `Usuario`. Soft delete. Listagem aceita filtro por nome, ou devolve todos. |
+| `Paciente` | Pertence a um `Usuario`. Soft delete. Guarda o consentimento para receber aviso e a data do último descadastro pelo link. Listagem aceita filtro por nome, ou devolve todos. |
 | `Consulta` | Status `AGENDADA`/`REALIZADA`/`CANCELADA`/`FALTOU`. Conflito de horário validado numa janela de 50 min, ignorando canceladas e soft-deletadas. Na atualização, exclui a própria consulta da comparação. Soft delete. Série recorrente materializada por completo na criação e agrupada por `serieId`; conflito em qualquer ocorrência aborta a série inteira. |
 | `Anotacao` | Registro de sessão. **Sem `PUT`** — histórico não é editável. Listagem paginada. Soft delete. |
 | `Lembrete` | Vinculado ao `Paciente`. Sem `PUT` genérico: ação dedicada `PATCH /lembretes/{id}/concluir`. Listagem paginada. Soft delete. |
@@ -263,6 +282,8 @@ Documentação interativa em `/swagger-ui.html`.
 | `POST` `GET` | `/pacientes/{pacienteId}/pendencias` | Cria / lista pendências (paginado) |
 | `PATCH` | `/pendencias/{pendenciaId}/concluir` | Conclui pendência |
 | `DELETE` | `/pendencias/{pendenciaId}` | Remove pendência (soft) |
+| `GET` `PUT` | `/ajustes` | Lê / atualiza os ajustes do psicólogo: perfil, valor padrão, antecedência e frases do aviso, título profissional, resumo diário |
+| `GET` `POST` | `/descadastro/{token}` | **Público, sem JWT.** Confere / confirma o descadastro do paciente pelo link do e-mail |
 | `GET` | `/auditoria` | Trilha de auditoria do profissional (paginado; `?entidade`+`?entidadeId` opcionais) |
 
 Toda resposta de consulta carrega o `serieId` da sua série (`null` quando a consulta
@@ -323,7 +344,7 @@ Com o ambiente já montado, é um comando:
 
 O script carrega o arquivo de ambiente local, aponta o datasource para o Postgres
 da máquina (`localhost:5432`, database `psychology-api`, usuário e senha
-`postgres`) e sobe o Spring na 8080. O Flyway aplica a migration sozinho no boot.
+`postgres`) e sobe o Spring na 8080. O Flyway aplica as migrations sozinho no boot.
 
 ### Máquina nova, do zero
 
@@ -392,14 +413,14 @@ vive no painel da plataforma. Nunca commite nenhum dos dois.
 ### Conferindo que subiu
 
 ```bash
-psql -d psychology-api -c "\dt"                # 7 tabelas + flyway_schema_history
+psql -d psychology-api -c "\dt"                # 8 tabelas + flyway_schema_history
 curl -i -X POST localhost:8080/auth/refresh    # 401 é o certo: ainda não há sessão
 ```
 
 No log do boot, a linha que confirma o schema:
 
 ```
-Successfully applied 1 migration to schema "public", now at version v1
+Successfully applied 2 migrations to schema "public", now at version v2
 ```
 
 Daí em diante a conta se cria pela tela do frontend (`Criar conta`), ou direto:
@@ -433,6 +454,15 @@ define para o ambiente local; o `JWT_SECRET` vem do arquivo de ambiente.
 | `APP_REFRESH_EXPIRACAO_DIAS` | `14` | validade do refresh token |
 | `APP_REFRESH_COOKIE_SEGURO` | `true` | `Secure` no cookie de refresh |
 | `APP_REFRESH_COOKIE_SAMESITE` | `None` | `SameSite` do cookie de refresh |
+| `APP_EMAIL_REMETENTE` | `lembretes@localhost` | endereço de origem dos e-mails de aviso |
+| `APP_FRONTEND_URL` | `http://localhost:5173` | origem do frontend usada no link de descadastro do e-mail |
+| `APP_AVISOS_HABILITADO` | `true` | liga o job de avisos; `false` o desliga (use em teste e em segunda instância) |
+| `SPRING_MAIL_HOST` | vazio | servidor SMTP. Vazio: o job de avisos não roda e nada é registrado como enviado. Com host, `APP_EMAIL_REMETENTE` e `APP_FRONTEND_URL` são obrigatórias, ou a API não sobe |
+| `SPRING_MAIL_PORT` | `587` | porta do SMTP |
+| `SPRING_MAIL_USERNAME` | vazio | usuário do SMTP |
+| `SPRING_MAIL_PASSWORD` | vazio | senha do SMTP — só no painel da plataforma, nunca no repositório |
+| `SPRING_MAIL_AUTH` | `true` | autenticação SMTP |
+| `SPRING_MAIL_STARTTLS` | `true` | STARTTLS no SMTP |
 
 Não há default para o datasource nem para o segredo, de propósito: a aplicação não
 sobe apontando para lugar nenhum, e não sobe com segredo de exemplo.
@@ -454,7 +484,7 @@ sobe apontando para lugar nenhum, e não sobe com segredo de exemplo.
 ## Testes
 
 ```bash
-sh ./mvnw test          # 169 testes: unitários, integração e HTTP
+sh ./mvnw test          # 487 testes: unitários, integração e HTTP
 ```
 
 Precisa de Docker rodando — a imagem `postgres:16-alpine` é baixada uma vez.
@@ -473,7 +503,7 @@ src/main/java/com/psychologyapi/psychologyapi/
 ├── model/          # entidades JPA
 └── exceptions/     # exceções de domínio
 
-src/main/resources/db/migration/   # migration Flyway (V1, schema inteiro)
+src/main/resources/db/migration/   # migrations Flyway (V1 schema inteiro, V2 aviso de consulta)
 src/test/java/.../service/         # unitários (Mockito)
 src/test/java/.../repository/      # integração (Testcontainers)
 src/test/java/.../controller/      # HTTP (MockMvc sobre o mesmo container)
@@ -493,6 +523,19 @@ separada por vírgula se houver mais de uma — nunca `*`, que o próprio spec d
 proíbe combinar com credenciais), `APP_REFRESH_EXPIRACAO_DIAS` (padrão 14),
 `APP_REFRESH_COOKIE_SEGURO` e `APP_REFRESH_COOKIE_SAMESITE` (`true` e `None` em
 produção, onde API e frontend têm origens distintas).
+
+O aviso de consulta acrescenta `APP_EMAIL_REMETENTE`, `APP_FRONTEND_URL` (a origem
+do frontend, que entra no link de descadastro), `APP_AVISOS_HABILITADO` e as
+`SPRING_MAIL_*`. Sem `SPRING_MAIL_HOST` a API sobe, mas o job de avisos não roda e
+nada é registrado como enviado; com o host definido, `APP_EMAIL_REMETENTE` e
+`APP_FRONTEND_URL` são obrigatórias, ou a API recusa subir. Em produção, host,
+usuário e senha do SMTP ficam no painel da plataforma. O Render free bloqueia a
+saída SMTP nas portas 25/465/587; use um provedor que aceite a porta 2525
+(`SPRING_MAIL_PORT=2525`). Provedor externo precisa de homologação com TI/Infra.
+
+Débitos conhecidos: no Render free a instância hiberna após 15 min sem tráfego e o
+job para junto; o resumo das 18h e os lembretes podem atrasar ou se perder até a
+instância acordar.
 
 ## Roadmap
 
