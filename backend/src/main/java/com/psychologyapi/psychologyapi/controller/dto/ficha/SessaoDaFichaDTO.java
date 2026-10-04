@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.psychologyapi.psychologyapi.model.EstadoAviso;
 import com.psychologyapi.psychologyapi.model.Status;
 
 /**
@@ -21,5 +22,6 @@ public record SessaoDaFichaDTO(
         Status status,
         List<AnotacaoDaSessaoDTO> anotacoes,
         BigDecimal valor,
-        LocalDateTime pagoEm) {
+        LocalDateTime pagoEm,
+        EstadoAviso lembrete) {
 }

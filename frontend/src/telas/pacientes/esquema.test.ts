@@ -16,7 +16,7 @@ const base = {
   telefone: '',
   dataNascimento: '',
   valorSessao: '',
-  canalAviso: 'NENHUM' as const,
+  autorizaAviso: false,
 }
 
 /** A mensagem do campo pedido, ou `null` se o esquema aceitou aquele valor. */
@@ -77,5 +77,21 @@ describe('esquema do paciente · valor da sessao (6.3)', () => {
 
   it('valor com duas casas passa', () => {
     expect(mensagemDe('valorSessao', { valorSessao: '180.50' })).toBeNull()
+  })
+})
+
+describe('esquema do paciente · caixa de autorizacao do aviso', () => {
+  it('marcada sem e-mail e recusada no campo e-mail', () => {
+    expect(mensagemDe('email', { autorizaAviso: true, email: '' })).toBe(
+      'Informe o e-mail do paciente para avisar por e-mail.',
+    )
+  })
+
+  it('marcada com e-mail passa', () => {
+    expect(mensagemDe('email', { autorizaAviso: true, email: 'helena@exemplo.com' })).toBeNull()
+  })
+
+  it('desmarcada sem e-mail passa', () => {
+    expect(mensagemDe('email', { autorizaAviso: false, email: '' })).toBeNull()
   })
 })

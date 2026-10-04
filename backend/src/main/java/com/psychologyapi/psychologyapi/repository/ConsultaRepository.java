@@ -83,4 +83,20 @@ public interface ConsultaRepository extends JpaRepository<Consulta, UUID>{
             @Param("usuario") Usuario usuario,
             @Param("inicio") LocalDateTime inicio,
             @Param("fimExclusivo") LocalDateTime fimExclusivo);
+
+    @EntityGraph(attributePaths = {"paciente", "usuario"})
+    List<Consulta> findByStatusAndDtConsultaGreaterThanAndDtConsultaLessThanEqualAndDeletedAtIsNull(
+            Status status, LocalDateTime depoisDe, LocalDateTime ateInclusive);
+
+    @Query("""
+            SELECT DISTINCT c.usuario FROM Consulta c
+            WHERE c.status = com.psychologyapi.psychologyapi.model.Status.AGENDADA
+              AND c.deletedAt IS NULL
+              AND c.dtConsulta >= :inicio
+              AND c.dtConsulta < :fimExclusivo
+              AND c.usuario.resumoDiario = true
+            """)
+    List<Usuario> usuariosComResumoEntre(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fimExclusivo") LocalDateTime fimExclusivo);
 }

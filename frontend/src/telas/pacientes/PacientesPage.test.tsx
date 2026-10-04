@@ -16,6 +16,7 @@ const HELENA = {
   valorSessao: 180.0,
   canalAviso: 'NENHUM',
   consentimentoAvisoEm: null,
+  descadastradoEm: null,
   createdAt: '2026-03-02T10:00:00',
 }
 
@@ -107,9 +108,9 @@ describe('tela de pacientes', () => {
 
     expect(screen.getByLabelText(/nome/i)).toHaveValue('')
     expect(screen.getByLabelText(/telefone/i)).toHaveValue('')
-    expect(screen.getByLabelText(/e-mail/i)).toHaveValue('')
+    expect(screen.getByLabelText(/e-mail/i, { selector: 'input[type="email"]' })).toHaveValue('')
     expect(screen.getByLabelText(/valor/i)).toHaveValue(null)
-    expect(screen.getByLabelText(/canal/i)).toHaveValue('NENHUM')
+    expect(screen.getByLabelText('Paciente autorizou receber lembretes por e-mail')).not.toBeChecked()
   })
 
   it('limpar a busca nao acusa cadastro vazio com o resultado do termo anterior', async () => {

@@ -31,7 +31,8 @@ import com.psychologyapi.psychologyapi.support.PostgresContainerConfig;
  */
 @SpringBootTest(properties = {
         "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=",
-        "SPRINGDOC_ENABLED=false"
+        "SPRINGDOC_ENABLED=false",
+        "app.avisos.habilitado=false"
 })
 @Import(PostgresContainerConfig.class)
 @AutoConfigureMockMvc

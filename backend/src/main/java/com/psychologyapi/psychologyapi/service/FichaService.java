@@ -1,6 +1,8 @@
 package com.psychologyapi.psychologyapi.service;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -18,10 +20,14 @@ import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException
 import com.psychologyapi.psychologyapi.mapper.PacienteMapper;
 import com.psychologyapi.psychologyapi.mapper.PendenciaMapper;
 import com.psychologyapi.psychologyapi.model.Anotacao;
+import com.psychologyapi.psychologyapi.model.Consulta;
+import com.psychologyapi.psychologyapi.model.Destinatario;
+import com.psychologyapi.psychologyapi.model.EstadoAviso;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
+import com.psychologyapi.psychologyapi.repository.AvisoDeConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.repository.PendenciaRepository;
@@ -58,6 +64,7 @@ public class FichaService {
     private final PacienteMapper pacienteMapper;
     private final PendenciaMapper pendenciaMapper;
     private final AuditoriaService auditoriaService;
+    private final AvisoDeConsultaRepository avisoDeConsultaRepository;
 
     /**
      * Transacional pelo mesmo motivo de PainelService.hoje(): o DTO e montado
@@ -90,8 +97,10 @@ public class FichaService {
                                 a -> new AnotacaoDaSessaoDTO(a.getId(), a.getConteudo(), a.getCreatedAt()),
                                 Collectors.toList())));
 
-        List<SessaoDaFichaDTO> linhaDoTempo = consultaRepository
-                .findByPacienteAndUsuarioAndDeletedAtIsNull(paciente, usuario)
+        List<Consulta> consultas = consultaRepository.findByPacienteAndUsuarioAndDeletedAtIsNull(paciente, usuario);
+        Map<UUID, EstadoAviso> lembretes = lembretesDasSessoes(consultas);
+
+        List<SessaoDaFichaDTO> linhaDoTempo = consultas
                 .stream()
                 // do encontro mais recente para o mais antigo: a ficha e aberta
                 // para saber o que aconteceu na ultima sessao
@@ -102,7 +111,8 @@ public class FichaService {
                         c.getStatus(),
                         anotacoesPorSessao.getOrDefault(c.getId(), List.of()),
                         c.getValor(),
-                        c.getPagoEm()))
+                        c.getPagoEm(),
+                        lembretes.get(c.getId())))
                 .toList();
 
         // Sim, isto duplica a consulta e o mapeamento que PendenciaService.
@@ -129,5 +139,19 @@ public class FichaService {
 
         return new FichaDoPacienteDTO(
                 pacienteMapper.toResponseDTO(paciente), linhaDoTempo, pendencias);
+    }
+
+    private Map<UUID, EstadoAviso> lembretesDasSessoes(List<Consulta> consultas) {
+        if (consultas.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, LocalDateTime> horarios = consultas.stream()
+                .collect(Collectors.toMap(Consulta::getId, Consulta::getDtConsulta));
+        Map<UUID, EstadoAviso> lembretes = new HashMap<>();
+        avisoDeConsultaRepository.findByConsultaInAndDestinatario(consultas, Destinatario.PACIENTE)
+                .stream()
+                .filter(a -> a.getDataHoraConsulta().equals(horarios.get(a.getConsulta().getId())))
+                .forEach(a -> lembretes.put(a.getConsulta().getId(), a.getEstado()));
+        return lembretes;
     }
 }

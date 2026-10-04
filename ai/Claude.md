@@ -110,7 +110,9 @@ para Postgres local (`localhost:5432`, banco `psychology-api`, usuário/senha
 `postgres`/`postgres`).
 
 Sem essas variáveis de ambiente definidas, a aplicação **não sobe** —
-`PlaceholderResolutionException` no `TokenService`.
+`PlaceholderResolutionException` no `TokenService`. As variáveis do aviso
+(`APP_EMAIL_REMETENTE`, `APP_FRONTEND_URL`, `APP_AVISOS_HABILITADO`, `SPRING_MAIL_*`)
+têm padrão seguro: sem host de SMTP, os e-mails só são registrados no log.
 
 ## Testes
 
@@ -437,21 +439,24 @@ Convenção de nome das migrations deste projeto: `V<n>__<AAAAMMDD>.sql`
 arquivo muda o checksum e o Flyway falha na validação. Correção = nova
 migration.
 
-Migration atual: **uma só**, `V1__20260901.sql`, com o schema inteiro
+Migrations atuais: **duas**. A `V1__20260901.sql` traz o schema inteiro
 (`usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`, `log_auditoria`,
-`refresh_token`, mais os índices). As oito originais (`V1__20260730` a
+`refresh_token`, `aviso_de_consulta`, mais os índices). A `V2__20261003.sql` é o
+aviso de consulta: colunas novas em `usuario`, `paciente` e `aviso_de_consulta`,
+a tabela `resumo_diario` e as `UNIQUE` que travam o envio duplo. As oito originais (`V1__20260730` a
 `V8__20260826`) foram fundidas nela em 01/09/2026, antes do primeiro deploy e
 com nenhum banco de produção existindo. Isso só foi possível porque não havia
-schema aplicado em lugar nenhum; daqui em diante, mudança é migration nova.
+schema aplicado em lugar nenhum; daqui em diante, mudança é migration nova
+(a próxima é a `V3`).
 
 Tabelas atuais: `usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`,
-`log_auditoria`, `refresh_token`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
+`log_auditoria`, `refresh_token`, `aviso_de_consulta`, `resumo_diario`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
 acidental em cascata; ver soft delete acima como mitigação real).
 
 **Banco local depois do squash:** quem tinha o banco de desenvolvimento com o
 histórico antigo (`V1`..`V8`) precisa recriá-lo — o Flyway recusa um histórico
 que não bate com os arquivos. `dropdb psychology-api && createdb psychology-api`,
-e o boot aplica a `V1` nova.
+e o boot aplica a `V1` e a `V2`.
 
 ## Entidades e regras específicas
 
@@ -512,6 +517,20 @@ e o boot aplica a `V1` nova.
   `PATCH /consultas/{id}/valor`, `PATCH`/`DELETE /consultas/{id}/baixa` e
   `POST /consultas/baixas` (lote de 1 a 200 ids, tudo ou nada); leituras
   `GET /financeiro/mes` e `GET /painel/mes`, com `ano` e `mes` juntos ou nenhum.
+  **Aviso de consulta (Fatia 4A).** `AgendadorDeAvisos` é um `@Scheduled`
+  (`fixedDelay` de 60 s) condicionado a `app.avisos.habilitado`
+  (`APP_AVISOS_HABILITADO`, padrão `true`; teste e segunda instância desligam).
+  A trava contra envio duplo é a `UNIQUE (id_consulta, destinatario_aviso,
+  data_hora_consulta_aviso)` em `aviso_de_consulta`, e `UNIQUE (id_usuario,
+  data_resumo)` em `resumo_diario` — não troque por `if` no código. O campo
+  `erro` guarda só `getClass().getSimpleName()`, nunca `getMessage()`, e o e-mail
+  não leva nada clínico. `Carteiro` é a interface de envio: `SPRING_MAIL_HOST`
+  vazio escolhe o `CarteiroDeRegistro` (só loga), com host o `CarteiroSmtp`.
+  Outras variáveis: `APP_EMAIL_REMETENTE`, `APP_FRONTEND_URL` (link de
+  descadastro), `SPRING_MAIL_PORT/USERNAME/PASSWORD/AUTH/STARTTLS`. Rotas novas:
+  `GET`/`PUT /ajustes` (autenticadas) e `GET`/`POST /descadastro/{token}`
+  (públicas, `permitAll`). Descadastrar apaga o consentimento e grava
+  `descadastradoEm`; registrar o consentimento de novo é decisão do psicólogo.
 - **`Anotacao`**: sem `PUT` (registro histórico de sessão, não editável).
   Listagem paginada (ver "Paginação" abaixo).
   Soft delete ativo. Campo da entidade chama-se `anotacao`, DTO usa
@@ -638,7 +657,7 @@ A camada de teste HTTP, ao entrar, pegou outras três — todas corrigidas:
 - Requisição sem token respondia `403`, não `401` — entry point default do
   Spring Security. Pego por `SegurancaHttpTest.semTokenResponde401`.
 
-A suíte está verde (390 testes); mantenha esta seção como o lugar de registrar
+A suíte do backend está verde (487 testes; frontend 213, e2e 4); mantenha esta seção como o lugar de registrar
 qualquer contradição nova entre o código e as regras acima, sempre apontando o
 teste que a pega.
 

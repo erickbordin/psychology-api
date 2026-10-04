@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
@@ -9,6 +9,20 @@ import { DialogoDePaciente } from './DialogoDePaciente'
 
 const abrir = (props = {}) =>
   renderizar(<DialogoDePaciente aberto aoFechar={vi.fn()} {...props} />)
+
+const CAIXA = 'Paciente autorizou receber lembretes por e-mail'
+
+const PACIENTE = {
+  idPaciente: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  nome: 'Helena Vaz',
+  email: null,
+  telefone: null,
+  dataNascimento: null,
+  valorSessao: 180.0,
+  canalAviso: 'NENHUM',
+  consentimentoAvisoEm: null,
+  descadastradoEm: null,
+}
 
 describe('dialogo de paciente', () => {
   it('nome vazio nao envia, e o erro diz o que fazer', async () => {
@@ -33,24 +47,30 @@ describe('dialogo de paciente', () => {
     expect(enviou).toBe(false)
   })
 
-  it('canal EMAIL sem e-mail e recusado ANTES do envio — 5.4', async () => {
+  it('caixa marcada sem e-mail e recusada ANTES do envio — 5.4', async () => {
+    let enviou = false
+    servidor.use(
+      http.post('/pacientes', () => {
+        enviou = true
+        return HttpResponse.json({}, { status: 201 })
+      }),
+    )
     const usuario = userEvent.setup()
     abrir()
 
     await usuario.type(screen.getByLabelText(/nome/i), 'Helena Vaz')
-    await usuario.selectOptions(screen.getByLabelText(/canal/i), 'EMAIL')
+    await usuario.click(screen.getByLabelText(CAIXA))
     await usuario.click(screen.getByRole('button', { name: /salvar/i }))
 
-    // mesma ambiguidade de findByText documentada em LoginPage.test.tsx —
-    // `{ selector: 'p' }` mira so o erro do campo, nao o <li> do resumo.
     expect(
       await screen.findByText('Informe o e-mail do paciente para avisar por e-mail.', {
         selector: 'p',
       }),
     ).toBeInTheDocument()
+    expect(enviou).toBe(false)
   })
 
-  it('canal NENHUM sem e-mail passa — e-mail continua opcional', async () => {
+  it('caixa desmarcada sem e-mail passa e manda NENHUM', async () => {
     let corpo: Record<string, unknown> = {}
     servidor.use(
       http.post('/pacientes', async ({ request }) => {
@@ -64,7 +84,55 @@ describe('dialogo de paciente', () => {
     await usuario.type(screen.getByLabelText(/nome/i), 'Helena Vaz')
     await usuario.click(screen.getByRole('button', { name: /salvar/i }))
 
-    expect(corpo.nome).toBe('Helena Vaz')
+    await waitFor(() => expect(corpo.nome).toBe('Helena Vaz'))
+    expect(corpo.canalAviso).toBe('NENHUM')
+  })
+
+  it('caixa marcada com e-mail manda EMAIL', async () => {
+    let corpo: Record<string, unknown> = {}
+    servidor.use(
+      http.post('/pacientes', async ({ request }) => {
+        corpo = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({}, { status: 201 })
+      }),
+    )
+    const usuario = userEvent.setup()
+    abrir()
+
+    await usuario.type(screen.getByLabelText(/nome/i), 'Helena Vaz')
+    await usuario.type(screen.getByLabelText(/e-mail/i, { selector: 'input[type="email"]' }), 'helena@exemplo.com')
+    await usuario.click(screen.getByLabelText(CAIXA))
+    await usuario.click(screen.getByRole('button', { name: /salvar/i }))
+
+    await waitFor(() => expect(corpo.canalAviso).toBe('EMAIL'))
+  })
+
+  it('paciente com EMAIL e consentimento abre com a caixa marcada', () => {
+    abrir({ paciente: { ...PACIENTE, email: 'helena@exemplo.com', canalAviso: 'EMAIL', consentimentoAvisoEm: '2026-10-01T09:00:00' } })
+
+    expect(screen.getByLabelText(CAIXA)).toBeChecked()
+  })
+
+  it('paciente legado com EMAIL e sem data de consentimento abre com a caixa DESMARCADA', () => {
+    abrir({ paciente: { ...PACIENTE, email: 'helena@exemplo.com', canalAviso: 'EMAIL', consentimentoAvisoEm: null } })
+
+    expect(screen.getByLabelText(CAIXA)).not.toBeChecked()
+  })
+
+  it('paciente com descadastradoEm mostra o aviso com a data', () => {
+    abrir({ paciente: { ...PACIENTE, descadastradoEm: '2026-09-15T10:30:00' } })
+
+    expect(
+      screen.getByText(
+        'Este paciente parou de receber lembretes pelo link do e-mail em 15/09/2026. Marque só se ele autorizou de novo.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('paciente sem descadastro nao mostra o aviso', () => {
+    abrir({ paciente: PACIENTE })
+
+    expect(screen.queryByText(/parou de receber lembretes/)).not.toBeInTheDocument()
   })
 
   it('erro do servidor sem campo culpado aparece, o botao nao morre em silencio', async () => {
@@ -110,18 +178,7 @@ describe('dialogo de paciente', () => {
       }),
     )
     const usuario = userEvent.setup()
-    abrir({
-      paciente: {
-        idPaciente: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        nome: 'Helena Vaz',
-        email: null,
-        telefone: null,
-        dataNascimento: null,
-        valorSessao: 180.0,
-        canalAviso: 'NENHUM',
-        consentimentoAvisoEm: null,
-      },
-    })
+    abrir({ paciente: PACIENTE })
 
     expect(screen.getByLabelText(/nome/i)).toHaveValue('Helena Vaz')
     await usuario.click(screen.getByRole('button', { name: /salvar/i }))

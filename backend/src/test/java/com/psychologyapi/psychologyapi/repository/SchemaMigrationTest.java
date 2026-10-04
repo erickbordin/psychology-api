@@ -286,6 +286,55 @@ class SchemaMigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    @DisplayName("usuario tem titulo profissional, resumo diario e expediente (fatia 4A)")
+    void usuarioTemColunasDaFatia4A() {
+        assertThat(existeColuna("usuario", "titulo_profissional_usuario")).isTrue();
+        assertThat(existeColuna("usuario", "resumo_diario_usuario")).isTrue();
+        assertThat(existeColuna("usuario", "expediente_inicio_usuario")).isTrue();
+        assertThat(existeColuna("usuario", "expediente_fim_usuario")).isTrue();
+    }
+
+    @Test
+    @DisplayName("paciente guarda quando foi descadastrado (fatia 4A)")
+    void pacienteTemDescadastradoEm() {
+        assertThat(existeColuna("paciente", "descadastrado_em_paciente")).isTrue();
+        assertThat(colunaEAnulavel("paciente", "descadastrado_em_paciente")).isTrue();
+    }
+
+    @Test
+    @DisplayName("aviso_de_consulta guarda o horario da consulta e o controle de tentativas (fatia 4A)")
+    void avisoTemColunasDaFatia4A() {
+        assertThat(existeColuna("aviso_de_consulta", "data_hora_consulta_aviso")).isTrue();
+        assertThat(existeColuna("aviso_de_consulta", "tentativas_aviso")).isTrue();
+        assertThat(existeColuna("aviso_de_consulta", "proxima_tentativa_aviso")).isTrue();
+    }
+
+    @Test
+    @DisplayName("resumo_diario existe, presa a um usuario (fatia 4A)")
+    void resumoDiarioExiste() {
+        assertThat(existeTabela("resumo_diario")).isTrue();
+        assertThat(existeColuna("resumo_diario", "id_usuario")).isTrue();
+        assertThat(existeColuna("resumo_diario", "data_resumo")).isTrue();
+        assertThat(existeColuna("resumo_diario", "estado_resumo")).isTrue();
+        assertThat(existeColuna("resumo_diario", "tentativas_resumo")).isTrue();
+        assertThat(existeColuna("resumo_diario", "proxima_tentativa_resumo")).isTrue();
+        assertThat(existeColuna("resumo_diario", "enviado_em_resumo")).isTrue();
+        assertThat(existeColuna("resumo_diario", "erro_resumo")).isTrue();
+        assertThat(existeColuna("resumo_diario", "created_at_resumo")).isTrue();
+    }
+
+    @Test
+    @DisplayName("expediente invertido e recusado pelo banco")
+    void expedienteInvertidoERecusado() {
+        UUID usuario = inserirUsuario("psicologo.f@teste.com");
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "UPDATE usuario SET expediente_inicio_usuario = 18, expediente_fim_usuario = 8 WHERE id_usuario = ?",
+                usuario))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     private boolean existeTabela(String tabela) {
         Integer total = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM information_schema.tables WHERE table_name = ?",

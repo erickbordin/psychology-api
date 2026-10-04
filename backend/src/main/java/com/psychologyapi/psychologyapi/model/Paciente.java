@@ -71,6 +71,9 @@ public class Paciente {
     @OneToMany(mappedBy = "paciente")
     private List<Pendencia> pendencias;
 
+    @Column(name = "descadastrado_em_paciente")
+    private LocalDateTime descadastradoEm;
+
     @Column(name = "deleted_at_paciente")
     private LocalDateTime deletedAt;
 

@@ -24,8 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest(properties = "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=")
-@Import(PostgresContainerConfig.class)
+@SpringBootTest(properties = {
+        "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=",
+        "app.avisos.habilitado=false"
+})
+@Import({PostgresContainerConfig.class, CarteiroDeTeste.class})
 @AutoConfigureMockMvc
 @Transactional
 public @interface HttpTest {

@@ -79,6 +79,7 @@ export function LinhaDoTempo({ sessoes, pacienteId }: Props) {
             )}
             {s.status === 'REALIZADA' && s.valor == null && <Chip>Sem valor definido</Chip>}
             {s.status === 'FALTOU' && <Chip>Não cobrada</Chip>}
+            {s.lembrete === 'FALHOU' && <Chip variante="alerta">Lembrete não enviado</Chip>}
           </div>
           {erroDa(s.consultaId) && (
             <p className="anuncio" role="alert">

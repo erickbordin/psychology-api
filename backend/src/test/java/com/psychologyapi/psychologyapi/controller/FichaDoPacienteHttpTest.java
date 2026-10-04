@@ -17,11 +17,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.psychologyapi.psychologyapi.model.AvisoDeConsulta;
+import com.psychologyapi.psychologyapi.model.CanalAviso;
 import com.psychologyapi.psychologyapi.model.Consulta;
+import com.psychologyapi.psychologyapi.model.Destinatario;
+import com.psychologyapi.psychologyapi.model.EstadoAviso;
 import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Status;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.repository.AnotacaoRepository;
+import com.psychologyapi.psychologyapi.repository.AvisoDeConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.ConsultaRepository;
 import com.psychologyapi.psychologyapi.repository.PacienteRepository;
 import com.psychologyapi.psychologyapi.repository.PendenciaRepository;
@@ -46,6 +51,7 @@ class FichaDoPacienteHttpTest {
     @Autowired private ConsultaRepository consultaRepository;
     @Autowired private AnotacaoRepository anotacaoRepository;
     @Autowired private PendenciaRepository pendenciaRepository;
+    @Autowired private AvisoDeConsultaRepository avisoRepository;
 
     private String tokenDoDono;
     private String tokenDoOutro;
@@ -98,6 +104,64 @@ class FichaDoPacienteHttpTest {
                .andExpect(jsonPath("$.linhaDoTempo.length()").value(1))
                .andExpect(jsonPath("$.linhaDoTempo[0].valor").value(180.0))
                .andExpect(jsonPath("$.linhaDoTempo[0].pagoEm").value("2026-12-01T10:30:00"));
+    }
+
+    @Test
+    @DisplayName("aviso FALHOU do horario atual da sessao aparece como lembrete")
+    void lembreteDoHorarioAtual() throws Exception {
+        Usuario dono = usuarioRepository.findByEmailUsuario("dona.ficha@example.com").orElseThrow();
+        Paciente carla = pacienteRepository.save(Fixtures.paciente(dono, "Carla Nunes"));
+        LocalDateTime horario = LocalDateTime.parse("2026-12-10T09:00:00");
+        Consulta sessao = consultaRepository.save(Fixtures.consulta(dono, carla, horario, Status.AGENDADA));
+        avisoRepository.save(aviso(sessao, horario, EstadoAviso.FALHOU, Destinatario.PACIENTE));
+
+        mockMvc.perform(get("/pacientes/" + carla.getId() + "/ficha")
+                        .header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.linhaDoTempo[0].lembrete").value("FALHOU"));
+    }
+
+    @Test
+    @DisplayName("aviso FALHOU de horario antigo (sessao remarcada) nao aparece como lembrete")
+    void lembreteDeHorarioAntigoNaoConta() throws Exception {
+        Usuario dono = usuarioRepository.findByEmailUsuario("dona.ficha@example.com").orElseThrow();
+        Paciente carla = pacienteRepository.save(Fixtures.paciente(dono, "Carla Nunes"));
+        Consulta sessao = consultaRepository.save(Fixtures.consulta(
+                dono, carla, LocalDateTime.parse("2026-12-11T09:00:00"), Status.AGENDADA));
+        avisoRepository.save(aviso(sessao, LocalDateTime.parse("2026-12-10T09:00:00"),
+                EstadoAviso.FALHOU, Destinatario.PACIENTE));
+
+        mockMvc.perform(get("/pacientes/" + carla.getId() + "/ficha")
+                        .header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.linhaDoTempo[0].lembrete").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("aviso ao psicologo nao conta como lembrete do paciente")
+    void lembreteDoPsicologoNaoConta() throws Exception {
+        Usuario dono = usuarioRepository.findByEmailUsuario("dona.ficha@example.com").orElseThrow();
+        Paciente carla = pacienteRepository.save(Fixtures.paciente(dono, "Carla Nunes"));
+        LocalDateTime horario = LocalDateTime.parse("2026-12-10T09:00:00");
+        Consulta sessao = consultaRepository.save(Fixtures.consulta(dono, carla, horario, Status.AGENDADA));
+        avisoRepository.save(aviso(sessao, horario, EstadoAviso.FALHOU, Destinatario.PSICOLOGO));
+
+        mockMvc.perform(get("/pacientes/" + carla.getId() + "/ficha")
+                        .header(HttpHeaders.AUTHORIZATION, tokenDoDono))
+               .andExpect(jsonPath("$.linhaDoTempo[0].lembrete").doesNotExist());
+    }
+
+    private AvisoDeConsulta aviso(Consulta consulta, LocalDateTime horario, EstadoAviso estado,
+            Destinatario destinatario) {
+        AvisoDeConsulta aviso = new AvisoDeConsulta();
+        aviso.setConsulta(consulta);
+        aviso.setDestinatario(destinatario);
+        aviso.setCanal(CanalAviso.EMAIL);
+        aviso.setAgendadoPara(horario.minusDays(1));
+        aviso.setDataHoraConsulta(horario);
+        aviso.setEstado(estado);
+        aviso.setProximaTentativa(horario.minusDays(1));
+        return aviso;
     }
 
     @Test

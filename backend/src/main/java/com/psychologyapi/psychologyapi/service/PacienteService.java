@@ -40,8 +40,16 @@ public class PacienteService {
         Usuario usuarioLogado = securityService.obterUsuarioLogado();
         Paciente paciente = pacienteMapper.toEntity(dto);
         paciente.setUsuario(usuarioLogado);
+        boolean consentiu = paciente.getCanalAviso() == CanalAviso.EMAIL;
+        if (consentiu) {
+            paciente.setConsentimentoAvisoEm(LocalDateTime.now());
+        }
         Paciente pacienteSalvo = pacienteRepository.save(paciente);
         auditoriaService.registrar(usuarioLogado, AcaoAuditoria.CRIACAO, "Paciente", pacienteSalvo.getId());
+        if (consentiu) {
+            auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "ConsentimentoDoPaciente",
+                    pacienteSalvo.getId());
+        }
         return pacienteMapper.toResponseDTO(pacienteSalvo);
     }
 
@@ -98,8 +106,21 @@ public class PacienteService {
         pacienteMapper.atualizarPacienteAPartirDoDto(dto, paciente);
         aplicarLimpezaPorValorEmBranco(dto, paciente);
 
+        boolean ligou = dto.canalAviso() == CanalAviso.EMAIL && paciente.getConsentimentoAvisoEm() == null;
+        boolean desligou = paciente.getCanalAviso() != CanalAviso.EMAIL && paciente.getConsentimentoAvisoEm() != null;
+        if (ligou) {
+            paciente.setConsentimentoAvisoEm(LocalDateTime.now());
+        }
+        if (desligou) {
+            paciente.setConsentimentoAvisoEm(null);
+        }
+
         Paciente pacienteAtualizado = pacienteRepository.save(paciente);
         auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "Paciente", pacienteAtualizado.getId());
+        if (ligou || desligou) {
+            auditoriaService.registrar(usuarioLogado, AcaoAuditoria.ATUALIZACAO, "ConsentimentoDoPaciente",
+                    pacienteAtualizado.getId());
+        }
         return pacienteMapper.toResponseDTO(pacienteAtualizado);
     }
 

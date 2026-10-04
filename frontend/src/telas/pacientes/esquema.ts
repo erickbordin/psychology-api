@@ -139,12 +139,12 @@ export const esquemaDoPaciente = z
         'O valor da sessão deve ser maior que zero.',
       ),
 
-    canalAviso: z.enum(['NENHUM', 'EMAIL', 'WHATSAPP']),
+    autorizaAviso: z.boolean(),
   })
   // A regra condicional de 5.4 le DOIS campos, entao vive no objeto e nao num
   // campo. `path` aponta o erro para `email`: o envelope da casa entrega campo
   // culpado e o formulario poe o foco nele — erro sem campo nao tem onde pousar.
-  .refine((v) => v.canalAviso !== 'EMAIL' || v.email !== '', {
+  .refine((v) => !v.autorizaAviso || v.email !== '', {
     message: 'Informe o e-mail do paciente para avisar por e-mail.',
     path: ['email'],
   })

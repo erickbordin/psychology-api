@@ -23,6 +23,7 @@ export type SessaoDaFicha = {
   anotacoes: AnotacaoDaSessao[]
   valor: NonNullable<SessaoDTO['valor']> | null
   pagoEm: NonNullable<SessaoDTO['pagoEm']> | null
+  lembrete: NonNullable<SessaoDTO['lembrete']> | null
 }
 
 export type Ficha = {
