@@ -42,7 +42,10 @@ import com.psychologyapi.psychologyapi.support.PostgresContainerConfig;
  * Consulta sobrevive. Se o @Transactional cair do cadastrarSerie, o saveAll do
  * Spring Data commita por conta propria e as linhas ficam — este teste quebra.
  */
-@SpringBootTest(properties = "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=")
+@SpringBootTest(properties = {
+        "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=",
+        "app.avisos.habilitado=false"
+})
 @Import(PostgresContainerConfig.class)
 class SerieAtomicidadeTest {
 

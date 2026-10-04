@@ -51,7 +51,10 @@ import com.psychologyapi.psychologyapi.support.PostgresContainerConfig;
  * Por isso aqui nao ha rollback: o {@code @AfterEach} limpa a mao. E o preco
  * de medir o efeito em vez do marcador.
  */
-@SpringBootTest(properties = "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=")
+@SpringBootTest(properties = {
+        "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=",
+        "app.avisos.habilitado=false"
+})
 @Import(PostgresContainerConfig.class)
 @AutoConfigureMockMvc
 class FichaAuditoriaHttpTest {
