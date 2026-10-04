@@ -59,6 +59,7 @@ public class SecurityConfiguration {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/descadastro/**").permitAll()
                     // contrato OpenAPI: o front gera os tipos a partir dele, e
                     // tipo gerado e o que impede front e API divergirem em
                     // silencio. Nao expoe dado — so caminhos e formatos.

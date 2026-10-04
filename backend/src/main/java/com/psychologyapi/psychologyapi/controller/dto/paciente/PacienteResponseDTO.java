@@ -27,6 +27,8 @@ public record PacienteResponseDTO(
      *  Fatia 4. */
     LocalDateTime consentimentoAvisoEm,
 
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+
+    LocalDateTime descadastradoEm
 
 ) {}
