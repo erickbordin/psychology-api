@@ -11,6 +11,9 @@ public record LogAuditoriaResponseDTO(
         AcaoAuditoria acao,
         String entidade,
         UUID entidadeId,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        UUID pacienteId,
+        String pacienteNome,
+        Boolean pacienteExcluido
 
 ) {}

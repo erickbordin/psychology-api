@@ -3,6 +3,7 @@ package com.psychologyapi.psychologyapi.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -10,8 +11,10 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,11 +45,18 @@ class AuditoriaServiceTest {
     private LogAuditoriaMapper logAuditoriaMapper;
     @Mock
     private SecurityService securityService;
+    @Mock
+    private PacientesDaTrilha pacientesDaTrilha;
 
     @InjectMocks
     private AuditoriaService auditoriaService;
 
     private final Usuario logado = Fixtures.usuario("dono@teste.com");
+
+    @BeforeEach
+    void resolverSemPacientes() {
+        lenient().when(pacientesDaTrilha.porLinha(any(), any())).thenReturn(Map.of());
+    }
 
     private LogAuditoria log(AcaoAuditoria acao, String entidade) {
         LogAuditoria log = Fixtures.logAuditoria(logado, acao, entidade, UUID.randomUUID());
@@ -83,12 +93,12 @@ class AuditoriaServiceTest {
         Pageable segundaPagina = PageRequest.of(1, 5);
         LogAuditoria log = log(AcaoAuditoria.VISUALIZACAO, "Paciente");
         LogAuditoriaResponseDTO dto = new LogAuditoriaResponseDTO(log.getId(), AcaoAuditoria.VISUALIZACAO,
-                "Paciente", log.getEntidadeId(), LocalDateTime.now());
+                "Paciente", log.getEntidadeId(), LocalDateTime.now(), null, null, null);
 
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(logAuditoriaRepository.findByUsuarioOrderByCreatedAtDesc(logado, segundaPagina))
                 .thenReturn(new PageImpl<>(List.of(log)));
-        when(logAuditoriaMapper.toResponseDTO(log)).thenReturn(dto);
+        when(logAuditoriaMapper.toResponseDTO(log, null)).thenReturn(dto);
 
         Page<LogAuditoriaResponseDTO> pagina = auditoriaService.listar(segundaPagina, null, null);
 
@@ -115,12 +125,12 @@ class AuditoriaServiceTest {
         Pageable pageable = PageRequest.of(0, 20);
         LogAuditoria log = log(AcaoAuditoria.VISUALIZACAO, "Consulta");
         LogAuditoriaResponseDTO dto = new LogAuditoriaResponseDTO(log.getId(), AcaoAuditoria.VISUALIZACAO,
-                "Consulta", log.getEntidadeId(), LocalDateTime.now());
+                "Consulta", log.getEntidadeId(), LocalDateTime.now(), null, null, null);
 
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(logAuditoriaRepository.findByUsuarioAndEntidadeOrderByCreatedAtDesc(logado, "Consulta", pageable))
                 .thenReturn(new PageImpl<>(List.of(log)));
-        when(logAuditoriaMapper.toResponseDTO(log)).thenReturn(dto);
+        when(logAuditoriaMapper.toResponseDTO(log, null)).thenReturn(dto);
 
         Page<LogAuditoriaResponseDTO> pagina = auditoriaService.listar(pageable, "Consulta", null);
 
@@ -139,12 +149,12 @@ class AuditoriaServiceTest {
         LogAuditoria log = Fixtures.logAuditoria(logado, AcaoAuditoria.ATUALIZACAO, "Paciente", entidadeId);
         log.setId(UUID.randomUUID());
         LogAuditoriaResponseDTO dto = new LogAuditoriaResponseDTO(log.getId(), AcaoAuditoria.ATUALIZACAO,
-                "Paciente", entidadeId, LocalDateTime.now());
+                "Paciente", entidadeId, LocalDateTime.now(), null, null, null);
 
         when(securityService.obterUsuarioLogado()).thenReturn(logado);
         when(logAuditoriaRepository.findByUsuarioAndEntidadeAndEntidadeIdOrderByCreatedAtDesc(logado, "Paciente",
                 entidadeId, pageable)).thenReturn(new PageImpl<>(List.of(log)));
-        when(logAuditoriaMapper.toResponseDTO(log)).thenReturn(dto);
+        when(logAuditoriaMapper.toResponseDTO(log, null)).thenReturn(dto);
 
         Page<LogAuditoriaResponseDTO> pagina = auditoriaService.listar(pageable, "Paciente", entidadeId);
 

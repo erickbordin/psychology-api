@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.service;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -11,6 +12,7 @@ import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoExcepti
 import com.psychologyapi.psychologyapi.mapper.LogAuditoriaMapper;
 import com.psychologyapi.psychologyapi.model.entity.AcaoAuditoria;
 import com.psychologyapi.psychologyapi.model.entity.LogAuditoria;
+import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import com.psychologyapi.psychologyapi.repository.LogAuditoriaRepository;
 import com.psychologyapi.psychologyapi.service.security.SecurityService;
@@ -24,6 +26,7 @@ public class AuditoriaService {
     private final LogAuditoriaRepository logAuditoriaRepository;
     private final LogAuditoriaMapper logAuditoriaMapper;
     private final SecurityService securityService;
+    private final PacientesDaTrilha pacientesDaTrilha;
 
     public void registrar(Usuario usuario, AcaoAuditoria acao, String entidade, UUID entidadeId) {
         LogAuditoria log = new LogAuditoria();
@@ -61,7 +64,8 @@ public class AuditoriaService {
             logs = logAuditoriaRepository.findByUsuarioOrderByCreatedAtDesc(usuarioLogado, pageable);
         }
 
-        return logs.map(logAuditoriaMapper::toResponseDTO);
+        Map<UUID, Paciente> pacientes = pacientesDaTrilha.porLinha(usuarioLogado, logs.getContent());
+        return logs.map(log -> logAuditoriaMapper.toResponseDTO(log, pacientes.get(log.getId())));
     }
 
 }

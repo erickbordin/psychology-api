@@ -1,5 +1,6 @@
 package com.psychologyapi.psychologyapi.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -9,6 +10,7 @@ import com.psychologyapi.psychologyapi.model.Paciente;
 import com.psychologyapi.psychologyapi.model.Usuario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +20,10 @@ import com.psychologyapi.psychologyapi.model.Anotacao;
 public interface AnotacaoRepository extends JpaRepository<Anotacao, UUID>{
 
     Optional<Anotacao> findByIdAndUsuarioAndDeletedAtIsNull(UUID id, Usuario usuario);
+
+    @EntityGraph(attributePaths = "paciente")
+    List<Anotacao> findByIdInAndUsuario(Collection<UUID> ids, Usuario usuario);
+
     Page<Anotacao> findByPacienteAndUsuarioAndDeletedAtIsNullOrderByCreatedAtDesc(Paciente paciente, Usuario usuario, Pageable pageable);
 
     /** As anotacoes do paciente que estao presas a alguma sessao — as avulsas
