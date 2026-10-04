@@ -15,6 +15,7 @@ const SESSAO = {
   anotacoes: [],
   valor: null,
   pagoEm: null,
+  lembrete: null,
 }
 
 describe('registro da anotacao da sessao', () => {

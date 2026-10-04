@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import { deApi } from '../../api/data'
 import { Botao } from '../../ui/Botao'
 import { Chip } from '../../ui/Chip'
 import { EstadoVazio } from '../../ui/EstadoVazio'
@@ -80,9 +81,15 @@ export function FichaPage() {
                   usa `chip alerta` exatamente ali): e o estado que pede uma
                   acao do psicologo. Autorizado e fato consumado — tom neutro.
                   Com os dois no mesmo cinza, a distincao existia so no texto. */}
-              <Chip variante={data.paciente.consentimentoAvisoEm ? 'neutro' : 'alerta'}>
-                {data.paciente.consentimentoAvisoEm ? 'Aviso autorizado' : 'Aviso nao autorizado'}
-              </Chip>
+              {data.paciente.consentimentoAvisoEm ? (
+                <Chip variante="neutro">Aviso autorizado</Chip>
+              ) : data.paciente.descadastradoEm ? (
+                <Chip variante="alerta">
+                  Descadastrou-se em {deApi(data.paciente.descadastradoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                </Chip>
+              ) : (
+                <Chip variante="alerta">Aviso nao autorizado</Chip>
+              )}
               {/* A porta da edicao (prototipo/index.html:95, mesmo bloco
                   `.acoes-ficha`). Sem ela, `DialogoDePaciente` recebia a prop
                   `paciente` e desenhava o titulo "Editar paciente" que nenhuma

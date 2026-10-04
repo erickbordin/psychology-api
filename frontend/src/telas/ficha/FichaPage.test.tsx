@@ -33,10 +33,11 @@ const FICHA = {
     valorSessao: 180.0,
     canalAviso: 'NENHUM',
     consentimentoAvisoEm: null,
+    descadastradoEm: null,
     createdAt: '2026-03-02T10:00:00',
   },
   linhaDoTempo: [
-    { consultaId: CONSULTA_3, dtConsulta: '2026-12-02T09:00:00', status: 'AGENDADA', anotacoes: [], valor: null, pagoEm: null },
+    { consultaId: CONSULTA_3, dtConsulta: '2026-12-02T09:00:00', status: 'AGENDADA', anotacoes: [], valor: null, pagoEm: null, lembrete: null },
     {
       consultaId: CONSULTA_2,
       dtConsulta: '2026-11-25T09:00:00',
@@ -46,8 +47,9 @@ const FICHA = {
       ],
       valor: null,
       pagoEm: null,
+      lembrete: null,
     },
-    { consultaId: CONSULTA_1, dtConsulta: '2026-11-18T09:00:00', status: 'FALTOU', anotacoes: [], valor: null, pagoEm: null },
+    { consultaId: CONSULTA_1, dtConsulta: '2026-11-18T09:00:00', status: 'FALTOU', anotacoes: [], valor: null, pagoEm: null, lembrete: null },
   ],
   pendencias: [
     { id: PENDENCIA_1, descricao: 'Enviar recibo de novembro', concluido: false, createdAt: '2026-11-30T10:00:00' },
@@ -231,6 +233,7 @@ const sessaoRealizada = (valor: number | null, pagoEm: string | null) => ({
   anotacoes: [{ anotacaoId: ANOTACAO_1, conteudo: 'Sessao anotada.', createdAt: '2026-11-10T10:00:00' }],
   valor,
   pagoEm,
+  lembrete: null,
 })
 
 const fichaCom = (sessao: Record<string, unknown>) => ({ ...FICHA, linhaDoTempo: [sessao] })
@@ -319,5 +322,50 @@ describe('dinheiro na linha do tempo', () => {
     const linha = within(await linhaDoTempo()).getByRole('listitem')
     expect(within(linha).getByRole('button', { name: 'Dar baixa' })).toBeInTheDocument()
     expect(within(linha).getByRole('textbox')).toBeInTheDocument()
+  })
+})
+
+describe('marcas de aviso na ficha', () => {
+  const comPaciente = (extra: Record<string, unknown>) =>
+    comFicha({ ...FICHA, paciente: { ...FICHA.paciente, ...extra } })
+
+  it('autorizado mostra Aviso autorizado', async () => {
+    comPaciente({ canalAviso: 'EMAIL', consentimentoAvisoEm: '2026-10-01T09:00:00' })
+    abrir()
+
+    expect(await screen.findByText('Aviso autorizado')).toBeInTheDocument()
+    expect(screen.queryByText(/Descadastrou-se/)).not.toBeInTheDocument()
+  })
+
+  it('sem consentimento e com descadastro mostra Descadastrou-se em dd/mm', async () => {
+    comPaciente({ descadastradoEm: '2026-09-15T10:30:00' })
+    abrir()
+
+    expect(await screen.findByText('Descadastrou-se em 15/09')).toBeInTheDocument()
+    expect(screen.queryByText('Aviso nao autorizado')).not.toBeInTheDocument()
+  })
+
+  it('sem consentimento e sem descadastro mostra Aviso nao autorizado', async () => {
+    comFicha()
+    abrir()
+
+    expect(await screen.findByText('Aviso nao autorizado')).toBeInTheDocument()
+    expect(screen.queryByText(/Descadastrou-se/)).not.toBeInTheDocument()
+  })
+
+  it('lembrete FALHOU mostra Lembrete não enviado na linha da sessao', async () => {
+    comFicha(fichaCom({ ...sessaoRealizada(180, null), lembrete: 'FALHOU' }))
+    abrir()
+
+    const linha = within(await linhaDoTempo()).getByRole('listitem')
+    expect(within(linha).getByText('Lembrete não enviado')).toBeInTheDocument()
+  })
+
+  it.each(['PENDENTE', 'ENVIADO', 'CANCELADO', null])('lembrete %s nao mostra a marca', async (lembrete) => {
+    comFicha(fichaCom({ ...sessaoRealizada(180, null), lembrete }))
+    abrir()
+
+    const linha = within(await linhaDoTempo()).getByRole('listitem')
+    expect(within(linha).queryByText('Lembrete não enviado')).not.toBeInTheDocument()
   })
 })
