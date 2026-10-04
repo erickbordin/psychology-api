@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ajustes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["obter"];
+        put: operations["atualizar"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pacientes": {
         parameters: {
             query?: never;
@@ -78,6 +94,22 @@ export interface paths {
         get: operations["listarPorPaciente_1"];
         put?: never;
         post: operations["cadastrar_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/descadastro/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["consultar"];
+        put?: never;
+        post: operations["descadastrar"];
         delete?: never;
         options?: never;
         head?: never;
@@ -473,6 +505,11 @@ export interface components {
              * @example 2026-12-02T14:00:00
              */
             createdAt?: string;
+            /**
+             * @description Data e hora local do consultório (fuso America/Sao_Paulo, spec 5.9) — sempre sem offset, no formato yyyy-MM-dd'T'HH:mm:ss.
+             * @example 2026-12-02T14:00:00
+             */
+            descadastradoEm?: string;
         };
         ConsultaAtualizacaoDTO: {
             /**
@@ -509,6 +546,40 @@ export interface components {
              * @example 2026-12-02T14:00:00
              */
             pagoEm?: string;
+        };
+        AjustesAtualizacaoDTO: {
+            nome: string;
+            /**
+             * @description Valor padrão da sessão. Maior que zero, no máximo 8 dígitos inteiros e 2 casas decimais. Ausente limpa o valor.
+             * @example 180
+             */
+            valorPadraoSessao?: number;
+            /** @enum {string} */
+            antecedencia: "H24" | "H2" | "VESPERA";
+            /** @description Blocos incluídos no aviso. Ausente equivale a nenhum. */
+            blocosAviso?: ("REMARCAR" | "CHEGADA" | "DURACAO")[];
+            tituloNoEmail?: boolean;
+            tituloProfissional?: string;
+            resumoDiario?: boolean;
+            /** Format: int32 */
+            expedienteInicio?: number;
+            /** Format: int32 */
+            expedienteFim?: number;
+        };
+        AjustesResponseDTO: {
+            nome?: string;
+            email?: string;
+            valorPadraoSessao?: number;
+            /** @enum {string} */
+            antecedencia?: "H24" | "H2" | "VESPERA";
+            blocosAviso?: ("REMARCAR" | "CHEGADA" | "DURACAO")[];
+            tituloNoEmail?: boolean;
+            tituloProfissional?: string;
+            resumoDiario?: boolean;
+            /** Format: int32 */
+            expedienteInicio?: number;
+            /** Format: int32 */
+            expedienteFim?: number;
         };
         PacienteCadastroDTO: {
             nome: string;
@@ -556,6 +627,9 @@ export interface components {
             pacienteId?: string;
             /** Format: uuid */
             consultaId?: string;
+        };
+        DescadastroDTO: {
+            ativo?: boolean;
         };
         ConsultaCadastroDTO: {
             /** Format: uuid */
@@ -732,6 +806,8 @@ export interface components {
              * @example 2026-12-02T14:00:00
              */
             pagoEm?: string;
+            /** @enum {string} */
+            lembrete?: "PENDENTE" | "ENVIADO" | "FALHOU" | "CANCELADO";
         };
         PagedModelConsultaResponseDTO: {
             content?: components["schemas"]["ConsultaResponseDTO"][];
@@ -1176,6 +1252,122 @@ export interface operations {
             };
         };
     };
+    obter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AjustesResponseDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    atualizar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AjustesAtualizacaoDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AjustesResponseDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
     listarPacientes: {
         parameters: {
             query?: {
@@ -1498,6 +1690,122 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AnotacaoResponseDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    consultar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DescadastroDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    descadastrar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DescadastroDTO"];
                 };
             };
             /** @description Bad Request */
