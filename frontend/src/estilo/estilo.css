@@ -433,3 +433,16 @@ a:hover { color: var(--acento-pressionado); }
 .linha-resolvida > .anuncio {
   grid-column: 1 / -1;
 }
+
+.ajustes { display: flex; flex-direction: column; gap: var(--gap-5); }
+.ajustes-secao { display: flex; flex-direction: column; gap: var(--gap-4); }
+.ajustes-secao h2 { margin: 0; font-size: var(--t-secao-tam); line-height: var(--t-secao-alt); letter-spacing: var(--t-secao-esp); }
+.ajustes-secao .sub { margin: 0; }
+.ajustes-frases { display: flex; flex-direction: column; gap: var(--gap-1); font-size: var(--t-corpo-tam); line-height: var(--t-corpo-alt); color: var(--tinta-2); }
+.ajustes-frases p { margin: 0; }
+.ajustes-caixas { display: flex; flex-direction: column; gap: var(--gap-3); }
+.ajustes-caixa { display: flex; align-items: center; gap: var(--gap-3); font-size: var(--t-corpo-tam); color: var(--tinta); }
+.ajustes-previa-cabecalho { display: grid; grid-template-columns: auto 1fr; gap: var(--gap-1) var(--gap-4); margin: 0; font-size: var(--t-segundo-tam); line-height: var(--t-segundo-alt); }
+.ajustes-previa-cabecalho dt { color: var(--tinta-2); }
+.ajustes-previa-cabecalho dd { margin: 0; color: var(--tinta); }
+.ajustes-previa-corpo { margin: 0; padding: var(--gap-4); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--superficie-2); border-radius: var(--raio-sm); font-size: var(--t-segundo-tam); line-height: var(--t-segundo-alt); color: var(--tinta); }
