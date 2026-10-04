@@ -25,10 +25,12 @@ export function useAjustes() {
   return useQuery({
     queryKey: CHAVE_DOS_AJUSTES,
     queryFn: () => api<Ajustes>('/ajustes'),
+    retry: 1,
+    retryDelay: 0,
   })
 }
 
-export function useSalvarAjustes(atuais: Pick<Ajustes, 'expedienteInicio' | 'expedienteFim'>) {
+export function useSalvarAjustes() {
   const cliente = useQueryClient()
   return useMutation({
     mutationFn: (valores: DadosDosAjustes) =>
@@ -42,10 +44,14 @@ export function useSalvarAjustes(atuais: Pick<Ajustes, 'expedienteInicio' | 'exp
           tituloNoEmail: valores.tituloNoEmail,
           tituloProfissional: valores.tituloProfissional,
           resumoDiario: valores.resumoDiario,
-          expedienteInicio: atuais.expedienteInicio,
-          expedienteFim: atuais.expedienteFim,
+          expedienteInicio: valores.expedienteInicio === '' ? null : Number(valores.expedienteInicio),
+          expedienteFim: valores.expedienteFim === '' ? null : Number(valores.expedienteFim),
         }),
       }),
-    onSuccess: () => cliente.invalidateQueries({ queryKey: CHAVE_DOS_AJUSTES }),
+    onSuccess: () =>
+      Promise.all([
+        cliente.invalidateQueries({ queryKey: CHAVE_DOS_AJUSTES }),
+        cliente.invalidateQueries({ queryKey: ['trilha'] }),
+      ]),
   })
 }

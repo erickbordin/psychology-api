@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -26,7 +26,12 @@ const erro = (status: number, mensagem: string, erros: { campo: string; erro: st
   HttpResponse.json({ status, mensagem, erros }, { status })
 
 function servirGet(corpo: object = AJUSTES) {
-  servidor.use(http.get('/ajustes', () => HttpResponse.json(corpo)))
+  servidor.use(
+    http.get('/ajustes', () => HttpResponse.json(corpo)),
+    http.get('/auditoria', () =>
+      HttpResponse.json({ content: [], page: { size: 20, number: 0, totalElements: 0, totalPages: 0 } }),
+    ),
+  )
 }
 
 const previa = () => screen.getByRole('region', { name: 'Como o aviso chega' })
@@ -48,7 +53,13 @@ describe('AjustesPage', () => {
 
     expect(screen.getByRole('region', { name: 'Perfil' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Sessão' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Expediente' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Aviso de consulta' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Início')).toHaveValue('8')
+    expect(screen.getByLabelText('Fim')).toHaveValue('18')
+    expect(
+      screen.getByText('A agenda mostra só estas horas. Sem expediente, mostra das 07h às 19h.'),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText(/^Nome/)).toHaveValue('Ana Souza')
     expect(screen.getByLabelText('E-mail')).toHaveValue('ana@exemplo.local')
     expect(screen.getByLabelText('E-mail')).toHaveAttribute('readonly')
@@ -62,7 +73,7 @@ describe('AjustesPage', () => {
     expect(screen.getByRole('button', { name: 'Salvar ajustes' })).toBeEnabled()
   })
 
-  it('salvar manda o PUT completo, com o expediente como veio, e anuncia o sucesso', async () => {
+  it('salvar manda o PUT completo, com o expediente do formulario, e anuncia o sucesso', async () => {
     const usuario = userEvent.setup()
     let corpo: unknown = null
     servidor.use(
@@ -96,7 +107,7 @@ describe('AjustesPage', () => {
     })
   })
 
-  it('valor vazio vai como nulo, expediente ausente continua ausente e o titulo guardado e mantido com a caixa desligada', async () => {
+  it('valor vazio vai como nulo, expediente em branco vai nulo e o titulo guardado e mantido com a caixa desligada', async () => {
     const usuario = userEvent.setup()
     let corpo: Record<string, unknown> = {}
     servidor.use(
@@ -160,7 +171,26 @@ describe('AjustesPage', () => {
     expect(screen.getByLabelText('Antecedência')).toHaveAccessibleDescription('Escolha a antecedência do aviso.')
   })
 
-  it('erro de expediente, que nao esta na tela, aparece como alerta com a mensagem do servidor', async () => {
+  it('erro do servidor em expedienteInicio pousa no campo Início e nao vira alerta', async () => {
+    const usuario = userEvent.setup()
+    servidor.use(
+      http.put('/ajustes', () =>
+        erro(400, 'Dados inválidos.', [
+          { campo: 'expedienteInicio', erro: 'Informe o início e o fim do expediente, ou nenhum dos dois.' },
+        ]),
+      ),
+    )
+    await montar()
+
+    await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
+
+    expect(await screen.findByLabelText('Início')).toHaveAccessibleDescription(
+      'Informe o início e o fim do expediente, ou nenhum dos dois.',
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('erro do servidor em expedienteFim pousa no campo Fim e nao vira alerta', async () => {
     const usuario = userEvent.setup()
     servidor.use(
       http.put('/ajustes', () =>
@@ -173,7 +203,134 @@ describe('AjustesPage', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
 
+    expect(await screen.findByLabelText('Fim')).toHaveAccessibleDescription(
+      'O fim do expediente deve ser depois do início.',
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('erro de campo desconhecido continua virando alerta', async () => {
+    const usuario = userEvent.setup()
+    servidor.use(
+      http.put('/ajustes', () =>
+        erro(400, 'Dados inválidos.', [{ campo: 'campoQueNaoExiste', erro: 'Valor inválido.' }]),
+      ),
+    )
+    await montar()
+
+    await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
+
     expect(await screen.findByRole('alert')).toHaveTextContent('Dados inválidos.')
+  })
+
+  it('os selects de expediente oferecem Sem expediente e as horas cheias', async () => {
+    await montar()
+
+    const inicio = within(screen.getByLabelText('Início')).getAllByRole('option')
+    const fim = within(screen.getByLabelText('Fim')).getAllByRole('option')
+    expect(inicio).toHaveLength(25)
+    expect(fim).toHaveLength(25)
+    expect(inicio[0]).toHaveTextContent('Sem expediente')
+    expect(inicio[1]).toHaveTextContent('00:00')
+    expect(inicio[24]).toHaveTextContent('23:00')
+    expect(fim[0]).toHaveTextContent('Sem expediente')
+    expect(fim[1]).toHaveTextContent('01:00')
+    expect(fim[24]).toHaveTextContent('24:00')
+  })
+
+  it('mudar o expediente para 08:00 a 18:00 e salvar manda os numeros', async () => {
+    const usuario = userEvent.setup()
+    let corpo: Record<string, unknown> = {}
+    servidor.use(
+      http.put('/ajustes', async ({ request }) => {
+        corpo = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ ...AJUSTES, expedienteInicio: 8, expedienteFim: 18 })
+      }),
+    )
+    await montar({ ...AJUSTES, expedienteInicio: 9, expedienteFim: 12 })
+
+    await usuario.selectOptions(screen.getByLabelText('Início'), '08:00')
+    await usuario.selectOptions(screen.getByLabelText('Fim'), '18:00')
+    await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
+
+    await screen.findByText('Ajustes salvos.')
+    expect(corpo.expedienteInicio).toBe(8)
+    expect(corpo.expedienteFim).toBe(18)
+  })
+
+  it('Sem expediente nos dois manda nulo nos dois', async () => {
+    const usuario = userEvent.setup()
+    let corpo: Record<string, unknown> = {}
+    servidor.use(
+      http.put('/ajustes', async ({ request }) => {
+        corpo = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ ...AJUSTES, expedienteInicio: null, expedienteFim: null })
+      }),
+    )
+    await montar()
+
+    await usuario.selectOptions(screen.getByLabelText('Início'), 'Sem expediente')
+    await usuario.selectOptions(screen.getByLabelText('Fim'), 'Sem expediente')
+    await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
+
+    await screen.findByText('Ajustes salvos.')
+    expect(corpo.expedienteInicio).toBeNull()
+    expect(corpo.expedienteFim).toBeNull()
+    expect(screen.getByLabelText('Início')).toHaveValue('')
+    expect(screen.getByLabelText('Fim')).toHaveValue('')
+  })
+
+  it('so o inicio preenchido mostra a mensagem no Fim, sem enviar', async () => {
+    const usuario = userEvent.setup()
+    let puts = 0
+    servidor.use(
+      http.put('/ajustes', () => {
+        puts += 1
+        return HttpResponse.json(AJUSTES)
+      }),
+    )
+    await montar({ ...AJUSTES, expedienteInicio: null, expedienteFim: null })
+
+    await usuario.selectOptions(screen.getByLabelText('Início'), '08:00')
+    await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
+
+    expect(await screen.findByLabelText('Fim')).toHaveAccessibleDescription(
+      'Informe o início e o fim do expediente, ou nenhum dos dois.',
+    )
+    expect(puts).toBe(0)
+  })
+
+  it('so o fim preenchido mostra a mensagem no Início, sem enviar', async () => {
+    const usuario = userEvent.setup()
+    await montar({ ...AJUSTES, expedienteInicio: null, expedienteFim: null })
+
+    await usuario.selectOptions(screen.getByLabelText('Fim'), '18:00')
+    await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
+
+    expect(await screen.findByLabelText('Início')).toHaveAccessibleDescription(
+      'Informe o início e o fim do expediente, ou nenhum dos dois.',
+    )
+  })
+
+  it('fim igual ou antes do inicio mostra a mensagem no Fim, sem enviar', async () => {
+    const usuario = userEvent.setup()
+    let puts = 0
+    servidor.use(
+      http.put('/ajustes', () => {
+        puts += 1
+        return HttpResponse.json(AJUSTES)
+      }),
+    )
+    await montar()
+
+    await usuario.selectOptions(screen.getByLabelText('Início'), '10:00')
+    await usuario.selectOptions(screen.getByLabelText('Fim'), '10:00')
+    await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
+
+    expect(await screen.findByLabelText('Fim')).toHaveAccessibleDescription(
+      'O fim do expediente deve ser depois do início.',
+    )
+    expect(puts).toBe(0)
   })
 
   it('exige o titulo com a caixa ligada, no cliente, sem enviar', async () => {
@@ -333,5 +490,89 @@ describe('AjustesPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar. Tente de novo em instantes.')
     expect(screen.queryByRole('button', { name: 'Salvar ajustes' })).not.toBeInTheDocument()
+  })
+
+  it('Trocar senha fica no Perfil depois do E-mail e abre o dialogo', async () => {
+    const usuario = userEvent.setup()
+    await montar()
+
+    const perfil = screen.getByRole('region', { name: 'Perfil' })
+    const botao = within(perfil).getByRole('button', { name: 'Trocar senha' })
+    expect(botao).toHaveAttribute('type', 'button')
+    expect(screen.getByLabelText('E-mail').compareDocumentPosition(botao)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+
+    await usuario.click(botao)
+
+    expect(await screen.findByRole('dialog', { name: 'Trocar senha' })).toBeInTheDocument()
+  })
+
+  it('fechar o dialogo com Cancelar devolve o foco ao botao Trocar senha', async () => {
+    const usuario = userEvent.setup()
+    await montar()
+
+    await usuario.click(screen.getByRole('button', { name: 'Trocar senha' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Trocar senha' })
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Trocar senha' })).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Trocar senha' })).toHaveFocus()
+  })
+
+  it('trocar a senha anuncia no status da pagina, sem enviar o PUT dos ajustes', async () => {
+    const usuario = userEvent.setup()
+    let puts = 0
+    let corpo: unknown = null
+    servidor.use(
+      http.put('/ajustes', () => {
+        puts += 1
+        return HttpResponse.json(AJUSTES)
+      }),
+      http.post('/ajustes/senha', async ({ request }) => {
+        corpo = await request.json()
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    await montar()
+
+    await usuario.click(screen.getByRole('button', { name: 'Trocar senha' }))
+    await usuario.type(await screen.findByLabelText(/^Senha atual/), 'senha-antiga-1')
+    await usuario.type(screen.getByLabelText(/^Nova senha/), 'senha-nova-muito-boa')
+    await usuario.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Senha trocada. As outras sessões foram encerradas.',
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(corpo).toEqual({ senhaAtual: 'senha-antiga-1', novaSenha: 'senha-nova-muito-boa' })
+    expect(puts).toBe(0)
+  })
+
+  it('o ultimo evento ganha no status: Ajustes salvos troca o aviso da senha e vice-versa', async () => {
+    const usuario = userEvent.setup()
+    servidor.use(
+      http.put('/ajustes', () => HttpResponse.json(AJUSTES)),
+      http.post('/ajustes/senha', () => new HttpResponse(null, { status: 204 })),
+    )
+    await montar()
+
+    await usuario.click(screen.getByRole('button', { name: 'Trocar senha' }))
+    await usuario.type(await screen.findByLabelText(/^Senha atual/), 'senha-antiga-1')
+    await usuario.type(screen.getByLabelText(/^Nova senha/), 'senha-nova-muito-boa')
+    await usuario.click(screen.getByRole('button', { name: 'Salvar' }))
+    await screen.findByText('Senha trocada. As outras sessões foram encerradas.')
+
+    await usuario.click(screen.getByRole('button', { name: 'Salvar ajustes' }))
+    expect(await screen.findByText('Ajustes salvos.')).toBeInTheDocument()
+    expect(screen.queryByText('Senha trocada. As outras sessões foram encerradas.')).not.toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: 'Trocar senha' }))
+    await usuario.type(await screen.findByLabelText(/^Senha atual/), 'senha-antiga-2')
+    await usuario.type(screen.getByLabelText(/^Nova senha/), 'senha-nova-muito-boa-2')
+    await usuario.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    expect(await screen.findByText('Senha trocada. As outras sessões foram encerradas.')).toBeInTheDocument()
+    expect(screen.queryByText('Ajustes salvos.')).not.toBeInTheDocument()
   })
 })
