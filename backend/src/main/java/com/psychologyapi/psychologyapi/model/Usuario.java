@@ -60,6 +60,18 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     private Set<BlocoAviso> blocosAviso = new HashSet<>();
 
+    @Column(name = "titulo_profissional_usuario", length = 80)
+    private String tituloProfissional;
+
+    @Column(name = "resumo_diario_usuario", nullable = false)
+    private boolean resumoDiario = true;
+
+    @Column(name = "expediente_inicio_usuario")
+    private Integer expedienteInicio;
+
+    @Column(name = "expediente_fim_usuario")
+    private Integer expedienteFim;
+
     @Column(name = "created_at_usuario", nullable = false)
     private LocalDateTime createdAt;
 

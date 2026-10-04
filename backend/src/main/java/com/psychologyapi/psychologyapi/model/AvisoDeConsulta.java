@@ -38,6 +38,15 @@ public class AvisoDeConsulta {
     @Column(name = "agendado_para_aviso", nullable = false)
     private LocalDateTime agendadoPara;
 
+    @Column(name = "data_hora_consulta_aviso", nullable = false)
+    private LocalDateTime dataHoraConsulta;
+
+    @Column(name = "tentativas_aviso", nullable = false)
+    private int tentativas;
+
+    @Column(name = "proxima_tentativa_aviso")
+    private LocalDateTime proximaTentativa;
+
     @Column(name = "enviado_em_aviso")
     private LocalDateTime enviadoEm;
 
