@@ -9,8 +9,8 @@ paciente. Isso definiu as decisões de projeto de cada lado: isolamento entre
 profissionais verificado por teste, exclusão reversível, registro de acesso, e
 access token que nunca é persistido no navegador.
 
-> **Status:** as duas aplicações rodam local, ponta a ponta, com os quatro e2e (fumaça,
-> sessão, dinheiro e aviso) passando contra a API real — painel, agenda, pacientes,
+> **Status:** as duas aplicações rodam local, ponta a ponta, com os cinco e2e (fumaça,
+> sessão, dinheiro, aviso e ajustes) passando contra a API real — painel, agenda, pacientes,
 > cadastro, ficha, trilha, Financeiro, da sessão realizada à baixa, e o aviso de consulta por e-mail com os Ajustes. **Nada foi para produção ainda:** o deploy do backend e a configuração
 > de host do frontend estão prontos no repositório, não executados
 > ([passo a passo](frontend/README.md#hospedagem)).
@@ -36,9 +36,9 @@ sessão anterior. **Depois da sessão**, registra a anotação e agenda o retorn
 | Anotações | `/pacientes/:id/anotacoes` | registrar e ler as sessões |
 | Lembretes | `/pacientes/:id/lembretes` | pendências do paciente |
 | Consultas | `/pacientes/:id/consultas` | histórico do paciente, só leitura |
-| Trilha | `/auditoria` | tudo que foi criado, alterado e excluído na conta |
+| Trilha | `/auditoria` | tudo que foi criado, alterado e excluído na conta. Nos Ajustes, a Trilha de acesso mostra os mesmos registros em frases, com o nome do paciente |
 | Financeiro | `/financeiro` | o mês: presença, faturado/recebido/a receber, quem deve, baixa e valor da sessão |
-| Ajustes | `/ajustes` | nome, valor padrão da sessão, antecedência e frases do aviso, título profissional, resumo diário, com prévia do e-mail |
+| Ajustes | `/ajustes` | perfil e Trocar senha, valor padrão da sessão, Expediente (a agenda mostra só essas horas), antecedência e frases do aviso, título profissional, resumo diário, prévia do e-mail e Trilha de acesso |
 | Descadastro | `/descadastro/:token` | página pública aberta pelo link do e-mail: o paciente para de receber lembretes |
 
 O que **não** existe, de propósito: gateway de pagamento, recibo, NFS-e,
@@ -151,8 +151,8 @@ Tudo exige `Authorization: Bearer <token>`, menos `/auth/**` e `/descadastro/**`
 | Séries | `POST /consultas/recorrentes` · `DELETE /consultas/series/{serieId}` |
 | Anotações | `POST` e `GET /pacientes/{id}/anotacoes` · `DELETE /anotacoes/{id}` |
 | Lembretes | `POST` e `GET /pacientes/{id}/lembretes` · `PATCH /lembretes/{id}/concluir` · `DELETE /lembretes/{id}` |
-| Trilha | `GET /auditoria?entidade=&entidadeId=&page=` |
-| Ajustes | `GET /ajustes` · `PUT /ajustes` |
+| Trilha | `GET /auditoria?entidade=&entidadeId=&page=` — cada linha traz também `pacienteId`, `pacienteNome` e `pacienteExcluido` |
+| Ajustes | `GET /ajustes` · `PUT /ajustes` · `POST /ajustes/senha` (trocar a senha; as outras sessões caem na próxima renovação, o access token vale até expirar) |
 | Descadastro (público) | `GET /descadastro/{token}` · `POST /descadastro/{token}` |
 
 **Aviso de consulta.** Um job dentro da própria API (`@Scheduled`, uma passada por
@@ -226,9 +226,9 @@ próprios pacientes.
 ## Testes
 
 ```bash
-cd backend  && sh ./mvnw test    # 487 — unitários, integração (Testcontainers) e HTTP
-cd frontend && npm test          # 213 — unidade e componente, com MSW
-cd frontend && npm run e2e       # 4   — fumaça, sessão, dinheiro e aviso ponta a ponta, exige a API no ar
+cd backend  && sh ./mvnw test    # 512 — unitários, integração (Testcontainers) e HTTP
+cd frontend && npm test          # 296 — unidade e componente, com MSW
+cd frontend && npm run e2e       # 5   — fumaça, sessão, dinheiro, aviso e ajustes ponta a ponta, exige a API no ar
 ```
 
 Cada camada pega um tipo de defeito:
@@ -266,8 +266,9 @@ Variáveis (`SPRING_DATASOURCE_*`, `JWT_SECRET`, `APP_CORS_ORIGINS`,
 
 **Frontend** — o build é estático e a configuração de host já está versionada
 (`frontend/vercel.json`, `frontend/public/_redirects`). Falta criar o projeto na
-plataforma, apontar `VITE_API_URL` para a API e ajustar as três variáveis do
-backend. O passo a passo, com a checagem que prova que ficou certo, está em
+plataforma e ajustar as três variáveis do backend. `VITE_API_URL` ainda não é lida pelo
+front (prevista para a Fatia 5): por ora front e API precisam compartilhar a origem, ou
+ficar atrás de um proxy reverso. O passo a passo, com a checagem que prova que ficou certo, está em
 [`frontend/README.md#hospedagem`](frontend/README.md#hospedagem).
 
 O detalhe que derruba um deploy aparentemente correto: sem a regra
@@ -320,6 +321,22 @@ valem mais que os planos: elas registram também as **alternativas rejeitadas**,
 | `plans/2026-08-25-consulta-recorrente.md` | plano da consulta recorrente |
 | `plans/2026-08-26-sessao-com-refresh.md` | plano da sessão com refresh |
 | `plans/2026-08-26-esqueleto-vertical.md` | plano do esqueleto vertical do frontend |
+
+## Débitos conhecidos
+
+Os do backend (hibernação do Render free e o job de avisos) estão em
+[`backend/README.md`](backend/README.md).
+
+- `VITE_API_URL` não é lida: `frontend/src/api/cliente.ts` faz `fetch` relativo. Prevista
+  para a Fatia 5; até lá front e API compartilham a origem ou ficam atrás de um proxy reverso.
+- Não há renovação de sessão no front (nenhum fluxo de `/auth/refresh`): recarregar a aba
+  leva ao login.
+- Troca de senha × `/auth/refresh` concorrente de outro dispositivo: janela de milissegundos
+  em que a sessão concorrente sobrevive à revogação em massa.
+- A frase "Leu anotações" da trilha nunca aparece, porque a leitura de anotações é auditada
+  como `VISUALIZACAO` de `Paciente` e a trilha mostra "Viu o cadastro".
+- A tela de Ajustes tenta o `GET` uma vez a mais, sem backoff; a falha passageira já mostra o
+  erro.
 
 ## Fora de escopo
 

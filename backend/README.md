@@ -116,7 +116,7 @@ A granularidade foi decidida caso a caso: listagem não gera log por item (só
 negado não gera log — a exceção sobe antes do `registrar(...)`.
 
 `GET /auditoria` devolve a trilha do próprio profissional, paginada, mais recente
-primeiro. A leitura da trilha **não** é auditada: além da regra de listagem acima,
+primeiro. Cada linha traz `pacienteId`, `pacienteNome` e `pacienteExcluido`, resolvidos só entre pacientes do próprio profissional (inclusive os excluídos). A leitura da trilha **não** é auditada: além da regra de listagem acima,
 `id_entidade` é `NOT NULL` — registrar uma listagem exigiria inventar um id.
 
 ### Schema versionado, Hibernate sem DDL
@@ -282,7 +282,8 @@ Documentação interativa em `/swagger-ui.html`.
 | `POST` `GET` | `/pacientes/{pacienteId}/pendencias` | Cria / lista pendências (paginado) |
 | `PATCH` | `/pendencias/{pendenciaId}/concluir` | Conclui pendência |
 | `DELETE` | `/pendencias/{pendenciaId}` | Remove pendência (soft) |
-| `GET` `PUT` | `/ajustes` | Lê / atualiza os ajustes do psicólogo: perfil, valor padrão, antecedência e frases do aviso, título profissional, resumo diário |
+| `GET` `PUT` | `/ajustes` | Lê / atualiza os ajustes do psicólogo: perfil, valor padrão, expediente, antecedência e frases do aviso, título profissional, resumo diário |
+| `POST` | `/ajustes/senha` | Troca a senha (exige a atual) e apaga os refresh tokens: as outras sessões caem na próxima renovação; o access token delas vale até expirar |
 | `GET` `POST` | `/descadastro/{token}` | **Público, sem JWT.** Confere / confirma o descadastro do paciente pelo link do e-mail |
 | `GET` | `/auditoria` | Trilha de auditoria do profissional (paginado; `?entidade`+`?entidadeId` opcionais) |
 
@@ -484,7 +485,7 @@ sobe apontando para lugar nenhum, e não sobe com segredo de exemplo.
 ## Testes
 
 ```bash
-sh ./mvnw test          # 487 testes: unitários, integração e HTTP
+sh ./mvnw test          # 512 testes: unitários, integração e HTTP
 ```
 
 Precisa de Docker rodando — a imagem `postgres:16-alpine` é baixada uma vez.

@@ -576,7 +576,15 @@ e o boot aplica a `V1` e a `V2`.
   auditada:**
   além da regra de listagem acima, `id_entidade` é `NOT NULL` e não existe id
   natural para registrar numa listagem. O `LogAuditoriaResponseDTO` não devolve
-  `usuario` — é sempre o logado.
+  `usuario` — é sempre o logado. Traz `pacienteId`, `pacienteNome` e
+  `pacienteExcluido`, resolvidos só entre pacientes do próprio psicólogo
+  (sessão, anotação e pendência excluídas ainda resolvem o paciente).
+
+  **Troca de senha (Fatia 4B).** `POST /ajustes/senha` exige a senha atual e
+  apaga (`DELETE` em massa) os refresh tokens do psicólogo, em vez de revogá-los:
+  token revogado reapresentado é tratado como roubo e derrubaria a aba que
+  trocou. As outras sessões caem na próxima renovação; o access token delas vale
+  até expirar. O expediente dos Ajustes define a grade da Agenda.
 
 ## Paginação
 
@@ -657,7 +665,7 @@ A camada de teste HTTP, ao entrar, pegou outras três — todas corrigidas:
 - Requisição sem token respondia `403`, não `401` — entry point default do
   Spring Security. Pego por `SegurancaHttpTest.semTokenResponde401`.
 
-A suíte do backend está verde (487 testes; frontend 213, e2e 4); mantenha esta seção como o lugar de registrar
+A suíte do backend está verde (512 testes; frontend 296, e2e 5 fluxos); mantenha esta seção como o lugar de registrar
 qualquer contradição nova entre o código e as regras acima, sempre apontando o
 teste que a pega.
 

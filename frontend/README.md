@@ -5,7 +5,7 @@ Frontend do consultório — a interface do psicólogo autônomo para a
 semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão.
 
 > **Status:** as telas estão de pé e rodam ponta a ponta contra a API real, e os
-> quatro fluxos de e2e passam contra ela. A configuração de host está pronta;
+> cinco fluxos de e2e passam contra ela. A configuração de host está pronta;
 > falta criar o projeto na plataforma.
 
 > **Este arquivo descreve o código como ele está**, e não o plano que o gerou.
@@ -20,11 +20,11 @@ semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão
 |---|---|
 | `/entrar` | entrar. **Não há tela de criar conta** — a conta nasce por `POST /auth/registrar`, que nenhuma tela chama ainda |
 | `/` | Hoje: próxima sessão em destaque, as sessões do dia com um clique para marcar *Realizada*/*Faltou*, as pendências do dia e o modo privacidade |
-| `/agenda` | grade da semana, 07h–19h, de segunda a domingo. Clicar numa célula abre o diálogo de nova consulta, com checagem prévia de conflito |
+| `/agenda` | grade da semana de segunda a domingo, nas horas do expediente dos Ajustes (sem expediente, 07h–19h; sessão fora dele estica a grade). Clicar numa célula abre o diálogo de nova consulta, com checagem prévia de conflito |
 | `/pacientes` | lista com busca por nome e o diálogo de cadastro |
 | `/pacientes/:pacienteId` | ficha de **página única**: cabeçalho com nome/idade/contato/valor, botão *Editar*, linha do tempo das sessões com a anotação dentro da linha de cada uma, e as pendências ao lado |
 | `/financeiro` | o mês: painel de presença, faturado/recebido/a receber, quem está devendo (com baixa em lote por paciente) e as sessões do mês, com baixa, desfazer e valor da sessão |
-| `/ajustes` | perfil, valor padrão da sessão, antecedência do aviso, frases do e-mail, título profissional e resumo diário, com a prévia de como o aviso chega |
+| `/ajustes` | perfil e Trocar senha (diálogo), valor padrão da sessão, Expediente, antecedência do aviso, frases do e-mail, título profissional, resumo diário, a prévia de como o aviso chega e a Trilha de acesso (filtro por tipo, paginada) |
 | `/descadastro/:token` | página pública, fora do layout e do login: abre pelo link do e-mail e confirma que o paciente parou de receber lembretes |
 
 **A ficha é uma página só, de propósito.** Ela substituiu as quatro abas
@@ -118,8 +118,7 @@ os três prefixos `['financeiro']`, `['painel']` (cobre `hoje` e `mes`) e
 passar por um hook do `queries.ts` como as outras três escritas. É o único
 lugar onde a fronteira está furada.
 
-**Não há tela de auditoria.** A API grava a trilha em toda mutação, mas nenhuma
-tela a lê — por isso `['auditoria']` não aparece em invalidação nenhuma.
+**A trilha só aparece nos Ajustes.** A seção Trilha de acesso lê `GET /auditoria`; a leitura não é auditada. Não há tela `/auditoria` própria.
 
 ## Formulários
 
@@ -228,9 +227,11 @@ morto.
 | `GET` | `/pacientes/{id}/ficha` | `telas/ficha/queries.ts` |
 | `POST` | `/pacientes/{id}/anotacoes` | `telas/ficha/queries.ts` |
 | `GET` / `PUT` | `/ajustes` | `telas/ajustes/queries.ts` |
+| `POST` | `/ajustes/senha` | `telas/ajustes/senha.ts` |
+| `GET` | `/auditoria?entidade&page` | `telas/ajustes/trilha.ts` |
 | `GET` / `POST` | `/descadastro/{token}` | `telas/descadastro/queries.ts` |
 
-Série recorrente, lembretes, exclusão de paciente e a trilha de auditoria
+Série recorrente, lembretes e exclusão de paciente
 existem na API e **não** têm cliente aqui.
 
 ### Campo em branco no `PUT /pacientes/{id}`
@@ -362,7 +363,7 @@ só passam a importar quando o frontend usar o refresh — hoje ele não usa.
 
 | Variável | Padrão | Para que serve |
 |---|---|---|
-| `VITE_API_URL` | vazio | origem da API em produção, lida no **build**. Em desenvolvimento fica vazia, e quem resolve é o proxy |
+| `VITE_API_URL` | vazio | **ainda não é lida**: `src/api/cliente.ts` faz `fetch` de caminhos relativos. Prevista para a Fatia 5. Hoje, em desenvolvimento quem resolve é o proxy, e em produção front e API precisam estar na mesma origem (ou atrás de um proxy reverso) |
 | `API_URL` | `http://localhost:8080` | alvo do proxy do Vite. Só serve em desenvolvimento, para quando a 8080 estiver ocupada: `API_URL=http://localhost:8090 npm run dev` |
 
 ## Por que o proxy espelha os caminhos
@@ -386,8 +387,8 @@ para o `index.html`; chamada do cliente pede JSON e segue para a API.
 ## Testes
 
 ```bash
-npm test          # 213 testes de unidade e de componente, com MSW
-npm run e2e       # 4 fluxos contra a API real — exigem a API no ar
+npm test          # 296 testes de unidade e de componente, com MSW
+npm run e2e       # 5 fluxos contra a API real — exigem a API no ar
 ```
 
 Na primeira vez, o Playwright precisa do navegador:
@@ -410,7 +411,7 @@ Duas convenções valem em toda a suíte, e não são estilo:
 `e2e/` fica fora do glob do Vitest (`vite.config.ts`), porque o `test()` do
 Playwright explode dentro do Vitest.
 
-### Os quatro fluxos de e2e
+### Os cinco fluxos de e2e
 
 | Arquivo | O que percorre |
 |---|---|
@@ -418,6 +419,7 @@ Playwright explode dentro do Vitest.
 | `e2e/fluxo-da-sessao.spec.ts` | cadastrar paciente → agendar **duas** sessões no mesmo dia → marcar só a primeira como realizada → anotar → conferir que a anotação voltou na linha da sessão A **e não** na da sessão B |
 | `e2e/fluxo-do-dinheiro.spec.ts` | cadastrar paciente com valor → agendar hoje → marcar *Realizada* → Financeiro mostra faturado e a receber → dar baixa em todas → recebido → desfazer baixa e o débito volta |
 | `e2e/fluxo-do-aviso.spec.ts` | Ajustes: antecedência `2 horas antes` e uma frase ligada → salvar → sair e voltar, os valores persistiram e a prévia mostra a frase → cadastrar paciente com o consentimento marcado → a ficha mostra *Aviso autorizado* |
+| `e2e/fluxo-dos-ajustes.spec.ts` | Ajustes: expediente `08:00`–`18:00` → Agenda mostra `08:00` a `17:00` → Trilha de acesso mostra `Alterou os ajustes` → Trocar senha (Cancelar devolve o foco ao botão) → trocar, sair e entrar com a nova |
 
 A segunda metade dessa última linha é o ponto. Enquanto o fluxo criava uma
 sessão só, "a anotação está na linha certa" era verdade por construção: com uma
@@ -445,8 +447,9 @@ npm run preview   # serve o dist/ para conferir o build
 `npx tsc --noEmit` (ou `npm run build`) antes de considerar uma mudança pronta;
 já houve defeito de tipo que ficou verde na suíte e quebrou o build.
 
-Em produção não há proxy: origem própria, `VITE_API_URL` apontando para a API, e
-`APP_CORS_ORIGINS` no backend liberando essa origem.
+Em produção não há proxy do Vite: hoje o front não lê `VITE_API_URL` (prevista para a
+Fatia 5), então front e API precisam compartilhar a origem ou ficar atrás de um proxy
+reverso. Não há renovação de sessão no front: recarregar a aba leva ao login.
 
 ## Hospedagem
 
@@ -472,8 +475,8 @@ A configuração já está no repositório:
 
 1. Criar o projeto no host apontando para o diretório `frontend/` do
    repositório. Build `npm run build`, saída `dist/`.
-2. Definir `VITE_API_URL` com a origem da API (ex.: `https://psychology-api.onrender.com`).
-   É lida no **build**: mudou a variável, refaça o deploy.
+2. `VITE_API_URL` ainda não é lida pelo front (prevista para a Fatia 5): hoje o front
+   e a API precisam compartilhar a origem, ou um proxy reverso encaminhar as rotas da API.
 3. No backend, no painel do Render, `APP_CORS_ORIGINS` = a origem do frontend,
    exata e sem barra no fim. Nunca `*` — o próprio spec de CORS proíbe combinar
    `*` com credenciais.
@@ -506,7 +509,7 @@ código não faz:
 - **Renovação de token** — `POST /auth/refresh` no boot, retry único de `401` e
   promise de refresh compartilhada. Nada disso existe; recarregar desloga.
 - **Filtro e paginação na URL** (`useSearchParams`). Hoje é `useState`.
-- **Telas de auditoria, lembretes, série recorrente e exclusão de paciente.** Os
+- **Telas de lembretes, série recorrente e exclusão de paciente.** Os
   endpoints existem na API; o cliente não.
 - **Tela de criar conta.** Só o `/entrar`.
 - **`DialogoDeConsulta` fala HTTP direto**, furando a fronteira de camadas que
