@@ -23,6 +23,7 @@ import com.psychologyapi.psychologyapi.exceptions.EmailExigidoPeloCanalException
 import com.psychologyapi.psychologyapi.exceptions.PendenciaNaoEncontradaException;
 import com.psychologyapi.psychologyapi.exceptions.PacienteNaoEncontradoException;
 import com.psychologyapi.psychologyapi.exceptions.FiltroAuditoriaInvalidoException;
+import com.psychologyapi.psychologyapi.exceptions.CampoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.PeriodoInvalidoException;
 import com.psychologyapi.psychologyapi.exceptions.RegistroDuplicadoException;
 import com.psychologyapi.psychologyapi.exceptions.SessaoComAnotacaoException;
@@ -180,6 +181,15 @@ public class GlobalExceptionsHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Erro de validação",
                 List.of(new ErroCampoDTO("email", e.getMessage())));
+    }
+
+    @ExceptionHandler(CampoInvalidoException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErroRespostaDTO handleCampoInvalido(CampoInvalidoException e) {
+        return new ErroRespostaDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "Erro de validação",
+                List.of(new ErroCampoDTO(e.getCampo(), e.getMessage())));
     }
 
     @ExceptionHandler(PeriodoInvalidoException.class)

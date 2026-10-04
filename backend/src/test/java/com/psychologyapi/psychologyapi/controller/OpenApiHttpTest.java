@@ -168,4 +168,11 @@ class OpenApiHttpTest {
         mockMvc.perform(get("/v3/api-docs"))
                .andExpect(jsonPath("$.paths['/financeiro/mes']").exists());
     }
+
+    @Test
+    @DisplayName("o contrato descreve o endpoint de ajustes")
+    void contratoDescreveAjustes() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+               .andExpect(jsonPath("$.paths['/ajustes']").exists());
+    }
 }
