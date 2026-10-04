@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { definirToken } from '../api/cliente'
-import { renderizar } from '../teste/renderizar'
+import { clienteDeTeste, renderizar } from '../teste/renderizar'
 import { servidor } from '../teste/servidor'
 import { SessaoProvider } from './SessaoProvider'
 import { useSessao } from './useSessao'
@@ -119,5 +119,36 @@ describe('SessaoProvider', () => {
     await ator.click(screen.getByText('sair'))
 
     expect(await screen.findByText('sem sessao')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['o logout funciona', 204],
+    ['o logout do servidor falha', 401],
+  ])('sair esvazia o cache de consultas quando %s', async (_, status) => {
+    const ator = userEvent.setup()
+    const cliente = clienteDeTeste()
+    cliente.setQueryData(['ajustes'], { nome: 'dados da sessao anterior' })
+    servidor.use(
+      http.post('/auth/login', () =>
+        HttpResponse.json({ token: tokenFalso('psicologa@exemplo.com') }),
+      ),
+      http.post('/auth/logout', () => new HttpResponse(null, { status })),
+    )
+
+    renderizar(
+      <SessaoProvider>
+        <TelaDeTeste />
+      </SessaoProvider>,
+      { cliente },
+    )
+
+    await ator.click(screen.getByText('entrar'))
+    await screen.findByText('psicologa@exemplo.com')
+    expect(cliente.getQueryCache().getAll().length).toBeGreaterThan(0)
+
+    await ator.click(screen.getByText('sair'))
+
+    expect(await screen.findByText('sem sessao')).toBeInTheDocument()
+    expect(cliente.getQueryCache().getAll().length).toBe(0)
   })
 })
