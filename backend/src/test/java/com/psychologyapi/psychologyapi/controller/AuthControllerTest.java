@@ -70,6 +70,19 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("POST /auth/registrar com senha acima de 64 caracteres ou de 72 bytes responde 400 no campo senha")
+    void registrarComSenhaLongaResponde400() throws Exception {
+        for (String senha : new String[] { "Ab3-".repeat(16) + "x", "ã".repeat(40) }) {
+            mockMvc.perform(post("/auth/registrar")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"nome\":\"Psicologa Ana\",\"email\":\"ana@teste.com\",\"senha\":\"" + senha + "\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.erros[?(@.campo=='senha')].erro")
+                            .value("A senha deve ter no máximo 64 caracteres."));
+        }
+    }
+
+    @Test
     @DisplayName("POST /auth/login devolve um token utilizavel")
     void loginDevolveToken() throws Exception {
         psicologoComSenha("ana@teste.com", "senhaforte123");
