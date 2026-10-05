@@ -5,8 +5,9 @@ Frontend do consultório — a interface do psicólogo autônomo para a
 semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão.
 
 > **Status:** as telas estão de pé e rodam ponta a ponta contra a API real, e os
-> cinco fluxos de e2e passam contra ela. A configuração de host está pronta;
-> falta criar o projeto na plataforma.
+> seis fluxos de e2e passam contra ela. Em produção o front é servido pelo Caddy da
+> VM, na mesma origem da API (`/api`); o deploy está pronto no repositório e **não foi
+> executado** — veja [`docs/operacao/implantacao.md`](../docs/operacao/implantacao.md).
 
 > **Este arquivo descreve o código como ele está**, e não o plano que o gerou.
 > Onde o [design](../docs/superpowers/specs/2026-08-26-frontend-design.md)
@@ -18,7 +19,9 @@ semana, cadastro e ficha de paciente, e o registro da anotação de cada sessão
 
 | Rota | O que faz |
 |---|---|
-| `/entrar` | entrar. **Não há tela de criar conta** — a conta nasce por `POST /auth/registrar`, que nenhuma tela chama ainda |
+| `/entrar` | entrar. Sessão expirada volta para cá com `Sua sessão expirou. Entre novamente.` e, depois de entrar, devolve à página em que estava |
+| `/cadastro` | pública. `Código de convite`, `Nome`, `E-mail`, `Senha`, a caixa `Li e aceito os Termos de Uso e a Política de Privacidade` e `Criar conta`. Criada a conta, o front chama `POST /auth/login` com o mesmo e-mail e senha e entra direto. `503` mostra `Cadastro ainda não está disponível.` |
+| `/termos`, `/privacidade` | públicas. O texto vem de `GET /termos/atual`, mostrado como parágrafos (nenhum HTML do arquivo é interpretado) |
 | `/` | Hoje: próxima sessão em destaque, as sessões do dia com um clique para marcar *Realizada*/*Faltou*, as pendências do dia e o modo privacidade |
 | `/agenda` | grade da semana de segunda a domingo, nas horas do expediente dos Ajustes (sem expediente, 07h–19h; sessão fora dele estica a grade). Clicar numa célula abre o diálogo de nova consulta, com checagem prévia de conflito |
 | `/pacientes` | lista com busca por nome e o diálogo de cadastro |
@@ -36,8 +39,7 @@ tela inteira já correlacionada.
 **Filtro e página vivem em `useState`, não na URL.** O desenho original pedia
 `useSearchParams`, e isso ainda é o alvo; hoje nenhuma tela usa. O preço está
 pago e é conhecido: recarregar perde a busca, e o link da busca não é
-compartilhável. Vale menos que parece porque recarregar hoje também desloga
-(ver [Sessão](#sessão)).
+compartilhável.
 
 ## Estrutura
 
@@ -46,13 +48,16 @@ src/
 ├── api/
 │   ├── cliente.ts       `api<T>(caminho, opcoes)` — o único lugar com `fetch`.
 │   │                    Guarda o access token em memória do módulo, manda
-│   │                    `Authorization` e `credentials: 'include'`, e
-│   │                    transforma o envelope de erro em `ErroDaApi`.
+│   │                    `Authorization` e `credentials: 'include'`,
+│   │                    prefixa o caminho com `VITE_API_URL`, renova a sessão
+│   │                    no `401` e transforma o envelope de erro em `ErroDaApi`.
 │   ├── erro.ts          `ErroDaApi` + `erroDoCampo(erro, campo)`
 │   ├── data.ts          `paraApi(Date)` / `deApi(string)` — hora local, sem `Z`
 │   └── contrato.ts      GERADO do OpenAPI. Não edite à mão (ver abaixo)
 ├── telas/
 │   ├── login/           LoginPage · esquema.ts
+│   ├── cadastro/        CadastroPage · esquema.ts
+│   ├── termos/          TermosPage · queries.ts
 │   ├── hoje/            HojePage · queries.ts
 │   ├── agenda/          AgendaPage · DialogoDeConsulta · esquema.ts · queries.ts
 │   ├── pacientes/       PacientesPage · DialogoDePaciente · esquema.ts · queries.ts
@@ -153,11 +158,25 @@ O access token vive **apenas em memória do módulo** (`api/cliente.ts`) — nun
 em `localStorage`. Num produto com prontuário, token em `localStorage`
 transforma qualquer XSS em vazamento de prontuário.
 
-**Não existe renovação de token neste código.** Não há `POST /auth/refresh` no
-boot, não há retry de `401`, não há promise de refresh compartilhada — o
-`api/cliente.ts` simplesmente propaga o erro. A consequência é direta e
-assumida: **recarregar a aba desloga**. O cookie `refresh_token` existe do lado
-da API, mas nada aqui o usa ainda. É a maior dívida conhecida deste frontend.
+**A sessão é renovada no boot e no `401`.**
+
+1. **Boot.** Antes de qualquer rota protegida, o `SessaoProvider` chama
+   `POST /auth/refresh`. `200`: a sessão volta sem login — é assim que o F5 não desloga
+   sem que exista token guardado no navegador. `401`: vai para `/entrar`. Enquanto
+   renova, a tela mostra `Carregando…`.
+2. **`401` no meio do uso.** Todas as chamadas que falham juntas compartilham **uma**
+   promise de renovação, e a API nunca vê o mesmo refresh duas vezes (ela rotaciona o
+   refresh a cada uso e leria a repetição como token roubado). Renovou: cada chamada
+   original é repetida uma vez. Recusada (`401`/`403` do refresh): limpa o token e o
+   cache do TanStack, vai para `/entrar` com `Sua sessão expirou. Entre novamente.` e,
+   depois de entrar, volta à rota em que estava. O que estava digitado num formulário
+   aberto se perde.
+3. **Falha que não derruba a sessão.** Rede fora ou `5xx` na renovação mantém o token e
+   não manda ao login: a chamada original falha com o `401` original e a próxima tenta de novo.
+4. **O que nunca renova.** `/auth/*` e `/descadastro/*`.
+
+O prefixo das chamadas vem de `VITE_API_URL`: `/api` em produção (o Caddy tira o prefixo
+antes da API), vazio em desenvolvimento e nos testes.
 
 O nome de quem está logado sai do claim `sub` do próprio JWT — a API não tem
 rota que devolva o usuário logado. Ler um claim de um token que já é nosso é
@@ -211,6 +230,9 @@ morto.
 | Verbo | Caminho | Quem chama |
 |---|---|---|
 | `POST` | `/auth/login` | `sessao/SessaoProvider.tsx` |
+| `POST` | `/auth/refresh` | `api/cliente.ts` (boot e `401`) |
+| `POST` | `/auth/registrar` | `telas/cadastro/CadastroPage.tsx` |
+| `GET` | `/termos/atual` | `telas/termos/queries.ts` (e a versão enviada no cadastro) |
 | `POST` | `/auth/logout` | `sessao/SessaoProvider.tsx` |
 | `GET` | `/painel/hoje` | `telas/hoje/queries.ts` |
 | `PATCH` | `/consultas/{id}/status` | `telas/hoje/queries.ts` |
@@ -299,14 +321,12 @@ npm install
 npm run dev
 ```
 
-Abre em <http://localhost:5173>. A primeira conta precisa ser criada **pela
-API**, porque não há tela de cadastro:
-
-```bash
-curl -X POST http://localhost:8080/auth/registrar \
-  -H 'Content-Type: application/json' \
-  -d '{"nome":"Fulana","email":"fulana@exemplo.local","senha":"senhaforte123"}'
-```
+Abre em <http://localhost:5173>. A conta se cria em `/cadastro`, que exige um código de
+convite e os textos dos termos instalados na API. Em desenvolvimento, no ambiente da API,
+defina `APP_CADASTRO_CONVITES=convite-local` e `APP_TERMOS_DIRETORIO=file:/caminho/de/uma/pasta/`
+com um `termos.md` e um `privacidade.md` de desenvolvimento, cada um com a primeira linha
+`versao: dev` (o texto jurídico de verdade só entra com o advogado). Sem eles, o cadastro
+mostra `Cadastro ainda não está disponível.` ou `Código de convite inválido.`
 
 Cada conta enxerga só os próprios pacientes.
 
@@ -345,7 +365,11 @@ faltou. Vale reconhecer os três:
 | `APP_CORS_ORIGINS` | `http://localhost:5173` | origem liberada com credenciais |
 | `APP_REFRESH_EXPIRACAO_DIAS` | `14` | validade do refresh token |
 | `APP_REFRESH_COOKIE_SEGURO` | `true` | `Secure` no cookie de refresh |
-| `APP_REFRESH_COOKIE_SAMESITE` | `None` | `SameSite` do cookie de refresh |
+| `APP_REFRESH_COOKIE_SAMESITE` | `None` | `SameSite` do cookie de refresh. `Strict` em produção |
+| `APP_REFRESH_COOKIE_PATH` | `/auth` | `Path` do cookie de refresh. `/api/auth` em produção |
+| `APP_TERMOS_DIRETORIO` | `classpath:termos/` | pasta de `termos.md` e `privacidade.md` |
+| `APP_CADASTRO_CONVITES` | vazio | códigos de convite separados por vírgula |
+| `APP_LIMITE_POR_MINUTO` | `10` | tentativas por minuto por IP e por rota em login, cadastro e refresh |
 | `APP_EMAIL_REMETENTE` | `lembretes@localhost` | endereço de origem dos e-mails de aviso |
 | `APP_FRONTEND_URL` | `http://localhost:5173` | origem do frontend usada no link de descadastro do e-mail |
 | `APP_AVISOS_HABILITADO` | `true` | liga o job de avisos; `false` o desliga (use em teste e em segunda instância) |
@@ -356,30 +380,31 @@ faltou. Vale reconhecer os três:
 | `SPRING_MAIL_AUTH` | `true` | autenticação SMTP |
 | `SPRING_MAIL_STARTTLS` | `true` | STARTTLS no SMTP |
 
-As três primeiras o `debug.sh` já define para o ambiente local. As três últimas
-só passam a importar quando o frontend usar o refresh — hoje ele não usa.
+As três primeiras o `debug.sh` já define para o ambiente local. As de cookie, termos, convite
+e limite têm padrão de desenvolvimento; a tabela completa de produção está em
+[`docs/operacao/implantacao.md`](../docs/operacao/implantacao.md).
 
 **Do web:**
 
 | Variável | Padrão | Para que serve |
 |---|---|---|
-| `VITE_API_URL` | vazio | **ainda não é lida**: `src/api/cliente.ts` faz `fetch` de caminhos relativos. Prevista para a Fatia 5. Hoje, em desenvolvimento quem resolve é o proxy, e em produção front e API precisam estar na mesma origem (ou atrás de um proxy reverso) |
+| `VITE_API_URL` | vazio | prefixo de toda chamada: `src/api/cliente.ts` monta `${VITE_API_URL ?? ''}${caminho}`. Em produção é `/api` (o `infra/caddy/Dockerfile` o fixa no build); em desenvolvimento e nos testes fica vazio, e quem resolve é o proxy do Vite |
 | `API_URL` | `http://localhost:8080` | alvo do proxy do Vite. Só serve em desenvolvimento, para quando a 8080 estiver ocupada: `API_URL=http://localhost:8090 npm run dev` |
 
 ## Por que o proxy espelha os caminhos
 
 Em desenvolvimento o Vite proxia `/auth`, `/pacientes`, `/consultas`,
-`/anotacoes`, `/pendencias`, `/painel`, `/auditoria`, `/financeiro`, `/descadastro` e
-`/ajustes` para
+`/anotacoes`, `/pendencias`, `/painel`, `/auditoria`, `/financeiro`, `/descadastro`,
+`/ajustes`, `/termos` e `/saude` para
 `http://localhost:8080`. Isso torna tudo same-origin e tira CORS e `SameSite` do
 caminho.
 
-O proxy **espelha os caminhos**, sem prefixo `/api`: o cookie de refresh é
-marcado `Path=/auth`, e sob um prefixo o navegador veria `/api/auth/refresh` e
-simplesmente não o enviaria. A renovação quebraria só em desenvolvimento — o pior
-lugar para descobrir isso.
+O proxy **espelha os caminhos**, sem prefixo `/api`: em desenvolvimento o cookie de
+refresh é marcado `Path=/auth` (o padrão de `APP_REFRESH_COOKIE_PATH`), e sob um prefixo
+o navegador veria `/api/auth/refresh` e simplesmente não o enviaria. Em produção o
+prefixo existe, e por isso lá o cookie sai com `Path=/api/auth`.
 
-O preço do espelho é que `/pacientes`, `/ajustes` e `/descadastro` são caminho de API **e** rota de tela.
+O preço do espelho é que `/pacientes`, `/ajustes`, `/descadastro` e `/termos` são caminho de API **e** rota de tela.
 Recarregar a página em `/pacientes` entregava o JSON da API no lugar do app. Daí
 o `bypass` no `vite.config.ts`: navegação de documento pede `text/html` e volta
 para o `index.html`; chamada do cliente pede JSON e segue para a API.
@@ -387,8 +412,8 @@ para o `index.html`; chamada do cliente pede JSON e segue para a API.
 ## Testes
 
 ```bash
-npm test          # 296 testes de unidade e de componente, com MSW
-npm run e2e       # 5 fluxos contra a API real — exigem a API no ar
+npm test          # 338 testes de unidade e de componente, com MSW
+npm run e2e       # 6 fluxos contra a API real — exigem a API no ar
 ```
 
 Na primeira vez, o Playwright precisa do navegador:
@@ -411,7 +436,7 @@ Duas convenções valem em toda a suíte, e não são estilo:
 `e2e/` fica fora do glob do Vitest (`vite.config.ts`), porque o `test()` do
 Playwright explode dentro do Vitest.
 
-### Os cinco fluxos de e2e
+### Os seis fluxos de e2e
 
 | Arquivo | O que percorre |
 |---|---|
@@ -420,6 +445,14 @@ Playwright explode dentro do Vitest.
 | `e2e/fluxo-do-dinheiro.spec.ts` | cadastrar paciente com valor → agendar hoje → marcar *Realizada* → Financeiro mostra faturado e a receber → dar baixa em todas → recebido → desfazer baixa e o débito volta |
 | `e2e/fluxo-do-aviso.spec.ts` | Ajustes: antecedência `2 horas antes` e uma frase ligada → salvar → sair e voltar, os valores persistiram e a prévia mostra a frase → cadastrar paciente com o consentimento marcado → a ficha mostra *Aviso autorizado* |
 | `e2e/fluxo-dos-ajustes.spec.ts` | Ajustes: expediente `08:00`–`18:00` → Agenda mostra `08:00` a `17:00` → Trilha de acesso mostra `Alterou os ajustes` → Trocar senha (Cancelar devolve o foco ao botão) → trocar, sair e entrar com a nova |
+| `e2e/fluxo-do-cadastro.spec.ts` | `/entrar` → `Criar conta` → cadastro com código de convite e aceite dos termos → entra direto → F5 continua logada → sair |
+
+Os e2e que criam conta usam códigos de convite de teste, passados por variável de
+ambiente (`E2E_CONVITES`, separados por vírgula; a API precisa ter os mesmos em
+`APP_CADASTRO_CONVITES` e os textos dos termos instalados). Para rodar contra uma pilha
+já no ar, `E2E_BASE_URL` aponta a origem e `E2E_API_PREFIX` o prefixo das chamadas à API
+(`/api` atrás do Caddy); `ignoreHTTPSErrors` só liga quando a origem é `https://localhost`.
+Cada código vale uma vez: a pilha precisa de convites novos a cada execução.
 
 A segunda metade dessa última linha é o ponto. Enquanto o fluxo criava uma
 sessão só, "a anotação está na linha certa" era verdade por construção: com uma
@@ -432,7 +465,7 @@ de autenticar, e pegou que este projeto lia `erros[].mensagem` onde a API manda
 verde enquanto, contra a API real, um `400` de validação não mostrava nada na
 tela.
 
-Os quatro criam um **usuário novo por execução** (`*-${Date.now()}@teste.local`,
+Cada fluxo cria um **usuário novo por execução** (`*-${Date.now()}@teste.local`,
 senha `senhaforte123`): o banco não tem usuário semeado e o cadastro responde
 `409` em e-mail repetido. Nenhum dado de pessoa real entra num teste.
 
@@ -447,45 +480,27 @@ npm run preview   # serve o dist/ para conferir o build
 `npx tsc --noEmit` (ou `npm run build`) antes de considerar uma mudança pronta;
 já houve defeito de tipo que ficou verde na suíte e quebrou o build.
 
-Em produção não há proxy do Vite: hoje o front não lê `VITE_API_URL` (prevista para a
-Fatia 5), então front e API precisam compartilhar a origem ou ficar atrás de um proxy
-reverso. Não há renovação de sessão no front: recarregar a aba leva ao login.
+Em produção não há proxy do Vite: o build roda com `VITE_API_URL=/api`, e o Caddy da
+VM serve o front e repassa `/api/*` à API na mesma origem. Quem gera o build é o
+`infra/caddy/Dockerfile` (`npm ci && npm run build`).
 
 ## Hospedagem
 
-O build é estático: qualquer host de arquivos serve, desde que faça **uma**
-coisa a mais — devolver o `index.html` para caminho que não casa arquivo. Sem
-essa regra, recarregar em `/pacientes` ou abrir o link direto de uma ficha
-responde 404 do host. Medido, num host estático sem a regra:
+O front é servido pelo Caddy do `infra/compose.yml`, na mesma origem da API. O Caddy
+faz `try_files {path} /index.html`, então recarregar em `/pacientes` ou abrir o link
+direto de uma ficha devolve o app em vez de um 404. Ele também manda
+`Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy:
+no-referrer` (o link de descadastro leva um token na URL) e uma
+`Content-Security-Policy` que só libera o próprio domínio e o Google Fonts.
 
-```
-GET /            -> 200
-GET /pacientes   -> 404
-```
+O passo a passo completo, com a checagem que prova cada etapa, está em
+[`docs/operacao/implantacao.md`](../docs/operacao/implantacao.md). Na origem publicada,
+a checagem do front é: entrar → **F5 em `/pacientes`** (a sessão volta e a rota abre) →
+cadastrar paciente → F5 em `/agenda`; e, nas ferramentas do navegador, o cookie de refresh
+com `Path=/api/auth`.
 
-A configuração já está no repositório:
-
-| Arquivo | Host |
-|---|---|
-| `vercel.json` | Vercel — `rewrites` de `/(.*)` para `/index.html`, e cache imutável em `/assets` |
-| `public/_redirects` | Netlify e Cloudflare Pages — copiado para `dist/` no build |
-| — | Render Static Site: a regra equivalente é um *Rewrite* `/*` → `/index.html` no painel |
-
-### Passo a passo
-
-1. Criar o projeto no host apontando para o diretório `frontend/` do
-   repositório. Build `npm run build`, saída `dist/`.
-2. `VITE_API_URL` ainda não é lida pelo front (prevista para a Fatia 5): hoje o front
-   e a API precisam compartilhar a origem, ou um proxy reverso encaminhar as rotas da API.
-3. No backend, no painel do Render, `APP_CORS_ORIGINS` = a origem do frontend,
-   exata e sem barra no fim. Nunca `*` — o próprio spec de CORS proíbe combinar
-   `*` com credenciais.
-4. Conferir na origem publicada, nesta ordem: entrar → **F5 em `/pacientes`**
-   (prova a regra de rewrite do host) → cadastrar paciente → F5 em `/agenda`.
-
-No passo 4, o F5 leva de volta ao login: é a dívida do refresh, não falha do
-host. O que a recarga prova aqui é só que o host devolveu o `index.html` em vez
-de um 404.
+`frontend/vercel.json` e `frontend/public/_redirects` ficam no repositório de uma fase
+anterior e **não são usados** pela hospedagem atual.
 
 ## Quando não sobe
 
@@ -496,8 +511,11 @@ de um 404.
 | A API não sobe, porta em uso | outra aplicação na 8080. Suba com `PORT=8081` e rode o front com `API_URL=http://localhost:8081 npm run dev` |
 | A tela de login diz "Nao foi possivel conectar ao servidor" | a API não está no ar. O front distingue isso de credencial inválida de propósito |
 | `npm run e2e` falha logo no `/auth/registrar` | mesma coisa: o E2E **não** sobe a API, só o Vite |
-| Recarregar a página desloga | esperado hoje — não há renovação de token. Ver [Sessão](#sessão) |
-| Em produção, recarregar em `/pacientes` dá 404 do host | falta a regra `/*` → `/index.html`. Veja [Hospedagem](#hospedagem) |
+| Recarregar a página desloga | o cookie de refresh não está voltando: em produção, confira `Path=/api/auth` nas ferramentas do navegador; em desenvolvimento, `Path=/auth`. Ver [Sessão](#sessão) |
+| Aparece `Sua sessão expirou. Entre novamente.` | a renovação foi recusada (refresh vencido, revogado ou apagado). Entre de novo |
+| `/cadastro` responde `Cadastro ainda não está disponível.` | a API está sem os textos dos termos |
+| `/cadastro` responde `Código de convite inválido.` | convite desconhecido ou já usado |
+| Em produção, recarregar em `/pacientes` dá 404 | o front não está sendo servido pelo Caddy; confira `docs/operacao/implantacao.md` |
 | Em produção, toda chamada falha com erro de CORS | `APP_CORS_ORIGINS` não tem a origem exata do frontend (sem barra no fim) |
 
 ## O que a spec pede e ainda não existe
@@ -506,12 +524,14 @@ Lista curta e honesta do que o
 [design](../docs/superpowers/specs/2026-08-26-frontend-design.md) descreve e o
 código não faz:
 
-- **Renovação de token** — `POST /auth/refresh` no boot, retry único de `401` e
-  promise de refresh compartilhada. Nada disso existe; recarregar desloga.
+- **Reaceite de termos** quando a versão mudar: quem já tem conta não é chamado a aceitar de novo.
+- **Fonte do Google**: a Inter ainda vem do Google Fonts; servir localmente fecha o débito.
+- **Código próprio para o `409` de termos**: hoje é detectado pela mensagem do envelope.
+- **Link de termos no cadastro** abre na mesma aba e perde o que foi digitado.
+- **Duas abas renovando juntas** podem revogar a cadeia de refresh e derrubar uma delas.
 - **Filtro e paginação na URL** (`useSearchParams`). Hoje é `useState`.
 - **Telas de lembretes, série recorrente e exclusão de paciente.** Os
   endpoints existem na API; o cliente não.
-- **Tela de criar conta.** Só o `/entrar`.
 - **`DialogoDeConsulta` fala HTTP direto**, furando a fronteira de camadas que
   vale nas outras três escritas.
 

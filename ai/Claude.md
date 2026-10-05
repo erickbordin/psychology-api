@@ -114,6 +114,14 @@ Sem essas variáveis de ambiente definidas, a aplicação **não sobe** —
 (`APP_EMAIL_REMETENTE`, `APP_FRONTEND_URL`, `APP_AVISOS_HABILITADO`, `SPRING_MAIL_*`)
 têm padrão seguro: sem host de SMTP, os e-mails só são registrados no log.
 
+Variáveis da Fatia 5A, todas com padrão de desenvolvimento: `APP_REFRESH_COOKIE_PATH`
+(`/auth`; `/api/auth` em produção), `APP_TERMOS_DIRETORIO` (`classpath:termos/`),
+`APP_CADASTRO_CONVITES` (vazia: nenhum convite vale), `APP_LIMITE_POR_MINUTO` (`10`) e
+`APP_BACKUP_ARQUIVO_DE_ESTADO` (vazia: `/saude` responde `desligado`). Para criar conta
+em desenvolvimento são necessários um convite e os textos dos termos (um `termos.md` e
+um `privacidade.md` de desenvolvimento, primeira linha `versao: dev`, num diretório
+apontado por `APP_TERMOS_DIRETORIO=file:...`).
+
 ## Testes
 
 ```bash
@@ -366,6 +374,11 @@ ou `ResponseEntity` explícito:
 - `RegistroDuplicadoException` → `409`
 - `ConflitoDeHorarioException` → `409`
 - `XNaoEncontradoException` (Paciente, Consulta, Anotacao, Lembrete) → `404`
+- `ConviteInvalidoException` → `403` `Código de convite inválido.` — a mesma mensagem
+  para código desconhecido e já usado
+- `CadastroIndisponivelException` → `503` `Cadastro ainda não está disponível.` — sem os
+  textos dos termos instalados
+- `TermosDesatualizadosException` → `409` `Os termos mudaram. Leia a versão atual.`
 - `MethodArgumentNotValidException` → `400`, com lista de campo+mensagem
 - `PeriodoInvalidoException` → `400` — intervalo de datas parcial (só `de` ou só
   `ate`) ou invertido em `GET /consultas`
@@ -439,24 +452,26 @@ Convenção de nome das migrations deste projeto: `V<n>__<AAAAMMDD>.sql`
 arquivo muda o checksum e o Flyway falha na validação. Correção = nova
 migration.
 
-Migrations atuais: **duas**. A `V1__20260901.sql` traz o schema inteiro
+Migrations atuais: **três**. A `V1__20260901.sql` traz o schema inteiro
 (`usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`, `log_auditoria`,
 `refresh_token`, `aviso_de_consulta`, mais os índices). A `V2__20261003.sql` é o
 aviso de consulta: colunas novas em `usuario`, `paciente` e `aviso_de_consulta`,
-a tabela `resumo_diario` e as `UNIQUE` que travam o envio duplo. As oito originais (`V1__20260730` a
-`V8__20260826`) foram fundidas nela em 01/09/2026, antes do primeiro deploy e
+a tabela `resumo_diario` e as `UNIQUE` que travam o envio duplo. A
+`V3__20261004.sql` é o aceite dos termos (`termos_versao_usuario` e
+`termos_aceitos_em_usuario` em `usuario`) e a tabela `convite_usado`. As oito originais (`V1__20260730` a
+`V8__20260826`) foram fundidas na `V1` em 01/09/2026, antes do primeiro deploy e
 com nenhum banco de produção existindo. Isso só foi possível porque não havia
 schema aplicado em lugar nenhum; daqui em diante, mudança é migration nova
-(a próxima é a `V3`).
+(a próxima é a `V4`).
 
 Tabelas atuais: `usuario`, `paciente`, `consulta`, `anotacao`, `lembrete`,
-`log_auditoria`, `refresh_token`, `aviso_de_consulta`, `resumo_diario`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
+`log_auditoria`, `refresh_token`, `aviso_de_consulta`, `resumo_diario`, `convite_usado`. FKs sem `ON DELETE CASCADE` (deliberado — impede exclusão
 acidental em cascata; ver soft delete acima como mitigação real).
 
 **Banco local depois do squash:** quem tinha o banco de desenvolvimento com o
 histórico antigo (`V1`..`V8`) precisa recriá-lo — o Flyway recusa um histórico
 que não bate com os arquivos. `dropdb psychology-api && createdb psychology-api`,
-e o boot aplica a `V1` e a `V2`.
+e o boot aplica a `V1`, a `V2` e a `V3`.
 
 ## Entidades e regras específicas
 
@@ -586,6 +601,25 @@ e o boot aplica a `V1` e a `V2`.
   trocou. As outras sessões caem na próxima renovação; o access token delas vale
   até expirar. O expediente dos Ajustes define a grade da Agenda.
 
+  **Cadastro, termos, limite e saúde (Fatia 5A).** `POST /auth/registrar` exige
+  `codigoConvite`, `aceiteTermos: true` e `versaoTermos`. Ordem das recusas: termos
+  indisponíveis (`503`) → campos (`400`) → convite (`403`) → versão dos termos (`409`)
+  → e-mail repetido (`409`). `ConviteService` guarda os códigos de
+  `APP_CADASTRO_CONVITES` e o SHA-256 do que já foi usado em `convite_usado`; o
+  `ConviteUsado` é gravado **depois** do `save` do usuário, na mesma transação, com
+  `saveAndFlush`: o índice único decide a corrida e a violação vira `403` com rollback
+  da conta. E-mail repetido é checado **antes** de queimar o convite. O código nunca
+  vai para log, trilha, exceção ou resposta. A trilha ganha `CRIACAO "AceiteDosTermos"`
+  com o id do usuário. `TermosService` lê `termos.md` e `privacidade.md` de
+  `APP_TERMOS_DIRETORIO`, com `versao: {texto}` na primeira linha; só o texto do
+  advogado entra em `src/main/resources/termos/`. `GET /termos/atual` é público.
+  `LimiteDeTentativas` (filtro, em memória) limita `POST /auth/login`, `/auth/registrar`
+  e `/auth/refresh` a `APP_LIMITE_POR_MINUTO` por IP e por rota, com `429` no envelope; o IP é
+  `request.getRemoteAddr()` com `server.forward-headers-strategy=native`, nunca o
+  `X-Forwarded-For` cru. `GET /saude` (público, sem dado) lê o arquivo de
+  `APP_BACKUP_ARQUIVO_DE_ESTADO` e responde `200`/`503`; nunca devolve caminho, horário
+  nem texto de falha. O cookie de refresh usa `APP_REFRESH_COOKIE_PATH`.
+
 ## Paginação
 
 Aplicada em `Anotacao`, `Lembrete` e `LogAuditoria` — as listagens que crescem
@@ -623,12 +657,18 @@ Dois detalhes que não são estéticos:
 
 ## Deploy
 
-Render, via Docker (build multi-estágio: Maven compila o `.jar`, roda em
-imagem só com JRE). Deploy automático a cada push em `main`. Variáveis de
-ambiente (`SPRING_DATASOURCE_URL/USERNAME/PASSWORD`, `JWT_SECRET`)
-cadastradas no painel do Render, nunca commitadas.
-`server.port=${PORT:8080}` no `application.properties` — o Render injeta
-`PORT`, não usa `8080` fixo.
+Uma VM ARM do Oracle Cloud (Always Free, São Paulo) com Docker Compose, em
+`infra/`: `caddy` (HTTPS, front em `/`, `/api/*` → `api:8080` tirando o prefixo),
+`api` (o `backend/Dockerfile`, build multi-estágio, construído na VM), `postgres` e
+`backup` (dump diário cifrado com `age`, envio ao bucket, retenção de 30 diários e 12
+mensais, teste de restauração semanal). Deploy: `bash infra/deploy.sh` na VM (`git pull
+--ff-only`, `docker compose build`, `up -d`; sem CI). As variáveis ficam num arquivo
+`infra/.env` só na VM, nunca versionado; o Compose repassa à API uma lista explícita de
+variáveis, e os segredos do backup não entram no contêiner dela. Os roteiros — implantação,
+restauração real, incidente, convites e o portão do que não é código — estão em
+`docs/operacao/`. **Nada foi executado em produção ainda:** o status do que falta é o
+`docs/operacao/portao.md`. Sistema de uso externo exige aprovação formal antes de ir ao ar,
+se o projeto for da Syonet.
 
 ## Divergências conhecidas (código × este documento)
 
@@ -665,7 +705,7 @@ A camada de teste HTTP, ao entrar, pegou outras três — todas corrigidas:
 - Requisição sem token respondia `403`, não `401` — entry point default do
   Spring Security. Pego por `SegurancaHttpTest.semTokenResponde401`.
 
-A suíte do backend está verde (512 testes; frontend 296, e2e 5 fluxos); mantenha esta seção como o lugar de registrar
+A suíte do backend está verde (570 testes; frontend 338, e2e 6 fluxos); mantenha esta seção como o lugar de registrar
 qualquer contradição nova entre o código e as regras acima, sempre apontando o
 teste que a pega.
 
@@ -677,4 +717,8 @@ clínica, OAuth2/login social.
 
 ## Roadmap conhecido (não implementado)
 
-- Frontend React/TypeScript — não iniciado
+- Fatia 5B (exportação e purga), 5C (concorrência nas escritas de dinheiro) e 5D
+  (assinatura automática), cada uma com spec própria
+- Débitos da 5A: fonte do Google, reaceite de termos, `409` de termos detectado pela
+  mensagem no front, link de termos na mesma aba que perde o formulário, duas abas
+  renovando juntas podem revogar a cadeia, e-mail repetido revela conta (mitigado por convite)

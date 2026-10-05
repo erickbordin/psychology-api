@@ -9,11 +9,14 @@ paciente. Isso definiu as decisões de projeto de cada lado: isolamento entre
 profissionais verificado por teste, exclusão reversível, registro de acesso, e
 access token que nunca é persistido no navegador.
 
-> **Status:** as duas aplicações rodam local, ponta a ponta, com os cinco e2e (fumaça,
-> sessão, dinheiro, aviso e ajustes) passando contra a API real — painel, agenda, pacientes,
-> cadastro, ficha, trilha, Financeiro, da sessão realizada à baixa, e o aviso de consulta por e-mail com os Ajustes. **Nada foi para produção ainda:** o deploy do backend e a configuração
-> de host do frontend estão prontos no repositório, não executados
-> ([passo a passo](frontend/README.md#hospedagem)).
+> **Status:** as duas aplicações rodam local, ponta a ponta, com os seis e2e (fumaça,
+> sessão, dinheiro, aviso, ajustes e cadastro) passando contra a API real — painel, agenda, pacientes,
+> cadastro por convite, ficha, trilha, Financeiro, da sessão realizada à baixa, e o aviso de consulta por e-mail com os Ajustes.
+> **Nada foi para produção ainda:** o código, o Compose, o backup e os roteiros da Fatia 5A
+> estão prontos no repositório, **não executados**. "No ar" só depois do deploy real e da
+> restauração real do backup; o que falta, com dono e estado, está em
+> [`docs/operacao/portao.md`](docs/operacao/portao.md) e o passo a passo em
+> [`docs/operacao/implantacao.md`](docs/operacao/implantacao.md).
 
 ## O que o produto faz
 
@@ -27,7 +30,9 @@ sessão anterior. **Depois da sessão**, registra a anotação e agenda o retorn
 
 | Tela | Rota | O que resolve |
 |---|---|---|
-| Entrar | `/login` | entrar e criar conta. Uma conta por profissional |
+| Entrar | `/entrar` | entrar. Uma conta por profissional. Sessão expirada volta aqui com aviso e devolve à página em que estava |
+| Cadastro | `/cadastro` | criar a conta com um código de convite de uso único e o aceite dos termos |
+| Termos e privacidade | `/termos`, `/privacidade` | páginas públicas com o texto vindo de arquivo versionado |
 | Painel | `/` | consultas de hoje, pacientes cadastrados e os atalhos |
 | Agenda | `/agenda?de&ate` | agendar, remarcar, mudar status, excluir. Sem parâmetros, mostra hoje |
 | Série semanal | `/agenda` → botão | mesma hora toda semana, com as datas visíveis antes de criar |
@@ -51,28 +56,30 @@ O frontend não tem dados próprios: tudo que ele mostra vem da API, e o navegad
 guarda o mínimo possível.
 
 ```
-desenvolvimento                         produção
-───────────────                         ────────
+desenvolvimento                         produção (VM única, Docker Compose)
+───────────────                         ───────────────────────────────────
 navegador                               navegador
-   │  tudo em localhost:5173               │  origem do host estático
-   ▼                                       ├── HTML/JS ──► host (Vercel/Netlify/Render)
-Vite (5173)                                │                regra /* -> /index.html
-   │  proxy espelha /auth, /pacientes,      │
-   │  /consultas, /anotacoes, /lembretes,   └── XHR ──────► API no Render
-   │  /auditoria                                             CORS + cookie SameSite=None
-   ▼
-API (8080) ──► PostgreSQL
+   │  tudo em localhost:5173               │  https://{dominio}, uma origem só
+   ▼                                       ▼
+Vite (5173)                             Caddy (80/443, HTTPS automático)
+   │  proxy espelha /auth, /pacientes,      ├── /      front estático, SPA
+   │  /consultas, /anotacoes, /pendencias,  └── /api/* tira o prefixo ──► API (8080)
+   │  /auditoria, /termos, /saude ...                                       │
+   ▼                                                                        ▼
+API (8080) ──► PostgreSQL                                              PostgreSQL
+                                        backup: dump diário cifrado ──► bucket
 ```
 
 Em desenvolvimento o proxy torna tudo same-origin, o que tira CORS e `SameSite`
 do caminho. Ele **espelha os caminhos sem prefixo `/api`**: o cookie de refresh é
-marcado `Path=/auth`, e sob um prefixo o navegador veria `/api/auth/refresh` e
-não o enviaria — a renovação quebraria só em desenvolvimento, o pior lugar para
-descobrir isso.
+marcado `Path=/auth` (o padrão de `APP_REFRESH_COOKIE_PATH`), e sob um prefixo o
+navegador veria `/api/auth/refresh` e não o enviaria.
 
-Em produção não há proxy, e as duas origens são distintas. É por isso que o
-backend precisa de `APP_CORS_ORIGINS` com a origem exata do frontend, e o cookie
-precisa de `Secure` + `SameSite=None`.
+Em produção a origem também é uma só, mas o prefixo existe: o Caddy serve o front em
+`/` e repassa `/api/*` à API **tirando** o prefixo. Por isso lá o cookie sai com
+`Path=/api/auth` (`APP_REFRESH_COOKIE_PATH`) e `SameSite=Strict`, e o front monta as
+chamadas com `VITE_API_URL=/api`. A API fica atrás do Caddy: o IP do cliente que o
+limite de tentativas usa vem do cabeçalho que só o Caddy, na rede do Compose, pode mandar.
 
 ### O caminho de uma sessão
 
@@ -85,6 +92,11 @@ precisa de `Secure` + `SameSite=None`.
 4. Chamadas que tomam `401` compartilham **uma** promise de renovação. A API
    rotaciona o refresh a cada uso e revoga a cadeia inteira ao ver um refresh
    reapresentado; renovações concorrentes seriam lidas como token roubado.
+5. Se a renovação for recusada, o front limpa a sessão e o cache, vai para `/entrar`
+   com `Sua sessão expirou. Entre novamente.` e, depois de entrar, volta à rota em
+   que estava. O que estava digitado num formulário aberto se perde. Falha de rede
+   ou `5xx` na renovação não derruba a sessão: a chamada falha e a próxima tenta de novo.
+   `/auth/*` e `/descadastro/*` nunca disparam renovação.
 
 ## Decisões que valem entender
 
@@ -119,17 +131,19 @@ as futuras e deixa as que já aconteceram. O horizonte é um XOR: número de ses
 (2 a 52) **ou** data limite, nunca os dois.
 
 **Schema versionado, Hibernate sem DDL.** Não existe `ddl-auto` no projeto: quem
-cria tabela é o Flyway. São duas migrations: a `V1`, com o schema inteiro (as oito
-originais foram fundidas antes do primeiro deploy), e a `V2`, do aviso de consulta.
-Migration aplicada é imutável, e mudança nova vira `V3`, …
+cria tabela é o Flyway. São três migrations: a `V1`, com o schema inteiro (as oito
+originais foram fundidas antes do primeiro deploy), a `V2`, do aviso de consulta, e a `V3`,
+do aceite dos termos e dos convites usados.
+Migration aplicada é imutável, e mudança nova vira `V4`, …
 
 ## Modelo de dados
 
-Oito tabelas, todas penduradas no profissional dono da conta:
+Tabelas de dado do profissional, todas penduradas na conta dele (a `convite_usado` só liga o convite à conta criada):
 
 | Tabela | Guarda | Observações |
 |---|---|---|
-| `usuario` | o psicólogo | e-mail único; senha com BCrypt |
+| `usuario` | o psicólogo | e-mail único; senha com BCrypt; versão e data do aceite dos termos |
+| `convite_usado` | o convite que já criou uma conta | guarda o SHA-256 do código, nunca o código; `UNIQUE` no hash decide a corrida |
 | `paciente` | cadastro do paciente | soft delete; `observacoes_paciente` existe no banco mas ainda não é exposta pela API |
 | `consulta` | sessão agendada | status `AGENDADA`/`REALIZADA`/`CANCELADA`/`FALTOU`, `id_serie` opcional, soft delete |
 | `anotacao` | o que aconteceu na sessão | sem update; soft delete |
@@ -141,11 +155,13 @@ Oito tabelas, todas penduradas no profissional dono da conta:
 
 ## Superfície da API
 
-Tudo exige `Authorization: Bearer <token>`, menos `/auth/**` e `/descadastro/**`.
+Tudo exige `Authorization: Bearer <token>`, menos `/auth/**`, `/descadastro/**`, `/termos/atual` e `/saude`.
 
 | Recurso | Endpoints |
 |---|---|
-| Sessão | `POST /auth/registrar` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` |
+| Sessão | `POST /auth/registrar` (exige `codigoConvite`, `aceiteTermos` e `versaoTermos`) · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout`. Login, cadastro e refresh têm limite de 10 tentativas por minuto por IP e por rota (`429`) |
+| Termos (público) | `GET /termos/atual` → `{versao, termos, privacidade}`; `404` enquanto os textos não estiverem instalados |
+| Saúde (público) | `GET /saude` → `200` com `{"status":"ok","backup":"ok"}`; `503` com `"backup":"atrasado"` se o último dump tem mais de 36 h ou o último teste de restauração falhou. Sem dado nenhum. Em produção, `/api/saude` |
 | Pacientes | `POST /pacientes` · `GET /pacientes?nome=` · `GET /pacientes/{id}` · `PUT /pacientes/{id}` · `DELETE /pacientes/{id}` |
 | Consultas | `POST /consultas` · `GET /consultas?de=&ate=` · `GET /consultas/{id}` · `PUT /consultas/{id}` · `DELETE /consultas/{id}` |
 | Séries | `POST /consultas/recorrentes` · `DELETE /consultas/series/{serieId}` |
@@ -219,16 +235,21 @@ npm install
 npm run dev
 ```
 
-Abre em <http://localhost:5173>. Crie uma conta pela própria tela — o primeiro
-acesso é `Criar conta`, não existe usuário semeado, e cada conta enxerga só os
-próprios pacientes.
+Abre em <http://localhost:5173>. Crie uma conta em `/cadastro` — não existe usuário
+semeado, e cada conta enxerga só os próprios pacientes. O cadastro exige um código de
+convite e os textos dos termos; sem eles a API responde `403` e `503`. Em desenvolvimento,
+no arquivo de ambiente local, defina `APP_CADASTRO_CONVITES=convite-local` e
+`APP_TERMOS_DIRETORIO=file:/caminho/de/uma/pasta/` com um `termos.md` e um `privacidade.md`
+**de desenvolvimento**, cada um com a primeira linha `versao: dev` (texto de teste, nunca o
+texto jurídico). O formato está em [`docs/operacao/implantacao.md`](docs/operacao/implantacao.md#termos-de-uso-necessários-para-o-cadastro).
 
 ## Testes
 
 ```bash
-cd backend  && sh ./mvnw test    # 512 — unitários, integração (Testcontainers) e HTTP
-cd frontend && npm test          # 296 — unidade e componente, com MSW
-cd frontend && npm run e2e       # 5   — fumaça, sessão, dinheiro, aviso e ajustes ponta a ponta, exige a API no ar
+cd backend  && sh ./mvnw test    # 570 — unitários, integração (Testcontainers) e HTTP
+cd frontend && npm test          # 338 — unidade e componente, com MSW
+cd frontend && npm run e2e       # 6   — fumaça, sessão, dinheiro, aviso, ajustes e cadastro ponta a ponta, exige a API no ar
+bash infra/teste/testar-backup.sh  # backup e restauração de teste contra um S3 local, exige Docker
 ```
 
 Cada camada pega um tipo de defeito:
@@ -253,27 +274,50 @@ passaram a casar com dois elementos cada.
 
 ## Deploy
 
-**Backend** — Render, via Docker multi-estágio. O contexto de build é o diretório
-`backend/`, não a raiz do repositório:
+Uma VM ARM do Oracle Cloud (Always Free, região São Paulo; **confirmar no site** os
+limites), com Docker Compose. Um `infra/compose.yml` sobe quatro serviços numa rede
+interna, e só o Caddy publica portas:
+
+| Serviço | O que faz |
+|---|---|
+| `caddy` | HTTPS automático (Let's Encrypt) para `{DOMINIO}`; serve o front em `/`; repassa `/api/*` à API tirando o prefixo; cabeçalhos de segurança |
+| `api` | o `backend/Dockerfile`, construído na própria VM |
+| `postgres` | Postgres 16, volume persistente, sem porta publicada |
+| `backup` | dump diário às 03:00, cifrado com a chave pública do dono e enviado ao bucket; retenção de 30 diários e 12 mensais; teste de restauração aos domingos, 04:00 |
 
 ```bash
-docker build backend/
+bash infra/deploy.sh
 ```
 
-Variáveis (`SPRING_DATASOURCE_*`, `JWT_SECRET`, `APP_CORS_ORIGINS`,
-`APP_REFRESH_*`, `APP_EMAIL_REMETENTE`, `APP_FRONTEND_URL`, `APP_AVISOS_HABILITADO`,
-`SPRING_MAIL_*`) ficam no painel da plataforma, nunca no repositório.
+Na VM: `bash infra/deploy.sh` faz `git pull --ff-only`, baixa as imagens-base, faz um
+backup antes de subir a versão nova (se a pilha já estiver no ar) e espera
+`https://{dominio}/api/saude`. As migrations rodam pelo Flyway no boot da API. Não há CI.
 
-**Frontend** — o build é estático e a configuração de host já está versionada
-(`frontend/vercel.json`, `frontend/public/_redirects`). Falta criar o projeto na
-plataforma e ajustar as três variáveis do backend. `VITE_API_URL` ainda não é lida pelo
-front (prevista para a Fatia 5): por ora front e API precisam compartilhar a origem, ou
-ficar atrás de um proxy reverso. O passo a passo, com a checagem que prova que ficou certo, está em
-[`frontend/README.md#hospedagem`](frontend/README.md#hospedagem).
+As variáveis ficam num arquivo `infra/.env` **só na VM**, nunca versionado: `DOMINIO`,
+`POSTGRES_*`, `JWT_SECRET`, `APP_CADASTRO_CONVITES`,
+`APP_FRONTEND_URL`, `APP_CORS_ORIGINS`, `APP_AVISOS_HABILITADO`,
+`BACKUP_*`. O cookie de refresh (`Path=/api/auth`, `Strict`, `Secure`) e o
+`SPRINGDOC_ENABLED=false` ficam fixos no `infra/compose.yml`. A lista completa, com as regras que quebram o deploy, está em
+[`docs/operacao/implantacao.md`](docs/operacao/implantacao.md).
 
-O detalhe que derruba um deploy aparentemente correto: sem a regra
-`/* → /index.html` no host, recarregar em `/pacientes` responde 404; e sem
-`SameSite=None` + `Secure`, o login funciona mas o F5 desloga.
+Roteiros em `docs/operacao/`:
+
+| Arquivo | Para quê |
+|---|---|
+| [`implantacao.md`](docs/operacao/implantacao.md) | do zero até `https://{dominio}`, com a checagem de cada passo |
+| [`restauracao.md`](docs/operacao/restauracao.md) | restaurar um dump real fora da VM; critério de pronto |
+| [`incidente.md`](docs/operacao/incidente.md) | parte técnica do plano de incidente; comunicação à ANPD **[verificar com advogado]** |
+| [`convites.md`](docs/operacao/convites.md) | gerar um código de convite e liberar |
+| [`portao.md`](docs/operacao/portao.md) | o que não é código, com dono e estado |
+
+Alertas de backup: `GET /api/saude` devolve `503` quando o backup está atrasado, e um
+monitor externo gratuito avisa o dono por e-mail.
+
+Subir a pilha inteira na máquina local, com `DOMINIO=localhost` e certificado interno do
+Caddy: `bash infra/teste/subir-local.sh` (e `--derrubar` para desfazer).
+
+O detalhe que derruba um deploy aparentemente correto: com `APP_REFRESH_COOKIE_PATH`
+diferente de `/api/auth`, o login funciona mas o F5 desloga. No Compose esse valor é fixo.
 
 ## Quando não sobe
 
@@ -284,7 +328,10 @@ O detalhe que derruba um deploy aparentemente correto: sem a regra
 | A API não sobe, porta em uso | outra aplicação na 8080. Use `PORT=` e `API_URL=` |
 | `npm install` falha com `Cannot find module 'node:path'` | Node antigo no PATH. O projeto pede Node 20+ |
 | A tela de login diz "não foi possível conectar ao servidor" | a API não está no ar. O front distingue isso de credencial inválida de propósito |
-| Login funciona mas o F5 desloga | o cookie de refresh não está voltando |
+| Login funciona mas o F5 desloga | o cookie de refresh não está voltando; em produção, confira `Path=/api/auth` |
+| Cadastro responde `503` | os textos dos termos não estão instalados |
+| Cadastro responde `403` | código de convite inválido ou já usado |
+| `429 Muitas tentativas` | passou de 10 tentativas por minuto no mesmo IP e na mesma rota |
 
 A tabela completa do lado do web, com mais casos, está em
 [`frontend/README.md`](frontend/README.md#quando-não-sobe).
@@ -295,7 +342,8 @@ A tabela completa do lado do web, com mais casos, está em
 psychology-api/
 ├── backend/     API REST — Java 21, Spring Boot, PostgreSQL, Flyway
 ├── frontend/    Interface do psicólogo — React 19, TypeScript, Vite, Tailwind
-├── docs/        Specs e planos de implementação das duas pontas
+├── infra/       Compose, Caddy, backup e deploy da VM
+├── docs/        Specs, planos e roteiros de operação (docs/operacao)
 └── ai/          Contexto do projeto para assistentes
 ```
 
@@ -321,22 +369,35 @@ valem mais que os planos: elas registram também as **alternativas rejeitadas**,
 | `plans/2026-08-25-consulta-recorrente.md` | plano da consulta recorrente |
 | `plans/2026-08-26-sessao-com-refresh.md` | plano da sessão com refresh |
 | `plans/2026-08-26-esqueleto-vertical.md` | plano do esqueleto vertical do frontend |
+| `specs/2026-10-04-fatia-5a-no-ar-design.md` | a Fatia 5A: VM, Compose, backup, sessão renovada, termos e convite |
 
 ## Débitos conhecidos
 
-Os do backend (hibernação do Render free e o job de avisos) estão em
+Os do backend (limite de tentativas em memória e o job de avisos) estão em
 [`backend/README.md`](backend/README.md).
 
-- `VITE_API_URL` não é lida: `frontend/src/api/cliente.ts` faz `fetch` relativo. Prevista
-  para a Fatia 5; até lá front e API compartilham a origem ou ficam atrás de um proxy reverso.
-- Não há renovação de sessão no front (nenhum fluxo de `/auth/refresh`): recarregar a aba
-  leva ao login.
+- A Inter vem do Google Fonts: o `index.html` carrega a fonte de um terceiro, e a CSP do
+  Caddy libera `fonts.googleapis.com` e `fonts.gstatic.com` só por isso. Servir a fonte
+  localmente fecha o débito.
+- Reaceite de termos: quando a versão dos termos mudar, quem já tem conta não é chamado a
+  aceitar de novo. Só importa na segunda versão.
+- O `409` de termos é detectado pela mensagem do envelope, não por um código próprio.
+- O link de termos no cadastro abre na mesma aba e perde o que foi digitado no formulário.
+- Duas abas renovando a sessão juntas podem revogar a cadeia de refresh: a API lê o
+  refresh reapresentado como token roubado, e a segunda aba cai no login.
+- E-mail repetido no cadastro revela que a conta existe (`409`): mitigado por exigir um
+  convite válido antes, não eliminado.
 - Troca de senha × `/auth/refresh` concorrente de outro dispositivo: janela de milissegundos
   em que a sessão concorrente sobrevive à revogação em massa.
 - A frase "Leu anotações" da trilha nunca aparece, porque a leitura de anotações é auditada
   como `VISUALIZACAO` de `Paciente` e a trilha mostra "Viu o cadastro".
 - A tela de Ajustes tenta o `GET` uma vez a mais, sem backoff; a falha passageira já mostra o
   erro.
+- A CSP bloqueia o `<style>` injetado pelo Radix (a página pode rolar atrás de um diálogo
+  aberto) — não verificado no stack https.
+- O Javadoc de `CookieRefreshToken` ainda cita `Path=/auth` (comentário existente, mantido
+  por regra).
+- O deploy não tem rollback automático.
 
 ## Fora de escopo
 

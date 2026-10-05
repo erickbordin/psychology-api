@@ -9,7 +9,8 @@ paciente. Isso definiu as decisões de projeto descritas abaixo: isolamento
 verificado por teste, exclusão reversível e registro de acesso.
 
 > **Status:** MVP funcional, rodando local e coberto por testes. **Ainda não foi
-> para produção** — o deploy está configurado, não executado. O frontend que
+> para produção** — o deploy (VM com Docker Compose) está pronto no repositório, não
+> executado; o que falta está em [`docs/operacao/portao.md`](../docs/operacao/portao.md). O frontend que
 > consome esta API vive em [`frontend/`](../frontend/README.md), no mesmo
 > repositório; o [README da raiz](../README.md) tem a receita do conjunto.
 
@@ -24,7 +25,7 @@ verificado por teste, exclusão reversível e registro de acesso.
 | Mapeamento | MapStruct 1.6.3, Lombok |
 | Documentação | springdoc-openapi (Swagger UI) |
 | Testes | JUnit 5, Mockito, Testcontainers |
-| Build / Deploy | Maven, Docker multi-estágio, Render |
+| Build / Deploy | Maven, Docker multi-estágio, Docker Compose numa VM (`infra/`) |
 
 ## O caminho de uma requisição
 
@@ -126,15 +127,16 @@ no projeto: o Hibernate não cria nem altera tabela. Mudança de schema é sempr
 migration nova e versionada — migration já aplicada é imutável, porque editar o
 arquivo muda o checksum e o Flyway falha na validação.
 
-Duas migrations. A `V1__20260901.sql` traz o schema inteiro; as oito anteriores
+Três migrations. A `V1__20260901.sql` traz o schema inteiro; as oito anteriores
 (de 30/07 a 26/08) foram fundidas nela antes do primeiro deploy: sem banco de
 produção em lugar nenhum, o histórico de `ALTER`s não servia a ninguém — só
 obrigava quem chegasse a ler oito arquivos para saber o formato de uma tabela.
 
 A `V2__20261003.sql` é o aviso de consulta: colunas novas em `usuario`, `paciente`
 e `aviso_de_consulta`, a tabela `resumo_diario` e a `UNIQUE` que impede o envio
-duplo. Daqui em diante migration aplicada é imutável, e mudança de schema é
-`V3`, … nova.
+duplo. A `V3__20261004.sql` é o aceite dos termos (versão e data em `usuario`) e a
+tabela `convite_usado`. Daqui em diante migration aplicada é imutável, e mudança de
+schema é `V4`, … nova.
 A convenção de nome continua `V<n>__<AAAAMMDD>.sql`.
 
 Quem já tinha o banco de desenvolvimento com o histórico antigo precisa
@@ -190,7 +192,7 @@ Não usa `DaoAuthenticationProvider`. `CustomAuthenticationProvider` +
 `CustomAuthentication` carregam o `Usuario` como principal, com
 `AuthenticationManager` registrado via `ProviderManager` explícito.
 `JwtCustomtAuthenticationFilter` (`OncePerRequestFilter`) valida o token e popula
-o `SecurityContextHolder`; sessão `STATELESS`, `/auth/**` público, resto autenticado.
+o `SecurityContextHolder`; sessão `STATELESS`, `/auth/**`, `/descadastro/**`, `/termos/atual` e `/saude` públicos, resto autenticado.
 
 Token inválido ou expirado não propaga exceção: o filtro segue sem autenticar e a
 cadeia responde `401`, via `ErroRespostaAuthenticationEntryPoint`. Exceção lançada
@@ -209,6 +211,10 @@ troca um refresh token opaco — guardado como SHA-256 em `refresh_token` e entr
 em cookie `HttpOnly` — por um access token novo. A rotação é a cada uso: um refresh
 reapresentado depois de revogado revoga a cadeia inteira daquele usuário, porque
 duas partes com a mesma credencial significa que existe uma cópia.
+
+O cookie de refresh tem caminho configurável: `APP_REFRESH_COOKIE_PATH` (padrão
+`/auth`; `/api/auth` em produção, atrás do prefixo do Caddy). Em produção sai com
+`SameSite=Strict`, porque front e API compartilham a origem.
 
 Detalhes e alternativas rejeitadas em
 `docs/superpowers/specs/2026-08-26-sessao-com-refresh-design.md`.
@@ -229,6 +235,38 @@ clínico, e o link de descadastro (`/descadastro/{token}`) funciona sem login.
 
 Detalhes e alternativas rejeitadas em
 `docs/superpowers/specs/2026-10-03-fatia-4-aviso-design.md`.
+
+### Cadastro por convite, termos e limite de tentativas
+
+`POST /auth/registrar` exige `codigoConvite`, `aceiteTermos: true` e `versaoTermos`.
+A ordem das recusas é fixa: termos indisponíveis (`503`), campos (`400`), convite
+(`403 Código de convite inválido.`, a mesma mensagem para desconhecido e já usado),
+versão dos termos (`409`), e-mail repetido (`409`). O convite é queimado na **mesma
+transação** que cria a conta, depois do `save` do usuário e com `saveAndFlush`: o índice
+único de `convite_usado.hash_convite` (SHA-256 do código) decide a corrida entre dois
+cadastros com o mesmo código, e um cadastro que falha depois do convite não o queima. O
+código nunca vai para log, trilha ou resposta.
+
+Os textos vêm de `app.termos.diretorio` (`APP_TERMOS_DIRETORIO`, padrão
+`classpath:termos/`): `termos.md` e `privacidade.md`, cada um com a primeira linha
+`versao: {texto}`. Sem os arquivos, `GET /termos/atual` responde `404` e o cadastro `503`.
+O repositório só recebe esses arquivos com o texto do advogado.
+
+`LimiteDeTentativas` (filtro, em memória, uma instância) limita `POST /auth/login`,
+`/auth/registrar` e `/auth/refresh` a `APP_LIMITE_POR_MINUTO` (padrão 10) por IP e por
+rota; acima disso, `429` no envelope. O IP é `request.getRemoteAddr()` com
+`server.forward-headers-strategy=native`: o Tomcat só aceita `X-Forwarded-For` de proxy
+em rede interna (o Caddy no Compose), então um cliente que fale direto com a API não
+forja o IP.
+
+### Saúde do backup
+
+`GET /saude` é público e não revela dado de ninguém. Com `APP_BACKUP_ARQUIVO_DE_ESTADO`
+vazio responde `200 {"status":"ok","backup":"desligado"}`. Com o arquivo, que o serviço
+`backup` escreve num volume compartilhado só-leitura para a API, responde `503` com
+`"backup":"atrasado"` se o arquivo está ausente ou ilegível, se há `falha`, se o último
+dump tem mais de 36 h ou se o último teste de restauração falhou; senão `200` com
+`"backup":"ok"`. Nunca devolve caminho, horário ou o texto da falha.
 
 ### Paginação com `PagedModel`
 
@@ -257,7 +295,9 @@ Documentação interativa em `/swagger-ui.html`.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/auth/registrar` | Cria psicólogo |
+| `POST` | `/auth/registrar` | Cria psicólogo. Exige `codigoConvite`, `aceiteTermos` e `versaoTermos` |
+| `GET` | `/termos/atual` | **Público.** `{versao, termos, privacidade}`; `404` sem os textos instalados |
+| `GET` | `/saude` | **Público.** `200` ou `503` conforme o backup; sem dado nenhum |
 | `POST` | `/auth/login` | Devolve o JWT e o cookie de refresh |
 | `POST` | `/auth/refresh` | Renova o access token a partir do cookie de refresh |
 | `POST` | `/auth/logout` | Revoga o refresh corrente e limpa o cookie |
@@ -414,21 +454,23 @@ vive no painel da plataforma. Nunca commite nenhum dos dois.
 ### Conferindo que subiu
 
 ```bash
-psql -d psychology-api -c "\dt"                # 8 tabelas + flyway_schema_history
+psql -d psychology-api -c "\dt"                # as tabelas do modelo + flyway_schema_history
 curl -i -X POST localhost:8080/auth/refresh    # 401 é o certo: ainda não há sessão
 ```
 
 No log do boot, a linha que confirma o schema:
 
 ```
-Successfully applied 2 migrations to schema "public", now at version v2
+Successfully applied 3 migrations to schema "public", now at version v3
 ```
 
-Daí em diante a conta se cria pela tela do frontend (`Criar conta`), ou direto:
+Daí em diante a conta se cria pela tela do frontend (`/cadastro`), ou direto. Precisa de
+`APP_CADASTRO_CONVITES` no ambiente (por exemplo `convite-local`) e dos textos dos termos
+em `APP_TERMOS_DIRETORIO`; use a versão que `GET /termos/atual` devolve:
 
 ```bash
 curl -X POST localhost:8080/auth/registrar -H 'Content-Type: application/json' \
-  -d '{"nome":"Ana","email":"ana@teste.local","senha":"senhaforte123"}'
+  -d '{"nome":"Ana","email":"ana@teste.local","senha":"senhaforte123","codigoConvite":"convite-local","aceiteTermos":true,"versaoTermos":"dev"}'
 ```
 
 ### Porta ocupada
@@ -454,7 +496,13 @@ define para o ambiente local; o `JWT_SECRET` vem do arquivo de ambiente.
 | `APP_CORS_ORIGINS` | `http://localhost:5173` | origens liberadas com credenciais, separadas por vírgula. Nunca `*` |
 | `APP_REFRESH_EXPIRACAO_DIAS` | `14` | validade do refresh token |
 | `APP_REFRESH_COOKIE_SEGURO` | `true` | `Secure` no cookie de refresh |
-| `APP_REFRESH_COOKIE_SAMESITE` | `None` | `SameSite` do cookie de refresh |
+| `APP_REFRESH_COOKIE_SAMESITE` | `None` | `SameSite` do cookie de refresh. `Strict` em produção (mesma origem) |
+| `APP_REFRESH_COOKIE_PATH` | `/auth` | `Path` do cookie de refresh. `/api/auth` em produção, atrás do prefixo do Caddy |
+| `APP_TERMOS_DIRETORIO` | `classpath:termos/` | onde estão `termos.md` e `privacidade.md` (a primeira linha de cada um é `versao: {texto}`). Sem os arquivos, o cadastro responde `503` |
+| `APP_CADASTRO_CONVITES` | vazio | códigos de convite separados por vírgula; cada um vale uma vez. Vazia: nenhum convite vale |
+| `APP_LIMITE_POR_MINUTO` | `10` | tentativas por minuto, por IP e por rota, em login, cadastro e refresh |
+| `APP_BACKUP_ARQUIVO_DE_ESTADO` | vazio | arquivo de estado escrito pelo serviço `backup`. Vazio: `/saude` responde `200` com `"backup":"desligado"` |
+| `SPRINGDOC_ENABLED` | `true` | contrato OpenAPI e Swagger UI. `false` em produção |
 | `APP_EMAIL_REMETENTE` | `lembretes@localhost` | endereço de origem dos e-mails de aviso |
 | `APP_FRONTEND_URL` | `http://localhost:5173` | origem do frontend usada no link de descadastro do e-mail |
 | `APP_AVISOS_HABILITADO` | `true` | liga o job de avisos; `false` o desliga (use em teste e em segunda instância) |
@@ -485,7 +533,7 @@ sobe apontando para lugar nenhum, e não sobe com segredo de exemplo.
 ## Testes
 
 ```bash
-sh ./mvnw test          # 512 testes: unitários, integração e HTTP
+sh ./mvnw test          # 570 testes: unitários, integração e HTTP
 ```
 
 Precisa de Docker rodando — a imagem `postgres:16-alpine` é baixada uma vez.
@@ -504,7 +552,7 @@ src/main/java/com/psychologyapi/psychologyapi/
 ├── model/          # entidades JPA
 └── exceptions/     # exceções de domínio
 
-src/main/resources/db/migration/   # migrations Flyway (V1 schema inteiro, V2 aviso de consulta)
+src/main/resources/db/migration/   # migrations Flyway (V1 schema inteiro, V2 aviso de consulta, V3 termos e convites)
 src/test/java/.../service/         # unitários (Mockito)
 src/test/java/.../repository/      # integração (Testcontainers)
 src/test/java/.../controller/      # HTTP (MockMvc sobre o mesmo container)
@@ -512,37 +560,38 @@ src/test/java/.../controller/      # HTTP (MockMvc sobre o mesmo container)
 
 ## Deploy
 
-Render, via Docker multi-estágio — Maven compila o `.jar`, a imagem final carrega
-só o JRE. Deploy automático a cada push na `main`. O contexto de build é este
-diretório, não a raiz do monorepo: `docker build backend/`. Variáveis de ambiente
-(`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`,
-`SPRING_DATASOURCE_PASSWORD`, `JWT_SECRET`) ficam no painel da plataforma, nunca
-no repositório. `server.port=${PORT:8080}` — a porta é injetada pela plataforma.
+Docker multi-estágio — Maven compila o `.jar`, a imagem final carrega só o JRE. O
+contexto de build é este diretório, não a raiz do monorepo: `docker build backend/`.
+Em produção a API roda como o serviço `api` do `infra/compose.yml`, numa VM, atrás do
+Caddy, e o deploy é `bash infra/deploy.sh` (veja
+[`docs/operacao/implantacao.md`](../docs/operacao/implantacao.md)). O Compose só repassa
+à API a lista explícita de variáveis do `api`: o que não está lá não chega, e os
+segredos do backup (`BACKUP_*`) nem entram no contêiner da API.
 
-O frontend acrescenta quatro variáveis: `APP_CORS_ORIGINS` (a origem do frontend,
-separada por vírgula se houver mais de uma — nunca `*`, que o próprio spec de CORS
-proíbe combinar com credenciais), `APP_REFRESH_EXPIRACAO_DIAS` (padrão 14),
-`APP_REFRESH_COOKIE_SEGURO` e `APP_REFRESH_COOKIE_SAMESITE` (`true` e `None` em
-produção, onde API e frontend têm origens distintas).
+As variáveis ficam num arquivo `infra/.env` só na VM, nunca no repositório:
+`SPRING_DATASOURCE_*` (montadas pelo Compose a partir de `POSTGRES_*`), `JWT_SECRET`,
+`APP_CORS_ORIGINS` e `APP_FRONTEND_URL` (`https://{dominio}`, sem barra no fim),
+`APP_REFRESH_COOKIE_PATH=/api/auth`, `APP_REFRESH_COOKIE_SAMESITE=Strict`,
+`APP_REFRESH_COOKIE_SEGURO=true`, `APP_CADASTRO_CONVITES`, `APP_AVISOS_HABILITADO` e
+`SPRINGDOC_ENABLED=false`. `APP_BACKUP_ARQUIVO_DE_ESTADO` o próprio Compose define.
+`APP_TERMOS_DIRETORIO` e `APP_LIMITE_POR_MINUTO` usam o padrão: o Compose atual não os
+repassa, então trocar o diretório de termos ou o limite exige acrescentá-los ao serviço
+`api` do `infra/compose.yml`.
 
-O aviso de consulta acrescenta `APP_EMAIL_REMETENTE`, `APP_FRONTEND_URL` (a origem
-do frontend, que entra no link de descadastro), `APP_AVISOS_HABILITADO` e as
-`SPRING_MAIL_*`. Sem `SPRING_MAIL_HOST` a API sobe, mas o job de avisos não roda e
+O aviso de consulta: sem `SPRING_MAIL_HOST` a API sobe, mas o job de avisos não roda e
 nada é registrado como enviado; com o host definido, `APP_EMAIL_REMETENTE` e
-`APP_FRONTEND_URL` são obrigatórias, ou a API recusa subir. Em produção, host,
-usuário e senha do SMTP ficam no painel da plataforma. O Render free bloqueia a
-saída SMTP nas portas 25/465/587; use um provedor que aceite a porta 2525
-(`SPRING_MAIL_PORT=2525`). Provedor externo precisa de homologação com TI/Infra.
+`APP_FRONTEND_URL` são obrigatórias, ou a API recusa subir. Em produção o job fica
+desligado (`APP_AVISOS_HABILITADO=false`) até existir provedor de e-mail. Provedor
+externo precisa de homologação com TI/Infra, se o projeto for da Syonet.
 
-Débitos conhecidos: no Render free a instância hiberna após 15 min sem tráfego e o
-job para junto; o resumo das 18h e os lembretes podem atrasar ou se perder até a
-instância acordar.
+Débitos conhecidos: o limite de tentativas é em memória, de uma instância só; subir
+duas instâncias da API multiplicaria o limite. O job de avisos também assume uma
+instância (`APP_AVISOS_HABILITADO=false` na segunda).
 
 ## Roadmap
 
-- Hospedar o frontend — a configuração de host já está no repositório
-  (`frontend/vercel.json` e `frontend/public/_redirects`); falta criar o projeto
-  na plataforma e apontar as variáveis
+- Fatia 5B (exportação e purga), 5C (concorrência nas escritas de dinheiro) e 5D
+  (assinatura automática), cada uma com spec própria
 
 ## Fora de escopo
 
