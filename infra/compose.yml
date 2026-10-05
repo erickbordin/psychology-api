@@ -1,0 +1,126 @@
+name: psychology
+
+services:
+  caddy:
+    build:
+      context: ..
+      dockerfile: infra/caddy/Dockerfile
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:?DOMINIO ausente nas variaveis do deploy}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    environment:
+      TZ: America/Sao_Paulo
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD ausente nas variaveis do deploy}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET ausente nas variaveis do deploy}
+      APP_BACKUP_ARQUIVO_DE_ESTADO: /estado/backup.estado
+      APP_CADASTRO_CONVITES: ${APP_CADASTRO_CONVITES:-}
+      APP_REFRESH_COOKIE_PATH: /api/auth
+      APP_REFRESH_COOKIE_SAMESITE: Strict
+      APP_REFRESH_COOKIE_SEGURO: "true"
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL}
+      APP_CORS_ORIGINS: ${APP_CORS_ORIGINS}
+      APP_AVISOS_HABILITADO: ${APP_AVISOS_HABILITADO}
+      SPRINGDOC_ENABLED: "false"
+      APP_EMAIL_REMETENTE:
+      APP_REFRESH_EXPIRACAO_DIAS:
+      SPRING_MAIL_HOST:
+      SPRING_MAIL_PORT:
+      SPRING_MAIL_USERNAME:
+      SPRING_MAIL_PASSWORD:
+      SPRING_MAIL_AUTH:
+      SPRING_MAIL_STARTTLS:
+    volumes:
+      - backup_estado:/estado:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD ausente nas variaveis do deploy}
+      TZ: America/Sao_Paulo
+    volumes:
+      - pg_dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backup:
+    build:
+      context: backup
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    environment:
+      TZ: America/Sao_Paulo
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD ausente nas variaveis do deploy}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_CHAVE_PUBLICA: ${BACKUP_CHAVE_PUBLICA:?BACKUP_CHAVE_PUBLICA ausente nas variaveis do deploy}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:?BACKUP_S3_BUCKET ausente nas variaveis do deploy}
+      RCLONE_CONFIG_DESTINO_TYPE: s3
+      RCLONE_CONFIG_DESTINO_PROVIDER: Other
+      RCLONE_CONFIG_DESTINO_ENDPOINT: ${BACKUP_S3_ENDPOINT:?BACKUP_S3_ENDPOINT ausente nas variaveis do deploy}
+      RCLONE_CONFIG_DESTINO_REGION: ${BACKUP_S3_REGIAO:?BACKUP_S3_REGIAO ausente nas variaveis do deploy}
+      RCLONE_CONFIG_DESTINO_ACCESS_KEY_ID: ${BACKUP_S3_CHAVE:?BACKUP_S3_CHAVE ausente nas variaveis do deploy}
+      RCLONE_CONFIG_DESTINO_SECRET_ACCESS_KEY: ${BACKUP_S3_SEGREDO:?BACKUP_S3_SEGREDO ausente nas variaveis do deploy}
+      RCLONE_CONFIG_DESTINO_NO_CHECK_BUCKET: "true"
+      RCLONE_CONTIMEOUT: 15s
+      RCLONE_TIMEOUT: 60s
+      RCLONE_RETRIES: "2"
+      RCLONE_LOW_LEVEL_RETRIES: "3"
+    tmpfs:
+      - /tmp
+    volumes:
+      - backup_estado:/estado
+      - backup_local:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pg_dados:
+  backup_estado:
+  backup_local:

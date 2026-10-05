@@ -1,0 +1,7 @@
+services:
+  api:
+    environment:
+      APP_TERMOS_DIRETORIO: file:/termos-teste/
+      APP_LIMITE_POR_MINUTO: "1000"
+    volumes:
+      - ../backend/src/test/resources/termos-teste:/termos-teste:ro

@@ -1,6 +1,7 @@
 ### Environment Variables ###
 .env
 *.env
+infra/.env
 
 # IDE
 .idea/

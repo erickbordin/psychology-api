@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: teste
+      POSTGRES_USER: teste
+      POSTGRES_PASSWORD: ${SENHA_TESTE}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teste -d teste"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  s3:
+    user: root
+    build:
+      context: ../backup
+    command: ["rclone", "serve", "s3", "--auth-key", "${CHAVE_TESTE},${SENHA_TESTE}", "--addr", ":9000", "/data"]
+    volumes:
+      - /data
+
+  backup:
+    build:
+      context: ../backup
+    environment:
+      TZ: America/Sao_Paulo
+      PGHOST: postgres
+      PGUSER: teste
+      PGPASSWORD: ${SENHA_TESTE}
+      PGDATABASE: teste
+      BACKUP_CHAVE_PUBLICA: ${BACKUP_CHAVE_PUBLICA}
+      BACKUP_S3_BUCKET: teste
+      RCLONE_CONFIG_DESTINO_TYPE: s3
+      RCLONE_CONFIG_DESTINO_PROVIDER: Other
+      RCLONE_CONFIG_DESTINO_ENDPOINT: http://s3:9000
+      RCLONE_CONFIG_DESTINO_ACCESS_KEY_ID: ${CHAVE_TESTE}
+      RCLONE_CONFIG_DESTINO_SECRET_ACCESS_KEY: ${SENHA_TESTE}
+      RCLONE_CONFIG_DESTINO_NO_CHECK_BUCKET: "true"
+      RCLONE_CONTIMEOUT: 15s
+      RCLONE_TIMEOUT: 60s
+      RCLONE_RETRIES: "2"
+      RCLONE_LOW_LEVEL_RETRIES: "3"
+    tmpfs:
+      - /tmp
+    command: ["sleep", "infinity"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3:
+        condition: service_started

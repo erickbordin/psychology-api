@@ -1,0 +1,21 @@
+{$DOMINIO} {
+	encode zstd gzip
+
+	header {
+		defer
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Content-Security-Policy "default-src 'self'; frame-ancestors 'none'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'self'; form-action 'self'; object-src 'none'"
+	}
+
+	handle_path /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		root * /srv/front
+		try_files {path} /index.html
+		file_server
+	}
+}
