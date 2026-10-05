@@ -10,7 +10,7 @@ import org.springframework.http.ResponseCookie;
 
 class CookieRefreshTokenTest {
 
-    private final CookieRefreshToken cookie = new CookieRefreshToken(true, "None", 14);
+    private final CookieRefreshToken cookie = new CookieRefreshToken(true, "None", 14, "/auth");
 
     @Test
     @DisplayName("o cookie emitido e httpOnly, seguro e restrito a /auth")

@@ -17,19 +17,21 @@ import org.springframework.stereotype.Component;
 public class CookieRefreshToken {
 
     public static final String NOME = "refresh_token";
-    private static final String CAMINHO = "/auth";
 
     private final boolean seguro;
     private final String sameSite;
     private final int expiracaoDias;
+    private final String caminho;
 
     public CookieRefreshToken(
             @Value("${app.refresh.cookie-seguro}") boolean seguro,
             @Value("${app.refresh.cookie-samesite}") String sameSite,
-            @Value("${app.refresh.expiracao-dias}") int expiracaoDias) {
+            @Value("${app.refresh.expiracao-dias}") int expiracaoDias,
+            @Value("${app.refresh.cookie-path}") String caminho) {
         this.seguro = seguro;
         this.sameSite = sameSite;
         this.expiracaoDias = expiracaoDias;
+        this.caminho = caminho;
     }
 
     public ResponseCookie emitir(String tokenEmClaro) {
@@ -45,7 +47,7 @@ public class CookieRefreshToken {
                 .httpOnly(true)
                 .secure(seguro)
                 .sameSite(sameSite)
-                .path(CAMINHO);
+                .path(caminho);
     }
 
 }
