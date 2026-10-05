@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { ambiente } from './ambiente'
+
 /**
  * Prova o que nenhum dos 41 testes com MSW prova: que a resposta que a tela
  * espera e a que a API REAL da. Backend no ar em localhost:8080 e um usuario
@@ -22,8 +24,18 @@ test('o psicologo entra, ve o dia, agenda e marca presenca', async ({ page, requ
   // /auth/registrar` pede `{ nome, email, senha }`; a senha precisa passar
   // pelas duas regras que o servidor aplica: 10+ caracteres e fora da lista
   // de senhas comuns versionada.
-  const registro = await request.post('/auth/registrar', {
-    data: { nome: 'Psicologa da Fumaca', email, senha },
+  const { convites, prefixoApi } = ambiente()
+  const termos = await request.get(`${prefixoApi}/termos/atual`)
+  const { versao } = await termos.json()
+  const registro = await request.post(`${prefixoApi}/auth/registrar`, {
+    data: {
+      nome: 'Psicologa da Fumaca',
+      email,
+      senha,
+      aceiteTermos: true,
+      versaoTermos: versao,
+      codigoConvite: convites[0],
+    },
   })
   expect(registro.ok(), `cadastro falhou: ${await registro.text()}`).toBeTruthy()
 

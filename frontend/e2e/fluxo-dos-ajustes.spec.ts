@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { ambiente } from './ambiente'
+
 test('ajusta o expediente, ve a grade da agenda, a trilha, troca a senha e entra com a nova', async ({
   page,
   request,
@@ -8,8 +10,18 @@ test('ajusta o expediente, ve a grade da agenda, a trilha, troca a senha e entra
   const senha = 'senhaforte123'
   const senhaNova = 'outrasenha456'
 
-  const registro = await request.post('/auth/registrar', {
-    data: { nome: 'Psicologa dos Ajustes', email, senha },
+  const { convites, prefixoApi } = ambiente()
+  const termos = await request.get(`${prefixoApi}/termos/atual`)
+  const { versao } = await termos.json()
+  const registro = await request.post(`${prefixoApi}/auth/registrar`, {
+    data: {
+      nome: 'Psicologa dos Ajustes',
+      email,
+      senha,
+      aceiteTermos: true,
+      versaoTermos: versao,
+      codigoConvite: convites[4],
+    },
   })
   expect(registro.ok(), `cadastro falhou: ${await registro.text()}`).toBeTruthy()
 

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { ambiente } from './ambiente'
+
 const NOME_DO_PACIENTE = 'Paciente Dinheiro'
 const HORA_DA_SESSAO = '07:00'
 
@@ -10,8 +12,18 @@ test('realiza a sessao, ve o debito no Financeiro, da baixa em lote e desfaz', a
   const email = `dinheiro-${Date.now()}@teste.local`
   const senha = 'senhaforte123'
 
-  const registro = await request.post('/auth/registrar', {
-    data: { nome: 'Psicologa do Dinheiro', email, senha },
+  const { convites, prefixoApi } = ambiente()
+  const termos = await request.get(`${prefixoApi}/termos/atual`)
+  const { versao } = await termos.json()
+  const registro = await request.post(`${prefixoApi}/auth/registrar`, {
+    data: {
+      nome: 'Psicologa do Dinheiro',
+      email,
+      senha,
+      aceiteTermos: true,
+      versaoTermos: versao,
+      codigoConvite: convites[2],
+    },
   })
   expect(registro.ok(), `cadastro falhou: ${await registro.text()}`).toBeTruthy()
 

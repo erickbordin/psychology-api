@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { ambiente } from './ambiente'
+
 /**
  * O segundo dos quatro fluxos de 8.5: "a sessao" — abre ficha, registra
  * anotacao, agenda retorno. Ele prova o que nenhum dos testes com MSW prova:
@@ -47,8 +49,18 @@ test('abre a ficha, agenda, marca presenca e a anotacao volta na sessao certa', 
 
   // 1. registra o usuario pela API (mesmo caminho do fluxo de fumaca) e entra
   // pela tela.
-  const registro = await request.post('/auth/registrar', {
-    data: { nome: 'Psicologa da Sessao', email, senha },
+  const { convites, prefixoApi } = ambiente()
+  const termos = await request.get(`${prefixoApi}/termos/atual`)
+  const { versao } = await termos.json()
+  const registro = await request.post(`${prefixoApi}/auth/registrar`, {
+    data: {
+      nome: 'Psicologa da Sessao',
+      email,
+      senha,
+      aceiteTermos: true,
+      versaoTermos: versao,
+      codigoConvite: convites[1],
+    },
   })
   expect(registro.ok(), `cadastro falhou: ${await registro.text()}`).toBeTruthy()
 
