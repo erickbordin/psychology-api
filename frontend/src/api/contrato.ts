@@ -308,6 +308,38 @@ export interface paths {
         patch: operations["darBaixa"];
         trace?: never;
     };
+    "/termos/atual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["atual"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/saude": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["saude"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/painel/mes": {
         parameters: {
             query?: never;
@@ -687,6 +719,9 @@ export interface components {
             nome: string;
             email: string;
             senha: string;
+            aceiteTermos: boolean;
+            versaoTermos: string;
+            codigoConvite: string;
         };
         UsuarioResponseDTO: {
             /** Format: uuid */
@@ -960,6 +995,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -971,6 +1015,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1022,6 +1075,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1033,6 +1095,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1078,6 +1149,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1089,6 +1169,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1136,6 +1225,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1147,6 +1245,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1198,6 +1305,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1209,6 +1325,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1256,6 +1381,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1267,6 +1401,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1312,6 +1455,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1323,6 +1475,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1372,6 +1533,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1383,6 +1553,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1430,6 +1609,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1441,6 +1629,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1490,6 +1687,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1501,6 +1707,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1550,6 +1765,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1561,6 +1785,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1612,6 +1845,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1623,6 +1865,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1672,6 +1923,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1683,6 +1943,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1734,6 +2003,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1745,6 +2023,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1792,6 +2079,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1803,6 +2099,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1850,6 +2155,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1861,6 +2175,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1909,6 +2232,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1920,6 +2252,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1969,6 +2310,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1980,6 +2330,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2029,6 +2388,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2040,6 +2408,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2089,6 +2466,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2100,6 +2486,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2149,6 +2544,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2160,6 +2564,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2207,6 +2620,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2218,6 +2640,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2263,6 +2694,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2274,6 +2714,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2323,6 +2772,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2334,6 +2792,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2381,6 +2848,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2392,6 +2868,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2439,6 +2924,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2450,6 +2944,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2501,6 +3004,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2512,6 +3024,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2563,6 +3084,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2574,6 +3104,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2621,6 +3160,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2632,6 +3180,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2679,6 +3236,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2690,6 +3256,165 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    atual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": Record<string, never>;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+        };
+    };
+    saude: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2738,6 +3463,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2749,6 +3483,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2794,6 +3537,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2805,6 +3557,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2852,6 +3613,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2863,6 +3633,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2912,6 +3691,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2923,6 +3711,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2971,6 +3768,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -2982,6 +3788,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3034,6 +3849,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3045,6 +3869,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3094,6 +3927,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3105,6 +3947,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3150,6 +4001,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3161,6 +4021,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3208,6 +4077,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3219,6 +4097,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3264,6 +4151,15 @@ export interface operations {
                     "*/*": components["schemas"]["ErroRespostaDTO"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3275,6 +4171,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ErroRespostaDTO"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
