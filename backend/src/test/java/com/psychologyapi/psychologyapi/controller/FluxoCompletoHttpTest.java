@@ -44,7 +44,7 @@ class FluxoCompletoHttpTest {
         mockMvc.perform(post("/auth/registrar")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"nome":"Psicologa Beatriz","email":"%s","senha":"%s"}
+                        {"codigoConvite":"teste-1","aceiteTermos":true,"versaoTermos":"teste-1","nome":"Psicologa Beatriz","email":"%s","senha":"%s"}
                         """.formatted(email, senha)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.emailUsuario").value(email));
@@ -68,7 +68,7 @@ class FluxoCompletoHttpTest {
                 .header(HttpHeaders.AUTHORIZATION, bearer)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"nome":"Carlos Fluxo","telefone":"51999998888","email":"carlos@teste.com","dataNascimento":"1990-05-20"}
+                        {"aceiteTermos":true,"versaoTermos":"teste-1","nome":"Carlos Fluxo","telefone":"51999998888","email":"carlos@teste.com","dataNascimento":"1990-05-20"}
                         """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nome").value("Carlos Fluxo"))

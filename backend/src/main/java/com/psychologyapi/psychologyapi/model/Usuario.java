@@ -72,6 +72,12 @@ public class Usuario {
     @Column(name = "expediente_fim_usuario")
     private Integer expedienteFim;
 
+    @Column(name = "termos_versao_usuario", length = 20)
+    private String termosVersao;
+
+    @Column(name = "termos_aceitos_em_usuario")
+    private LocalDateTime termosAceitosEm;
+
     @Column(name = "created_at_usuario", nullable = false)
     private LocalDateTime createdAt;
 

@@ -15,6 +15,8 @@ public interface UsuarioMapper {
     @Mapping(target = "anotacoes", ignore = true)
     @Mapping(target = "consultas", ignore = true)
     @Mapping(target = "pacientes", ignore = true)
+    @Mapping(target = "termosVersao", ignore = true)
+    @Mapping(target = "termosAceitosEm", ignore = true)
     @Mapping(target = "nomeUsuario", source = "nome")
     @Mapping(target = "emailUsuario", source = "email")
     @Mapping(target = "senhaUsuario", source = "senha")

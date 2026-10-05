@@ -13,9 +13,14 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import jakarta.validation.ConstraintViolationException;
+
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroCampoDTO;
 import com.psychologyapi.psychologyapi.controller.dto.error.ErroRespostaDTO;
 import com.psychologyapi.psychologyapi.exceptions.AnotacaoNaoEncontradaException;
+import com.psychologyapi.psychologyapi.exceptions.CadastroIndisponivelException;
+import com.psychologyapi.psychologyapi.exceptions.ConviteInvalidoException;
+import com.psychologyapi.psychologyapi.exceptions.TermosDesatualizadosException;
 import com.psychologyapi.psychologyapi.exceptions.ConflitoDeHorarioException;
 import com.psychologyapi.psychologyapi.exceptions.BaixaInvalidaException;
 import com.psychologyapi.psychologyapi.exceptions.ConsultaNaoEncontradaException;
@@ -79,6 +84,37 @@ public class GlobalExceptionsHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Erro de validação",
                 listaErro);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErroRespostaDTO handleConstraintViolation(ConstraintViolationException e) {
+        List<ErroCampoDTO> listaErro = e.getConstraintViolations()
+                .stream()
+                .map(v -> new ErroCampoDTO(v.getPropertyPath().toString(), v.getMessage()))
+                .toList();
+        return new ErroRespostaDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "Erro de validação",
+                listaErro);
+    }
+
+    @ExceptionHandler(CadastroIndisponivelException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErroRespostaDTO handleCadastroIndisponivel(CadastroIndisponivelException e) {
+        return semCampos(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
+    @ExceptionHandler(ConviteInvalidoException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErroRespostaDTO handleConviteInvalido(ConviteInvalidoException e) {
+        return semCampos(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+
+    @ExceptionHandler(TermosDesatualizadosException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErroRespostaDTO handleTermosDesatualizados(TermosDesatualizadosException e) {
+        return semCampos(HttpStatus.CONFLICT, e.getMessage());
     }
 
     @ExceptionHandler(PacienteNaoEncontradoException.class)

@@ -60,7 +60,7 @@ class SenhaForteValidatorTest {
     @DisplayName("a anotacao esta ligada ao campo senha do DTO, nao so o algoritmo funciona")
     void anotacaoEstaLigadaNoDTO() {
         Set<ConstraintViolation<UsuarioCadastroDTO>> violacoes = validator.validate(
-                new UsuarioCadastroDTO("Marina Aguiar", "marina.wiring@example.com", "senha123456"));
+                new UsuarioCadastroDTO("Marina Aguiar", "marina.wiring@example.com", "senha123456", true, "teste-1", "teste-1"));
 
         // nome e e-mail sao validos, e a senha tem 11 caracteres e nao e branca,
         // entao @NotBlank e @Size passam: a unica violacao possivel e a @SenhaForte.
@@ -76,7 +76,7 @@ class SenhaForteValidatorTest {
     @DisplayName("senha incomum nao gera violacao nenhuma no DTO")
     void senhaIncomumNaoVioleNada() {
         Set<ConstraintViolation<UsuarioCadastroDTO>> violacoes = validator.validate(
-                new UsuarioCadastroDTO("Marina Aguiar", "marina.wiring@example.com", "carroca-azul-de-terca"));
+                new UsuarioCadastroDTO("Marina Aguiar", "marina.wiring@example.com", "carroca-azul-de-terca", true, "teste-1", "teste-1"));
 
         assertThat(violacoes).isEmpty();
     }

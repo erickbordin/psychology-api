@@ -37,7 +37,7 @@ class AuthControllerTest {
     void registrarResponde201() throws Exception {
         mockMvc.perform(post("/auth/registrar")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"nome\":\"Psicologa Ana\",\"email\":\"ana@teste.com\",\"senha\":\"senhaforte123\"}"))
+                .content("{\"codigoConvite\":\"teste-1\",\"aceiteTermos\":true,\"versaoTermos\":\"teste-1\",\"nome\":\"Psicologa Ana\",\"email\":\"ana@teste.com\",\"senha\":\"senhaforte123\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.emailUsuario").value("ana@teste.com"))
                 .andExpect(jsonPath("$.senhaUsuario").doesNotExist())
@@ -51,7 +51,7 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/auth/registrar")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"nome\":\"Psicologa Ana\",\"email\":\"ana@teste.com\",\"senha\":\"senhaforte123\"}"))
+                .content("{\"codigoConvite\":\"teste-1\",\"aceiteTermos\":true,\"versaoTermos\":\"teste-1\",\"nome\":\"Psicologa Ana\",\"email\":\"ana@teste.com\",\"senha\":\"senhaforte123\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.mensagem").isNotEmpty())
@@ -64,7 +64,7 @@ class AuthControllerTest {
     void registrarSemCampoResponde400() throws Exception {
         mockMvc.perform(post("/auth/registrar")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"ana@teste.com\"}"))
+                .content("{\"codigoConvite\":\"teste-1\",\"aceiteTermos\":true,\"versaoTermos\":\"teste-1\",\"email\":\"ana@teste.com\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erros[*].campo").value(org.hamcrest.Matchers.hasItems("nome", "senha")));
     }
@@ -75,7 +75,7 @@ class AuthControllerTest {
         for (String senha : new String[] { "Ab3-".repeat(16) + "x", "ã".repeat(40) }) {
             mockMvc.perform(post("/auth/registrar")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"nome\":\"Psicologa Ana\",\"email\":\"ana@teste.com\",\"senha\":\"" + senha + "\"}"))
+                    .content("{\"codigoConvite\":\"teste-1\",\"aceiteTermos\":true,\"versaoTermos\":\"teste-1\",\"nome\":\"Psicologa Ana\",\"email\":\"ana@teste.com\",\"senha\":\"" + senha + "\"}"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.erros[?(@.campo=='senha')].erro")
                             .value("A senha deve ter no máximo 64 caracteres."));
@@ -101,7 +101,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/registrar")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                         {"nome":"Marina Aguiar","email":"marina@example.com","senha":"a"}
+                         {"codigoConvite":"teste-1","aceiteTermos":true,"versaoTermos":"teste-1","nome":"Marina Aguiar","email":"marina@example.com","senha":"a"}
                          """))
                .andExpect(status().isBadRequest());
     }
@@ -112,12 +112,25 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/registrar")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                         {"nome":"Marina Aguiar","email":"marina.senhacomum@example.com","senha":"senha123456"}
+                         {"codigoConvite":"teste-1","aceiteTermos":true,"versaoTermos":"teste-1","nome":"Marina Aguiar","email":"marina.senhacomum@example.com","senha":"senha123456"}
                          """))
                .andExpect(status().isBadRequest())
                .andExpect(jsonPath("$.erros[*].campo").value(org.hamcrest.Matchers.hasItem("senha")))
                .andExpect(jsonPath("$.erros[*].erro")
                        .value(org.hamcrest.Matchers.hasItem("Essa senha é fácil de adivinhar. Escolha outra.")));
+    }
+
+    @Test
+    @DisplayName("POST /auth/registrar com senha fraca no caminho de validacao manual responde 400 com campo igual a senha")
+    void registrarComSenhaFracaApontaOCampoSenha() throws Exception {
+        mockMvc.perform(post("/auth/registrar")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                         {"codigoConvite":"teste-1","aceiteTermos":true,"versaoTermos":"teste-1","nome":"Marina Aguiar","email":"marina.fraca@example.com","senha":"senha123456"}
+                         """))
+               .andExpect(status().isBadRequest())
+               .andExpect(jsonPath("$.erros.length()").value(1))
+               .andExpect(jsonPath("$.erros[0].campo").value("senha"));
     }
 
     @Test

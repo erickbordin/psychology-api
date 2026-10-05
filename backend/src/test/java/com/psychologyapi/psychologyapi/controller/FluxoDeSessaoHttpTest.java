@@ -41,7 +41,7 @@ class FluxoDeSessaoHttpTest {
     void fluxoCompletoDeSessao() throws Exception {
         mockMvc.perform(post("/auth/registrar")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"nome\":\"Ana Sessao\",\"email\":\"sessao@teste.com\",\"senha\":\"senhaforte123\"}"))
+                .content("{\"codigoConvite\":\"teste-1\",\"aceiteTermos\":true,\"versaoTermos\":\"teste-1\",\"nome\":\"Ana Sessao\",\"email\":\"sessao@teste.com\",\"senha\":\"senhaforte123\"}"))
                 .andExpect(status().isCreated());
 
         MvcResult login = mockMvc.perform(post("/auth/login")

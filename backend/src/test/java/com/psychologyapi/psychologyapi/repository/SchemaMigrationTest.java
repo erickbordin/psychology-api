@@ -335,6 +335,37 @@ class SchemaMigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    @DisplayName("usuario guarda a versao e o momento do aceite dos termos (fatia 5A)")
+    void usuarioTemColunasDeTermos() {
+        assertThat(existeColuna("usuario", "termos_versao_usuario")).isTrue();
+        assertThat(colunaEAnulavel("usuario", "termos_versao_usuario")).isTrue();
+        assertThat(existeColuna("usuario", "termos_aceitos_em_usuario")).isTrue();
+        assertThat(colunaEAnulavel("usuario", "termos_aceitos_em_usuario")).isTrue();
+    }
+
+    @Test
+    @DisplayName("convite_usado guarda so o hash do codigo, preso a um usuario (fatia 5A)")
+    void conviteUsadoExiste() {
+        assertThat(existeTabela("convite_usado")).isTrue();
+        assertThat(existeColuna("convite_usado", "id_convite")).isTrue();
+        assertThat(existeColuna("convite_usado", "hash_convite")).isTrue();
+        assertThat(existeColuna("convite_usado", "id_usuario")).isTrue();
+        assertThat(existeColuna("convite_usado", "usado_em_convite")).isTrue();
+        assertThat(existeColuna("convite_usado", "codigo_convite")).isFalse();
+    }
+
+    @Test
+    @DisplayName("o mesmo hash de convite nao entra duas vezes")
+    void hashDeConviteEUnico() {
+        UUID usuario = inserirUsuario("psicologo.g@teste.com");
+        String sql = "INSERT INTO convite_usado (id_convite, hash_convite, id_usuario, usado_em_convite) VALUES (?, ?, ?, now())";
+        jdbcTemplate.update(sql, UUID.randomUUID(), "a".repeat(64), usuario);
+
+        assertThatThrownBy(() -> jdbcTemplate.update(sql, UUID.randomUUID(), "a".repeat(64), usuario))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     private boolean existeTabela(String tabela) {
         Integer total = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM information_schema.tables WHERE table_name = ?",

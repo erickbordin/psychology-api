@@ -26,7 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest(properties = {
         "JWT_SECRET=c2VncmVkb2RldGVzdGVjb21wcmlkb29zdWZpY2llbnRlcGFyYWhtYWNzaGEyNTY=",
-        "app.avisos.habilitado=false"
+        "app.avisos.habilitado=false",
+        "app.termos.diretorio=classpath:termos-teste/",
+        "app.cadastro.convites=teste-1,teste-2,teste-3,teste-4,teste-5",
+        "app.limite.por-minuto=100000"
 })
 @Import({PostgresContainerConfig.class, CarteiroDeTeste.class})
 @AutoConfigureMockMvc

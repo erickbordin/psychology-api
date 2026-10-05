@@ -60,6 +60,8 @@ public class SecurityConfiguration {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/descadastro/**").permitAll()
+                    .requestMatchers("/saude").permitAll()
+                    .requestMatchers("/termos/**").permitAll()
                     // contrato OpenAPI: o front gera os tipos a partir dele, e
                     // tipo gerado e o que impede front e API divergirem em
                     // silencio. Nao expoe dado — so caminhos e formatos.
