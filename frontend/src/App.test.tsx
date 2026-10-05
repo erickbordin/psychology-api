@@ -16,6 +16,7 @@ describe('esqueleto', () => {
         value={{
           usuario: { email: 'psicologa@exemplo.com' },
           carregando: false,
+          restaurando: false,
           entrar: async () => {},
           sair: async () => {},
         }}

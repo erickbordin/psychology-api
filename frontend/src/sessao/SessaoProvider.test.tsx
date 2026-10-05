@@ -1,9 +1,11 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { StrictMode } from 'react'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { definirToken } from '../api/cliente'
+import { api, definirToken } from '../api/cliente'
 import { clienteDeTeste, renderizar } from '../teste/renderizar'
 import { servidor } from '../teste/servidor'
 import { SessaoProvider } from './SessaoProvider'
@@ -150,5 +152,125 @@ describe('SessaoProvider', () => {
 
     expect(await screen.findByText('sem sessao')).toBeInTheDocument()
     expect(cliente.getQueryCache().getAll().length).toBe(0)
+  })
+
+  describe('restauracao no boot', () => {
+    function Restauracao() {
+      const { usuario, restaurando } = useSessao()
+      return (
+        <div>
+          <p>{restaurando ? 'restaurando' : 'restaurada'}</p>
+          <p>{usuario ? usuario.email : 'sem sessao'}</p>
+        </div>
+      )
+    }
+
+    it('refresh 200 devolve o usuario sem passar pelo login', async () => {
+      servidor.use(
+        http.post('/auth/refresh', () =>
+          HttpResponse.json({ token: tokenFalso('psicologa@exemplo.com') }),
+        ),
+      )
+
+      renderizar(
+        <SessaoProvider>
+          <Restauracao />
+        </SessaoProvider>,
+      )
+
+      expect(screen.getByText('restaurando')).toBeInTheDocument()
+      expect(await screen.findByText('psicologa@exemplo.com')).toBeInTheDocument()
+      expect(screen.getByText('restaurada')).toBeInTheDocument()
+    })
+
+    it('refresh 401 termina a restauracao sem usuario', async () => {
+      servidor.use(http.post('/auth/refresh', () => new HttpResponse(null, { status: 401 })))
+
+      renderizar(
+        <SessaoProvider>
+          <Restauracao />
+        </SessaoProvider>,
+      )
+
+      expect(await screen.findByText('restaurada')).toBeInTheDocument()
+      expect(screen.getByText('sem sessao')).toBeInTheDocument()
+    })
+
+    it('manda um unico refresh no boot', async () => {
+      let refreshes = 0
+      servidor.use(
+        http.post('/auth/refresh', () => {
+          refreshes++
+          return new HttpResponse(null, { status: 401 })
+        }),
+      )
+
+      renderizar(
+        <StrictMode>
+          <SessaoProvider>
+            <Restauracao />
+          </SessaoProvider>
+        </StrictMode>,
+      )
+
+      await screen.findByText('restaurada')
+      expect(refreshes).toBe(1)
+    })
+  })
+
+  describe('sessao que expira no meio do uso', () => {
+    function Origem() {
+      const { usuario, restaurando } = useSessao()
+      if (restaurando) return <p>restaurando</p>
+      return (
+        <button onClick={() => api('/painel/hoje').catch(() => undefined)}>
+          {usuario?.email ?? 'sem sessao'}
+        </button>
+      )
+    }
+
+    function Entrar() {
+      const estado = useLocation().state as { expirou?: boolean; de?: { pathname: string } } | null
+      return (
+        <p>
+          entrar expirou={String(estado?.expirou)} de={estado?.de?.pathname}
+        </p>
+      )
+    }
+
+    it('limpa usuario e cache e vai para /entrar guardando a origem', async () => {
+      const ator = userEvent.setup()
+      const cliente = clienteDeTeste()
+      cliente.setQueryData(['pacientes'], [{ id: 1 }])
+      let refreshes = 0
+      servidor.use(
+        http.post('/auth/refresh', () =>
+          refreshes++ === 0
+            ? HttpResponse.json({ token: tokenFalso('psicologa@exemplo.com') })
+            : new HttpResponse(null, { status: 401 }),
+        ),
+        http.get('/painel/hoje', () =>
+          HttpResponse.json(
+            { status: 401, mensagem: 'Sessao expirada.', erros: [] },
+            { status: 401 },
+          ),
+        ),
+      )
+
+      renderizar(
+        <SessaoProvider>
+          <Routes>
+            <Route path="/entrar" element={<Entrar />} />
+            <Route path="/pacientes" element={<Origem />} />
+          </Routes>
+        </SessaoProvider>,
+        { rota: '/pacientes', cliente },
+      )
+
+      await ator.click(await screen.findByText('psicologa@exemplo.com'))
+
+      expect(await screen.findByText('entrar expirou=true de=/pacientes')).toBeInTheDocument()
+      expect(cliente.getQueryCache().getAll().length).toBe(0)
+    })
   })
 })

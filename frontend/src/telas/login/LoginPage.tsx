@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { ResumoDeErros } from '../../formulario/ResumoDeErros'
 import { useFormularioDoProduto } from '../../formulario/useFormularioDoProduto'
@@ -10,16 +10,23 @@ import { esquemaDoLogin } from './esquema'
 export function LoginPage() {
   const { entrar } = useSessao()
   const navegar = useNavigate()
+  const estado = useLocation().state as { expirou?: boolean; de?: { pathname: string } } | null
 
   const f = useFormularioDoProduto(esquemaDoLogin, async (valores) => {
     await entrar(valores)
-    navegar('/', { replace: true })
+    navegar(estado?.de?.pathname ?? '/', { replace: true })
   })
 
   return (
     <main className="tela tela-login">
       <div className="cartao cartao-login">
         <h1>Entrar</h1>
+
+        {estado?.expirou && (
+          <p className="anuncio" role="status">
+            Sua sessão expirou. Entre novamente.
+          </p>
+        )}
 
         <form onSubmit={f.handleSubmit(f.enviar)} noValidate>
           <ResumoDeErros erros={f.formState.errors} />
@@ -54,6 +61,10 @@ export function LoginPage() {
             {f.enviando ? 'Entrando…' : 'Entrar'}
           </Botao>
         </form>
+
+        <p className="ligacao-auxiliar">
+          <Link to="/cadastro">Criar conta</Link>
+        </p>
       </div>
     </main>
   )

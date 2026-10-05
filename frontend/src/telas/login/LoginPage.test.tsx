@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useNavigate } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
 import { api } from '../../api/cliente'
@@ -131,11 +131,70 @@ describe('login', () => {
     await waitFor(() => expect(autorizacao).toBe(`Bearer ${jwt}`))
   })
 
+  it('Criar conta leva para o cadastro', async () => {
+    renderizarLogin()
+
+    expect(screen.getByRole('link', { name: 'Criar conta' })).toHaveAttribute('href', '/cadastro')
+  })
+
   it('a senha nao aparece na tela', async () => {
     const usuario = userEvent.setup()
     renderizarLogin()
 
     await usuario.type(screen.getByLabelText(/senha/i), 'segredo')
     expect(screen.getByLabelText(/senha/i)).toHaveAttribute('type', 'password')
+  })
+
+  describe('sessao expirada', () => {
+    function IrParaEntrarExpirado() {
+      const navegar = useNavigate()
+      useEffect(() => {
+        navegar('/entrar', { state: { expirou: true, de: { pathname: '/pacientes' } } })
+      }, [navegar])
+      return null
+    }
+
+    function rotas() {
+      return (
+        <SessaoProvider>
+          <Routes>
+            <Route path="/" element={<IrParaEntrarExpirado />} />
+            <Route path="/entrar" element={<LoginPage />} />
+            <Route path="/pacientes" element={<p>Pacientes</p>} />
+          </Routes>
+        </SessaoProvider>
+      )
+    }
+
+    it('avisa que a sessao expirou', async () => {
+      renderizar(rotas())
+
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        'Sua sessão expirou. Entre novamente.',
+      )
+    })
+
+    it('nao mostra o aviso quando nao expirou', () => {
+      renderizarLogin()
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('depois de entrar volta para a rota em que estava', async () => {
+      const jwt = [
+        'eyJhbGciOiJIUzI1NiJ9',
+        btoa(JSON.stringify({ sub: 'marina@example.com' })).replace(/=+$/, ''),
+        'assinatura',
+      ].join('.')
+      servidor.use(http.post('/auth/login', () => HttpResponse.json({ token: jwt })))
+      const usuario = userEvent.setup()
+      renderizar(rotas())
+
+      await usuario.type(await screen.findByLabelText(/e-mail/i), 'marina@example.com')
+      await usuario.type(screen.getByLabelText(/senha/i), 'uma-senha-comprida-o-bastante')
+      await usuario.click(screen.getByRole('button', { name: /entrar/i }))
+
+      expect(await screen.findByText('Pacientes')).toBeInTheDocument()
+    })
   })
 })

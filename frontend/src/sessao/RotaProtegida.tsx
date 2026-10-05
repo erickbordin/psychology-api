@@ -1,12 +1,16 @@
 import type { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 
 import { useSessao } from './useSessao'
 
 export function RotaProtegida({ children }: { children: ReactNode }) {
-  const { usuario } = useSessao()
+  const { usuario, restaurando } = useSessao()
+  const localizacao = useLocation()
+  if (restaurando) {
+    return <p>Carregando…</p>
+  }
   if (!usuario) {
-    return <Navigate to="/entrar" replace />
+    return <Navigate to="/entrar" replace state={{ de: localizacao }} />
   }
   return <>{children}</>
 }

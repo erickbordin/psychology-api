@@ -10,19 +10,63 @@ const ERRO_SEM_ENVELOPE = 'Nao foi possivel completar a acao. Tente de novo.'
  * `POST /auth/login` devolve `{ token }` no CORPO, e o filtro do backend le
  * `Authorization: Bearer <token>`. Sem este header, toda chamada autenticada
  * responde 401, e o sintoma parece problema de sessao e nao de cliente.
- *
- * Em memoria significa que recarregar a aba perde o token — e o `/auth/refresh`
- * com o cookie httpOnly que resolve isso. Esse fluxo NAO esta nesta fatia
- * (ver "O que este plano NAO faz"): por enquanto, recarregar leva ao login.
  */
 let tokenDeAcesso: string | null = null
+
+const BASE = import.meta.env.VITE_API_URL ?? ''
+
+const SEM_RENOVACAO = ['/auth/', '/descadastro/', '/termos/']
+
+type ResultadoDaRenovacao = { token: string } | 'recusada' | 'indisponivel'
+
+let renovacao: Promise<ResultadoDaRenovacao> | null = null
+let expiracaoNotificada = false
+let aoExpirarSessao: (() => void) | null = null
 
 export function definirToken(token: string | null) {
   tokenDeAcesso = token
 }
 
-export async function api<T>(caminho: string, opcoes: RequestInit = {}): Promise<T> {
-  const resposta = await fetch(caminho, {
+export function aoExpirar(funcao: (() => void) | null) {
+  aoExpirarSessao = funcao
+}
+
+async function renovar(): Promise<ResultadoDaRenovacao> {
+  expiracaoNotificada = false
+  try {
+    const resposta = await fetch(BASE + '/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (resposta.status === 401 || resposta.status === 403) {
+      definirToken(null)
+      return 'recusada'
+    }
+    if (!resposta.ok) {
+      return 'indisponivel'
+    }
+    const { token } = (await resposta.json()) as { token: string }
+    definirToken(token)
+    return { token }
+  } catch {
+    return 'indisponivel'
+  } finally {
+    renovacao = null
+  }
+}
+
+function iniciarRenovacao(): Promise<ResultadoDaRenovacao> {
+  renovacao ??= renovar()
+  return renovacao
+}
+
+export async function renovarSessao(): Promise<string | null> {
+  const resultado = await iniciarRenovacao()
+  return typeof resultado === 'object' ? resultado.token : null
+}
+
+function executar(caminho: string, opcoes: RequestInit): Promise<Response> {
+  return fetch(BASE + caminho, {
     ...opcoes,
     // o refresh vem em cookie httpOnly: sem isto ele nao acompanha a chamada
     credentials: 'include',
@@ -32,6 +76,25 @@ export async function api<T>(caminho: string, opcoes: RequestInit = {}): Promise
       ...opcoes.headers,
     },
   })
+}
+
+export async function api<T>(caminho: string, opcoes: RequestInit = {}): Promise<T> {
+  const tokenEnviado = tokenDeAcesso
+  let resposta = await executar(caminho, opcoes)
+
+  if (resposta.status === 401 && !SEM_RENOVACAO.some((prefixo) => caminho.startsWith(prefixo))) {
+    if (tokenDeAcesso && tokenDeAcesso !== tokenEnviado) {
+      resposta = await executar(caminho, opcoes)
+    } else {
+      const resultado = await iniciarRenovacao()
+      if (typeof resultado === 'object') {
+        resposta = await executar(caminho, opcoes)
+      } else if (resultado === 'recusada' && !expiracaoNotificada) {
+        expiracaoNotificada = true
+        aoExpirarSessao?.()
+      }
+    }
+  }
 
   if (!resposta.ok) {
     throw await lerErro(resposta)

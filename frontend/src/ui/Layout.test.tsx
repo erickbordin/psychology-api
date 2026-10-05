@@ -1,9 +1,10 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
+import { RotaProtegida } from '../sessao/RotaProtegida'
 import { SessaoProvider } from '../sessao/SessaoProvider'
 import { renderizar } from '../teste/renderizar'
 import { servidor } from '../teste/servidor'
@@ -43,6 +44,44 @@ describe('Layout', () => {
     expect(await screen.findByText('Entrar')).toBeInTheDocument()
     expect(screen.queryByText('conteudo protegido')).not.toBeInTheDocument()
     expect(logoutChamado).toBe(true)
+  })
+
+  it('Sair leva a /entrar sem guardar a pagina de origem para o proximo login', async () => {
+    const corpo = btoa(JSON.stringify({ sub: 'psicologa@exemplo.com' }))
+    servidor.use(
+      http.post('/auth/refresh', () => HttpResponse.json({ token: `${btoa('{}')}.${corpo}.assinatura` })),
+      http.post('/auth/logout', () => new HttpResponse(null, { status: 204 })),
+    )
+
+    function Entrar() {
+      const { state } = useLocation()
+      return <p>{state?.de ? `volta para ${state.de.pathname}` : 'sem origem'}</p>
+    }
+
+    const usuario = userEvent.setup()
+    renderizar(
+      <SessaoProvider>
+        <Routes>
+          <Route path="/entrar" element={<Entrar />} />
+          <Route
+            path="/"
+            element={
+              <RotaProtegida>
+                <Layout />
+              </RotaProtegida>
+            }
+          >
+            <Route path="ajustes" element={<p>tela de ajustes</p>} />
+          </Route>
+        </Routes>
+      </SessaoProvider>,
+      { rota: '/ajustes' },
+    )
+
+    await screen.findByText('tela de ajustes')
+    await usuario.click(screen.getByRole('button', { name: /sair/i }))
+
+    expect(await screen.findByText('sem origem')).toBeInTheDocument()
   })
 
   it('o controle de privacidade vive no shell, alcancavel de qualquer tela', async () => {

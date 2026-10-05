@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { createContext, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
-import { api, definirToken } from '../api/cliente'
+import { aoExpirar, api, definirToken, renovarSessao } from '../api/cliente'
 
 /**
  * So o e-mail: **nao existe rota que devolva o usuario logado** — conferido,
@@ -32,6 +33,7 @@ function emailDoToken(token: string): string | undefined {
 export type Sessao = {
   usuario: Usuario | null
   carregando: boolean
+  restaurando: boolean
   entrar: (dto: { emailUsuario: string; senha: string }) => Promise<void>
   sair: () => Promise<void>
 }
@@ -47,7 +49,37 @@ export const ContextoDaSessao = createContext<Sessao | null>(null)
 export function SessaoProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [carregando, setCarregando] = useState(false)
+  const [restaurando, setRestaurando] = useState(true)
   const cliente = useQueryClient()
+  const navegar = useNavigate()
+  const localizacao = useLocation()
+  const localizacaoAtual = useRef(localizacao)
+  localizacaoAtual.current = localizacao
+
+  useEffect(() => {
+    let ativo = true
+    renovarSessao().then((token) => {
+      if (!ativo) return
+      if (token) setUsuario({ email: emailDoToken(token) ?? '' })
+      setRestaurando(false)
+    })
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  useEffect(() => {
+    aoExpirar(() => {
+      definirToken(null)
+      setUsuario(null)
+      cliente.clear()
+      navegar('/entrar', {
+        replace: true,
+        state: { expirou: true, de: localizacaoAtual.current },
+      })
+    })
+    return () => aoExpirar(null)
+  }, [cliente, navegar])
 
   const entrar = useCallback(async (dto: { emailUsuario: string; senha: string }) => {
     setCarregando(true)
@@ -91,8 +123,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }, [cliente])
 
   const valor = useMemo(
-    () => ({ usuario, carregando, entrar, sair }),
-    [usuario, carregando, entrar, sair],
+    () => ({ usuario, carregando, restaurando, entrar, sair }),
+    [usuario, carregando, restaurando, entrar, sair],
   )
 
   return <ContextoDaSessao.Provider value={valor}>{children}</ContextoDaSessao.Provider>

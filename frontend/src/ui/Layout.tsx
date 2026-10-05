@@ -19,8 +19,8 @@ export function Layout() {
   const navegar = useNavigate()
 
   async function aoSair() {
-    await sair()
     navegar('/entrar', { replace: true })
+    await sair()
   }
 
   return (
