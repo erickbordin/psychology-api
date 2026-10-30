@@ -1,4 +1,4 @@
-# psychology-api
+# psych
 
 Sistema de gestão de consultório para psicólogos autônomos. Monorepo com as duas
 aplicações que compõem o produto: uma API REST em Java 21 + Spring Boot e um
@@ -292,7 +292,7 @@ A tabela completa do lado do web, com mais casos, está em
 ## Layout
 
 ```
-psychology-api/
+psych/
 ├── backend/     API REST — Java 21, Spring Boot, PostgreSQL, Flyway
 ├── frontend/    Interface do psicólogo — React 19, TypeScript, Vite, Tailwind
 ├── docs/        Specs e planos de implementação das duas pontas
